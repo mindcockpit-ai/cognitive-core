@@ -18,7 +18,7 @@ White-labeled, language-agnostic DDD patterns. All examples follow the same arch
                                     │
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                      BACKEND (Language Agnostic)                            │
-│              Perl, Java, Python, C#, Node.js                                │
+│              Python, Java, C#, TypeScript, and more                         │
 │                    Domain-Driven Design                                     │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -26,19 +26,29 @@ White-labeled, language-agnostic DDD patterns. All examples follow the same arch
                                     │
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                      DATA (Database Agnostic)                               │
-│                  Oracle, PostgreSQL, SQL Server                             │
+│                  PostgreSQL, Oracle, SQL Server                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Backend Examples
+### Backend Examples (by popularity)
+
+| Language | Framework | Example | Status |
+|----------|-----------|---------|--------|
+| **Python** | FastAPI | [architecture/python-fastapi/](./architecture/python-fastapi/) | ✅ Ready |
+| **Java** | Spring Boot | [architecture/java-spring/](./architecture/java-spring/) | ✅ Ready |
+| **C#** | .NET Core | [architecture/csharp-dotnet/](./architecture/csharp-dotnet/) | ✅ Ready |
+| **TypeScript** | NestJS | [architecture/nodejs-nestjs/](./architecture/nodejs-nestjs/) | ✅ Ready |
+
+<details>
+<summary>Additional Languages</summary>
 
 | Language | Framework | Example | Status |
 |----------|-----------|---------|--------|
 | **Perl** | Moose/Dancer2 | [architecture/perl-ddd/](./architecture/perl-ddd/) | ✅ Ready |
-| **Java** | Spring Boot | [architecture/java-spring/](./architecture/java-spring/) | ✅ Ready |
-| **Python** | FastAPI | [architecture/python-fastapi/](./architecture/python-fastapi/) | ✅ Ready |
-| **C#** | .NET Core | [architecture/csharp-dotnet/](./architecture/csharp-dotnet/) | ✅ Ready |
-| **Node.js** | NestJS | [architecture/nodejs-nestjs/](./architecture/nodejs-nestjs/) | ✅ Ready |
+| **Go** | Gin/Echo | Planned | 🚧 |
+| **Rust** | Actix/Axum | Planned | 🚧 |
+
+</details>
 
 ### Frontend Examples
 

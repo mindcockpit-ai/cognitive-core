@@ -20,7 +20,7 @@ White-labeled, language-agnostic architecture patterns for building enterprise a
 │                                    │                                        │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │                      BACKEND LAYER                                   │   │
-│  │     (Perl, Java, Python, C#, Node.js - Language Agnostic)           │   │
+│  │     (Python, Java, C#, TypeScript - Language Agnostic)              │   │
 │  │                                                                       │   │
 │  │     Domain-Driven Design Architecture                                │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
@@ -44,14 +44,21 @@ White-labeled, language-agnostic architecture patterns for building enterprise a
 
 ## Available Examples
 
-| Language | Framework | Example |
-|----------|-----------|---------|
-| **Perl** | Moose/Dancer2 | [perl-ddd/](./perl-ddd/) |
-| **Java** | Spring Boot | [java-spring/](./java-spring/) |
-| **Python** | FastAPI | [python-fastapi/](./python-fastapi/) |
-| **C#** | .NET Core | [csharp-dotnet/](./csharp-dotnet/) |
-| **Node.js** | NestJS | [nodejs-nestjs/](./nodejs-nestjs/) |
-| **Frontend** | Angular | [angular-ui/](./angular-ui/) |
+### Backend (ordered by popularity)
+
+| Language | Framework | Example | AI/ML Ready |
+|----------|-----------|---------|-------------|
+| **Python** | FastAPI | [python-fastapi/](./python-fastapi/) | ✅ Primary |
+| **Java** | Spring Boot | [java-spring/](./java-spring/) | ✅ Enterprise |
+| **C#** | .NET Core | [csharp-dotnet/](./csharp-dotnet/) | ✅ Semantic Kernel |
+| **TypeScript** | NestJS | [nodejs-nestjs/](./nodejs-nestjs/) | ✅ LangChain.js |
+| **Perl** | Moose/Dancer2 | [perl-ddd/](./perl-ddd/) | Legacy |
+
+### Frontend
+
+| Framework | Example |
+|-----------|---------|
+| **Angular** | [angular-ui/](./angular-ui/) |
 
 ## Common Architecture
 
