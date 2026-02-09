@@ -1,37 +1,92 @@
 # Examples
 
-This directory contains reference implementations demonstrating how to apply the cognitive-core skill architecture to real-world projects.
+Reference implementations demonstrating how to apply cognitive-core skill architecture to real-world projects.
 
-## Available Examples
+## Architecture Examples
 
-### perl-webapp
+White-labeled, language-agnostic DDD patterns. All examples follow the same architecture, demonstrating that **the same patterns work across any technology stack**.
 
-A generic Perl/Moose web application example showing:
-- Cellular skills for Perl patterns
-- Oracle database patterns
-- DDD architecture compliance
-- Fitness function integration
+### Core Philosophy
 
-### nodejs-api
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         UI (Framework Agnostic)                             │
+│                    Angular, React, Vue, Svelte                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                              REST API
+                                    │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      BACKEND (Language Agnostic)                            │
+│              Perl, Java, Python, C#, Node.js                                │
+│                    Domain-Driven Design                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                               Database
+                                    │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      DATA (Database Agnostic)                               │
+│                  Oracle, PostgreSQL, SQL Server                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
-(Planned) A Node.js API example showing:
-- TypeScript patterns
-- REST API conventions
-- Testing integration
+### Backend Examples
 
-### python-ml
+| Language | Framework | Example | Status |
+|----------|-----------|---------|--------|
+| **Perl** | Moose/Dancer2 | [architecture/perl-ddd/](./architecture/perl-ddd/) | ✅ Ready |
+| **Java** | Spring Boot | [architecture/java-spring/](./architecture/java-spring/) | ✅ Ready |
+| **Python** | FastAPI | [architecture/python-fastapi/](./architecture/python-fastapi/) | ✅ Ready |
+| **C#** | .NET Core | [architecture/csharp-dotnet/](./architecture/csharp-dotnet/) | ✅ Ready |
+| **Node.js** | NestJS | [architecture/nodejs-nestjs/](./architecture/nodejs-nestjs/) | ✅ Ready |
 
-(Planned) A Python ML project example showing:
-- Data science patterns
-- Model validation
-- Experiment tracking
+### Frontend Examples
+
+| Framework | Example | Status |
+|-----------|---------|--------|
+| **Angular** | [architecture/angular-ui/](./architecture/angular-ui/) | ✅ Ready |
+| **React** | Planned | 🚧 |
+| **Vue** | Planned | 🚧 |
+
+## Common DDD Layer Structure
+
+All examples follow the same layer architecture:
+
+```
+src/
+├── Domain/          # Business entities, value objects (pure logic)
+├── Repository/      # Data access abstraction
+├── Service/         # Business logic orchestration
+├── Mapper/          # DTO ↔ Domain transformations
+├── Controller/      # REST API endpoints
+└── Infrastructure/  # Cross-cutting concerns
+```
+
+### Layer Dependencies
+
+```
+                 Domain  Repo  Mapper  Service  Controller
+Domain             -      ✗      ✗        ✗         ✗
+Repository         ✓      -      ✗        ✗         ✗
+Mapper             ✓      ✗      -        ✗         ✗
+Service            ✓      ✓      ✓        -         ✗
+Controller         ✓      ✗      ✓        ✓         -
+```
+
+## Key Principles
+
+1. **UI Independence** - Frontend connects via REST API only
+2. **Backend Flexibility** - Same patterns work in any language
+3. **Database Abstraction** - ORM isolates database specifics
+4. **Domain Purity** - Business logic has no infrastructure dependencies
+5. **DTO Boundary** - Never expose domain entities directly
 
 ## Contributing Examples
 
-Want to contribute an example? See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
+Want to contribute? See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-Examples should:
-1. Be generic (no proprietary/confidential code)
-2. Demonstrate real patterns
-3. Include complete skill implementations
-4. Document lessons learned
+Requirements:
+1. **Generic** - No proprietary or confidential code
+2. **White-labeled** - No client-specific references
+3. **Complete** - Include all DDD layers
+4. **Documented** - Explain patterns and anti-patterns
