@@ -1,0 +1,268 @@
+# Universal Skill Format Specification
+# Version: 1.0.0
+#
+# This YAML format defines skills in a vendor-agnostic way.
+# Adapters translate this format to provider-specific implementations.
+
+# =============================================================================
+# SKILL METADATA
+# =============================================================================
+
+name: string                    # Unique skill identifier (kebab-case)
+version: string                 # Semantic version (e.g., "1.0.0")
+description: string             # Human-readable description
+category: enum                  # atomic | molecular | cellular | organism
+extends: string                 # Optional: parent skill to inherit from
+                               # Format: "global:skill-name" or "local:skill-name"
+
+# =============================================================================
+# INPUTS
+# =============================================================================
+
+inputs:
+  - name: string               # Parameter name
+    type: string               # Type: string | number | boolean | file | directory | enum[values]
+    required: boolean          # Is this parameter required?
+    default: any               # Default value if not provided
+    description: string        # Human-readable description
+    validation: string         # Optional: regex or validation rule
+
+# =============================================================================
+# CAPABILITIES
+# =============================================================================
+
+capabilities:                   # List of required capabilities
+  - file_read                  # Read files from filesystem
+  - file_write                 # Write/modify files
+  - file_search                # Search file contents (grep)
+  - file_glob                  # Find files by pattern (glob)
+  - shell_execute              # Execute shell commands
+  - web_fetch                  # Fetch web content
+  - web_search                 # Search the web
+  - human_interaction          # Ask user questions
+
+# =============================================================================
+# FITNESS (Quality Metrics)
+# =============================================================================
+
+fitness:
+  categories:
+    security: number           # Weight 0.0-1.0
+    architecture: number       # Weight 0.0-1.0
+    quality: number            # Weight 0.0-1.0
+    performance: number        # Weight 0.0-1.0
+
+  thresholds:
+    minimum: number            # Minimum acceptable score (0.0-1.0)
+    target: number             # Target score for "fit" status
+
+# =============================================================================
+# OUTPUTS
+# =============================================================================
+
+outputs:
+  - name: string               # Output name
+    type: string               # report | score | file | structured
+    format: string             # markdown | json | yaml | text
+    description: string        # Human-readable description
+
+# =============================================================================
+# WORKFLOW (for molecular/cellular/organism skills)
+# =============================================================================
+
+workflow:
+  steps:
+    - name: string             # Step name
+      skill: string            # Skill to invoke (or "inline" for direct action)
+      inputs: object           # Input mapping
+      condition: string        # Optional: condition for execution
+      on_failure: string       # continue | abort | retry
+
+# =============================================================================
+# ADAPTER HINTS
+# =============================================================================
+
+adapters:
+  claude:
+    allowed-tools: list        # Tools allowed for Claude Code
+    argument-hint: string      # Hint shown to user
+
+  openai:
+    function_name: string      # OpenAI function calling name
+    parameters: object         # JSON Schema for parameters
+
+  ollama:
+    model_hint: string         # Suggested model for this skill
+    context_length: number     # Minimum context needed
+
+# =============================================================================
+# EXAMPLES
+# =============================================================================
+
+examples:
+  - description: string        # What this example demonstrates
+    input: object              # Example input values
+    expected_output: string    # Expected output (summary)
+
+# =============================================================================
+# FULL EXAMPLE: validate skill (atomic)
+# =============================================================================
+
+---
+name: validate
+version: 1.0.0
+description: Universal input validation with multiple validators
+category: atomic
+
+inputs:
+  - name: type
+    type: enum[email|url|path|json|yaml|code]
+    required: true
+    description: Type of validation to perform
+
+  - name: value
+    type: string
+    required: true
+    description: Value to validate
+
+  - name: strict
+    type: boolean
+    required: false
+    default: false
+    description: Enable strict validation mode
+
+capabilities:
+  - file_read    # For validating file contents
+
+fitness:
+  categories:
+    security: 0.4
+    quality: 0.6
+  thresholds:
+    minimum: 0.8
+    target: 1.0
+
+outputs:
+  - name: result
+    type: structured
+    format: json
+    description: Validation result with details
+
+adapters:
+  claude:
+    allowed-tools: Read
+    argument-hint: "[type] [value]"
+
+  openai:
+    function_name: validate_input
+    parameters:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [email, url, path, json, yaml, code]
+        value:
+          type: string
+        strict:
+          type: boolean
+      required: [type, value]
+
+examples:
+  - description: Validate email address
+    input:
+      type: email
+      value: "user@example.com"
+    expected_output: "{ valid: true, normalized: 'user@example.com' }"
+
+  - description: Validate file path
+    input:
+      type: path
+      value: "/etc/passwd"
+      strict: true
+    expected_output: "{ valid: true, exists: true, type: 'file' }"
+
+# =============================================================================
+# FULL EXAMPLE: code-review skill (molecular)
+# =============================================================================
+
+---
+name: code-review
+version: 1.0.0
+description: Comprehensive code review with fitness evaluation
+category: molecular
+extends: global:check-pattern
+
+inputs:
+  - name: target
+    type: file|directory
+    required: true
+    description: File or directory to review
+
+  - name: depth
+    type: enum[quick|standard|deep]
+    required: false
+    default: standard
+    description: Review depth level
+
+capabilities:
+  - file_read
+  - file_search
+  - file_glob
+
+fitness:
+  categories:
+    security: 0.25
+    architecture: 0.25
+    quality: 0.25
+    performance: 0.25
+  thresholds:
+    minimum: 0.7
+    target: 0.9
+
+outputs:
+  - name: report
+    type: report
+    format: markdown
+    description: Detailed review findings
+
+  - name: score
+    type: score
+    format: json
+    description: Fitness scores by category
+
+workflow:
+  steps:
+    - name: analyze-structure
+      skill: extract
+      inputs:
+        target: "{{ inputs.target }}"
+        elements: [functions, classes, imports]
+
+    - name: check-patterns
+      skill: check-pattern
+      inputs:
+        target: "{{ inputs.target }}"
+        patterns: [security, architecture, quality]
+
+    - name: search-antipatterns
+      skill: search
+      inputs:
+        target: "{{ inputs.target }}"
+        patterns: "{{ config.antipatterns }}"
+
+    - name: generate-report
+      skill: inline
+      inputs:
+        findings: "{{ steps.*.output }}"
+
+adapters:
+  claude:
+    allowed-tools: Read, Grep, Glob
+    argument-hint: "[file-or-directory] [--depth=quick|standard|deep]"
+
+examples:
+  - description: Quick review of single file
+    input:
+      target: "src/auth.js"
+      depth: quick
+    expected_output: "Security: 0.9, Quality: 0.8, Overall: 0.85"
