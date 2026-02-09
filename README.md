@@ -41,7 +41,7 @@ Write skills once in universal YAML, run on Claude, OpenAI, Ollama, or any futur
 │           ▲               /implement-feature, /migrate-legacy               │
 │           │                                                                 │
 │  LEVEL 3: CELLULAR        Domain-specific combinations                      │
-│           ▲               /perl-patterns, /oracle-patterns                  │
+│           ▲               /python-patterns, /spring-patterns                │
 │           │                                                                 │
 │  LEVEL 2: MOLECULAR       Composed operations                               │
 │           ▲               /pre-commit, /code-review, /fitness               │
@@ -124,7 +124,7 @@ cp -r cognitive-core/skills/cellular/templates/* .claude/skills/
 /validate email user@example.com
 
 # Run pre-commit checks (molecular)
-/pre-commit lib/MyModule.pm
+/pre-commit src/services/
 
 # Evaluate fitness (molecular)
 /fitness --gate=commit src/
@@ -212,7 +212,7 @@ cognitive-core/
 │   ├── openai/                # OpenAI adapter
 │   └── ollama/                # Ollama adapter
 └── examples/
-    └── tims/                  # Reference implementation
+    └── architecture/          # DDD examples (Python, Java, C#, TypeScript)
 ```
 
 ## Scientific Foundation

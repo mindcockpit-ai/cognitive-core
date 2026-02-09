@@ -97,18 +97,19 @@ Claude supports skill inheritance via `extends`:
 
 ```markdown
 ---
-name: perl-patterns
+name: python-patterns
 extends: global:check-pattern
-description: Perl/Moose patterns for TIMS
+description: Python/FastAPI patterns
 ---
 
-# Perl Patterns
+# Python Patterns
 
-Extends global check-pattern with Perl-specific rules.
+Extends global check-pattern with Python-specific rules.
 
 ## Additional Patterns
-- namespace::autoclean required
-- make_immutable required
+- Type hints required (PEP 484)
+- Pydantic for validation
+- async/await for I/O
 ```
 
 ## Fitness Integration

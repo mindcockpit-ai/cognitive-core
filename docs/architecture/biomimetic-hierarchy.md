@@ -118,9 +118,9 @@ Cellular skills specialize molecular skills for specific domains, technologies, 
 
 | Skill | Extends | Domain |
 |-------|---------|--------|
-| `/perl-patterns` | check-pattern | Perl/Moose conventions |
-| `/oracle-patterns` | validate | Oracle database patterns |
-| `/spring-patterns` | check-pattern | Spring Boot conventions |
+| `/python-patterns` | check-pattern | Python/FastAPI conventions |
+| `/spring-patterns` | check-pattern | Java/Spring Boot conventions |
+| `/dotnet-patterns` | check-pattern | C#/.NET conventions |
 | `/react-patterns` | check-pattern | React/TypeScript patterns |
 
 ### Extension Pattern
@@ -128,29 +128,29 @@ Cellular skills specialize molecular skills for specific domains, technologies, 
 ```yaml
 # Cellular skill extending molecular
 ---
-name: perl-patterns
+name: python-patterns
 extends: global:check-pattern
-domain: perl
+domain: python
 ---
 
 # Inherited: check-pattern functionality
-# Added: Perl/Moose specific patterns
+# Added: Python-specific patterns
 
-## Moose Patterns
-- namespace::autoclean required
-- make_immutable required
-- Try::Tiny for errors
+## Python Patterns
+- Type hints required (PEP 484)
+- Pydantic for validation
+- async/await for I/O
 
 ## Anti-Patterns
-- No Exporter (use Moose)
-- No eval{} (use Try::Tiny)
+- No bare except clauses
+- No mutable default arguments
 ```
 
 ### Location
 ```
 PROJECT/.claude/skills/     # Project-specific
-├── perl-patterns/          # Technology patterns
-├── oracle-patterns/        # Database patterns
+├── python-patterns/        # Python patterns
+├── spring-patterns/        # Java/Spring patterns
 ├── pre-commit/             # Extended pre-commit
 ├── code-review/            # Extended code-review
 └── fitness/                # Extended fitness
@@ -231,12 +231,12 @@ name: pre-commit
 extends: global:pre-commit    # Inherit from global
 ---
 
-# Additional TIMS-specific checks
-## Perl Standards
-Run perlStandardsLint.pl for all .pm files
+# Additional project-specific checks
+## Python Standards
+Run ruff and mypy for all .py files
 
-## Oracle Patterns
-Check DateTime handling per oracle-patterns skill
+## Database Patterns
+Check SQLAlchemy query patterns
 ```
 
 ---

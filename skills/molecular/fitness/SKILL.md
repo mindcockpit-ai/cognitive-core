@@ -52,13 +52,13 @@ MUTATION           SELECTION              SURVIVAL
 
 ```bash
 # Evaluate single file
-/fitness lib/MyModule.pm
+/fitness src/services/user_service.py
 
 # Evaluate directory
 /fitness src/
 
 # Specific gate
-/fitness --gate=commit lib/MyModule.pm
+/fitness --gate=commit src/services/
 
 # Full report
 /fitness --gate=deploy --report src/
@@ -69,7 +69,7 @@ MUTATION           SELECTION              SURVIVAL
 ```
 FITNESS EVALUATION
 ==================
-Target: lib/MyModule.pm
+Target: src/services/user_service.py
 Gate: commit
 Timestamp: 2026-02-09T23:30:00Z
 
@@ -183,10 +183,16 @@ extends: global:fitness
 
 # Project Fitness
 
-## Additional Functions
-- `moose_structure` - Moose best practices
-- `oracle_datetime` - Correct DateTime handling
+## Additional Functions (Python/FastAPI)
+- `type_hints` - Type annotations present
+- `pydantic_models` - Pydantic for validation
+- `async_patterns` - Correct async/await usage
 - `ddd_layers` - DDD architecture compliance
+
+## Additional Functions (Java/Spring)
+- `spring_annotations` - Correct Spring annotations
+- `constructor_injection` - No field injection
+- `transaction_boundaries` - Proper @Transactional usage
 ```
 
 ## Integration
