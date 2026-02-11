@@ -404,6 +404,7 @@ if [ -f "${SCRIPT_DIR}/core/templates/settings.json.tmpl" ]; then
         -e "s|{{CC_MAIN_BRANCH}}|${CC_MAIN_BRANCH:-main}|g" \
         -e "s|{{CC_LINT_COMMAND}}|${CC_LINT_COMMAND:-echo no-lint}|g" \
         -e "s|{{CC_TEST_COMMAND}}|${CC_TEST_COMMAND:-echo no-tests}|g" \
+        -e "s|{{CC_AGENT_TEAMS}}|${CC_AGENT_TEAMS:-false}|g" \
         "${SCRIPT_DIR}/core/templates/settings.json.tmpl" > "$SETTINGS_FILE"
     info "Generated settings.json from template."
 else
