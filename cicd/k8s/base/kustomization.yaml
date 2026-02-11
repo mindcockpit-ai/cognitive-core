@@ -1,0 +1,38 @@
+# =============================================================================
+# Kustomize Base — cognitive-core framework
+# =============================================================================
+# Base configuration for all environments. Overlays patch this for
+# environment-specific values (dev, staging, production).
+#
+# Usage:
+#   kubectl apply -k cicd/k8s/base/
+#   kubectl kustomize cicd/k8s/base/   # preview rendered manifests
+#
+# CUSTOMIZE:
+#   - Change namePrefix to your project name
+#   - Update commonLabels to match your organization
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# ---------------------------------------------------------------------------
+# CUSTOMIZE: Prefix all resource names (e.g., "myproject-" -> "myproject-my-app")
+# ---------------------------------------------------------------------------
+namePrefix: ""
+
+# ---------------------------------------------------------------------------
+# Common labels applied to all resources
+# ---------------------------------------------------------------------------
+commonLabels:
+  app.kubernetes.io/part-of: my-app
+  app.kubernetes.io/managed-by: kustomize
+
+# ---------------------------------------------------------------------------
+# Resources included in this base
+# ---------------------------------------------------------------------------
+resources:
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - pvc.yaml
+  - configmap.yaml

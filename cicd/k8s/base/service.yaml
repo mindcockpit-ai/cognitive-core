@@ -1,0 +1,23 @@
+# =============================================================================
+# Application Service — cognitive-core framework
+# =============================================================================
+# ClusterIP service exposing the application within the cluster.
+# External access is handled by the Ingress resource.
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app
+  labels:
+    app.kubernetes.io/name: my-app
+    app.kubernetes.io/part-of: my-app
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: my-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

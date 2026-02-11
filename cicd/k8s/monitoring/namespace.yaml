@@ -1,0 +1,18 @@
+# =============================================================================
+# Monitoring Namespace — cognitive-core framework
+# =============================================================================
+# Dedicated namespace for the monitoring stack (Prometheus, Grafana, etc.).
+# Isolates monitoring workloads from application workloads.
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    app.kubernetes.io/name: monitoring
+    app.kubernetes.io/part-of: cognitive-core-monitoring
+    app.kubernetes.io/managed-by: kustomize
+    # Pod security standards: allow Prometheus to access host metrics
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

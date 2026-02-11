@@ -1,0 +1,125 @@
+# =============================================================================
+# Multi-Stage Test Dockerfile Template — cognitive-core framework
+# =============================================================================
+# Language-agnostic test environment using build args for customization.
+# Supports any language/framework via CC_LANGUAGE and CC_TEST_COMMAND args.
+#
+# Features:
+#   - Multi-stage build (deps + test execution) for layer caching
+#   - Non-root user for security
+#   - Language-specific base images via build args
+#   - Test results output as volume mount target
+#   - OCI-compliant labels
+#
+# Usage:
+#   docker build -f Dockerfile.test.tmpl \
+#     --build-arg CC_LANGUAGE=python \
+#     --build-arg CC_TEST_COMMAND="pytest --junitxml=/results/report.xml" \
+#     --build-arg CC_BASE_IMAGE=python:3.12-slim \
+#     -t myproject-test .
+#
+#   docker run --rm -v $(pwd)/test-results:/results myproject-test
+#
+# Build args (all configurable via cognitive-core.conf):
+#   CC_BASE_IMAGE      Base image for the language (default: ubuntu:22.04)
+#   CC_LANGUAGE        Language identifier (default: generic)
+#   CC_TEST_COMMAND    Test runner command (default: echo "No test command")
+#   CC_DEPS_COMMAND    Dependency install command (default: echo "No deps")
+#   CC_PROJECT_NAME    Project name for labels (default: app)
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Build args — customize per language/stack
+# ---------------------------------------------------------------------------
+ARG CC_BASE_IMAGE=ubuntu:22.04
+
+# ===========================================================================
+# Stage 1: Dependencies
+# ===========================================================================
+FROM ${CC_BASE_IMAGE} AS deps
+
+ARG CC_PROJECT_NAME=app
+ARG CC_LANGUAGE=generic
+ARG CC_DEPS_COMMAND="echo 'No dependency install command configured'"
+ARG BUILD_DATE
+ARG VCS_REF
+
+LABEL org.opencontainers.image.title="${CC_PROJECT_NAME}-test" \
+      org.opencontainers.image.description="Test environment for ${CC_PROJECT_NAME}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      cc.language="${CC_LANGUAGE}" \
+      cc.stage="test"
+
+WORKDIR /app
+
+# ---------------------------------------------------------------------------
+# Install system-level test dependencies
+# ---------------------------------------------------------------------------
+RUN apt-get update 2>/dev/null && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      curl \
+      git \
+    && rm -rf /var/lib/apt/lists/* \
+    || true
+
+# ---------------------------------------------------------------------------
+# Copy dependency manifests first (layer caching)
+# CUSTOMIZE: Add your dependency file(s) to this list
+# ---------------------------------------------------------------------------
+# Perl
+COPY cpanfil[e] cpanfile.snapsho[t] ./
+# Python
+COPY requirements*.tx[t] pyproject.tom[l] setup.cf[g] ./
+# Node
+COPY package*.jso[n] yarn.loc[k] ./
+# Go
+COPY go.mo[d] go.su[m] ./
+# Rust
+COPY Cargo.tom[l] Cargo.loc[k] ./
+# Java
+COPY pom.xm[l] build.gradl[e] ./
+
+# ---------------------------------------------------------------------------
+# Install dependencies (cached unless manifests change)
+# ---------------------------------------------------------------------------
+RUN ${CC_DEPS_COMMAND}
+
+# ===========================================================================
+# Stage 2: Test Execution
+# ===========================================================================
+FROM deps AS test
+
+ARG CC_PROJECT_NAME=app
+ARG CC_LANGUAGE=generic
+ARG CC_TEST_COMMAND="echo 'No test command configured — set CC_TEST_COMMAND'"
+
+# Non-root user for test isolation
+RUN groupadd --gid 1001 testuser 2>/dev/null || true && \
+    useradd --uid 1001 --gid 1001 --shell /bin/false --create-home testuser 2>/dev/null || true
+
+WORKDIR /app
+
+# Copy full application source
+COPY . .
+
+# Create results output directory
+RUN mkdir -p /results && \
+    chown -R 1001:1001 /app /results
+
+# Switch to non-root user
+USER testuser
+
+# ---------------------------------------------------------------------------
+# Environment for test execution
+# ---------------------------------------------------------------------------
+ENV CC_LANGUAGE=${CC_LANGUAGE} \
+    CC_PROJECT_NAME=${CC_PROJECT_NAME} \
+    TEST_RESULTS_DIR=/results
+
+# ---------------------------------------------------------------------------
+# Run tests
+# The test command should write results to /results/ for extraction.
+# Exit code propagates: 0 = all tests pass, non-zero = failures.
+# ---------------------------------------------------------------------------
+CMD ${CC_TEST_COMMAND}

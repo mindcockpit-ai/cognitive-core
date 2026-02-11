@@ -1,0 +1,57 @@
+# =============================================================================
+# Local Docker Registry — cognitive-core framework
+# =============================================================================
+# Runs a local Docker registry (registry:2) for self-hosted, air-gapped,
+# or development environments where a private registry is needed.
+#
+# Usage:
+#   docker compose -f docker-compose.registry.yml up -d
+#
+#   # Tag and push an image:
+#   docker tag myapp:latest localhost:5000/myapp:latest
+#   docker push localhost:5000/myapp:latest
+#
+#   # Pull from local registry:
+#   docker pull localhost:5000/myapp:latest
+#
+#   # List repositories:
+#   curl http://localhost:5000/v2/_catalog
+#
+#   # List tags for a repository:
+#   curl http://localhost:5000/v2/myapp/tags/list
+#
+# Environment variables:
+#   REGISTRY_PORT       Host port for the registry (default: 5000)
+#   REGISTRY_STORAGE    Host path for persistent storage (default: Docker volume)
+# =============================================================================
+
+version: "3.8"
+
+volumes:
+  registry-data: {}
+
+services:
+  # ---------------------------------------------------------------------------
+  # Docker Registry — OCI-compliant image storage
+  # ---------------------------------------------------------------------------
+  registry:
+    image: registry:2
+    container_name: local-registry
+    restart: unless-stopped
+    ports:
+      - "${REGISTRY_PORT:-5000}:5000"
+    environment:
+      # Garbage collection and storage tuning
+      - REGISTRY_STORAGE_DELETE_ENABLED=true
+      - REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY=/var/lib/registry
+      # HTTP headers for CORS (useful for UI tools)
+      - REGISTRY_HTTP_HEADERS_Access-Control-Allow-Origin=['*']
+      - REGISTRY_HTTP_HEADERS_Access-Control-Allow-Methods=['HEAD', 'GET', 'OPTIONS', 'DELETE']
+    volumes:
+      - registry-data:/var/lib/registry
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5000/v2/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

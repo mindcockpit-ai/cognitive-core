@@ -1,0 +1,31 @@
+# =============================================================================
+# Application ConfigMap — cognitive-core framework
+# =============================================================================
+# Non-sensitive configuration values injected as environment variables.
+# For sensitive values (passwords, API keys), use Kubernetes Secrets instead.
+#
+# CUSTOMIZE: Replace placeholder values with your application configuration.
+# These keys align with cognitive-core.conf CC_* conventions.
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-app-config
+  labels:
+    app.kubernetes.io/name: my-app
+    app.kubernetes.io/part-of: my-app
+    app.kubernetes.io/managed-by: kustomize
+data:
+  # ---------------------------------------------------------------------------
+  # Application settings
+  # ---------------------------------------------------------------------------
+  APP_ENV: "production"
+  LOG_LEVEL: "info"
+
+  # ---------------------------------------------------------------------------
+  # Database connection (non-sensitive parts only)
+  # Store DB_PASSWORD in a Kubernetes Secret, not here.
+  # ---------------------------------------------------------------------------
+  DB_HOST: "db.example.com"
+  DB_PORT: "5432"
+  DB_NAME: "appdb"

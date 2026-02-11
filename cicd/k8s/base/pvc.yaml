@@ -1,0 +1,25 @@
+# =============================================================================
+# PersistentVolumeClaim — cognitive-core framework
+# =============================================================================
+# Persistent storage for application data.
+#
+# CUSTOMIZE:
+#   - Adjust storage size based on your application needs
+#   - Change storageClassName to match your cluster's storage provisioner
+#     (e.g., gp2 for AWS, managed-premium for Azure, standard for GKE)
+# =============================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-app-data
+  labels:
+    app.kubernetes.io/name: my-app
+    app.kubernetes.io/part-of: my-app
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 5Gi

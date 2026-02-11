@@ -1,0 +1,62 @@
+# =============================================================================
+# Example Overlay — cognitive-core framework
+# =============================================================================
+# Demonstrates how to customize the base manifests for a specific environment.
+# Copy this directory to create overlays for dev, staging, production, etc.
+#
+# Usage:
+#   kubectl apply -k cicd/k8s/overlays/example/
+#   kubectl kustomize cicd/k8s/overlays/example/   # preview rendered manifests
+#
+# To create a new environment:
+#   cp -r cicd/k8s/overlays/example/ cicd/k8s/overlays/production/
+#   # Edit the new overlay's kustomization.yaml
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# ---------------------------------------------------------------------------
+# Reference the base configuration
+# ---------------------------------------------------------------------------
+resources:
+  - ../../base
+
+# ---------------------------------------------------------------------------
+# Environment-specific name prefix
+# ---------------------------------------------------------------------------
+namePrefix: example-
+
+# ---------------------------------------------------------------------------
+# Override common labels for this environment
+# ---------------------------------------------------------------------------
+commonLabels:
+  app.kubernetes.io/instance: example
+
+# ---------------------------------------------------------------------------
+# Patch: Scale replicas to 3 for this environment
+# ---------------------------------------------------------------------------
+patches:
+  - target:
+      kind: Deployment
+      name: my-app
+    patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: my-app
+      spec:
+        replicas: 3
+
+# ---------------------------------------------------------------------------
+# ConfigMap generator: environment-specific configuration
+# Values here override or extend the base configmap.
+# ---------------------------------------------------------------------------
+configMapGenerator:
+  - name: my-app-config
+    behavior: merge
+    literals:
+      - APP_ENV=example
+      - LOG_LEVEL=debug
+      - DB_HOST=db.example-env.internal
+      - DB_PORT=5432
+      - DB_NAME=example_db

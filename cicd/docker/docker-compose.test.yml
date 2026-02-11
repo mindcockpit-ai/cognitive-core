@@ -1,0 +1,134 @@
+# =============================================================================
+# Isolated Test Environment — cognitive-core framework
+# =============================================================================
+# Spins up the application test container with optional database services.
+# Network-isolated to prevent interference with other environments.
+#
+# Usage:
+#   # Copy and configure .env
+#   cp ../monitoring/.env.template .env
+#   # Edit .env with project values
+#
+#   # Run tests (app only):
+#   docker compose -f docker-compose.test.yml up --build --abort-on-container-exit test-app
+#
+#   # Run tests with PostgreSQL:
+#   docker compose -f docker-compose.test.yml --profile postgres up --build --abort-on-container-exit
+#
+#   # Run tests with MySQL:
+#   docker compose -f docker-compose.test.yml --profile mysql up --build --abort-on-container-exit
+#
+#   # Extract test results:
+#   docker compose -f docker-compose.test.yml cp test-app:/results ./test-results
+#
+# Environment variables (via .env file):
+#   CC_PROJECT_NAME     Project name (default: app)
+#   CC_LANGUAGE         Language identifier (default: generic)
+#   CC_BASE_IMAGE       Base Docker image (default: ubuntu:22.04)
+#   CC_TEST_COMMAND     Test runner command
+#   CC_DEPS_COMMAND     Dependency install command
+#   TEST_DB_NAME        Test database name (default: testdb)
+#   TEST_DB_USER        Test database user (default: testuser)
+#   TEST_DB_PASSWORD    Test database password (default: testpass)
+# =============================================================================
+
+version: "3.8"
+
+networks:
+  test-net:
+    driver: bridge
+    internal: true
+
+volumes:
+  test-results: {}
+  pg-test-data: {}
+  mysql-test-data: {}
+
+services:
+  # ---------------------------------------------------------------------------
+  # Test Application — built from Dockerfile.test.tmpl
+  # ---------------------------------------------------------------------------
+  test-app:
+    build:
+      context: ${CC_BUILD_CONTEXT:-../..}
+      dockerfile: cicd/docker/Dockerfile.test.tmpl
+      args:
+        CC_BASE_IMAGE: ${CC_BASE_IMAGE:-ubuntu:22.04}
+        CC_PROJECT_NAME: ${CC_PROJECT_NAME:-app}
+        CC_LANGUAGE: ${CC_LANGUAGE:-generic}
+        CC_TEST_COMMAND: ${CC_TEST_COMMAND:-echo 'No test command configured'}
+        CC_DEPS_COMMAND: ${CC_DEPS_COMMAND:-echo 'No deps command configured'}
+        BUILD_DATE: ${BUILD_DATE:-}
+        VCS_REF: ${VCS_REF:-}
+    container_name: ${CC_PROJECT_NAME:-app}-test
+    environment:
+      - CC_PROJECT_NAME=${CC_PROJECT_NAME:-app}
+      - CC_LANGUAGE=${CC_LANGUAGE:-generic}
+      # Database connection (if using db profiles)
+      - TEST_DB_HOST=test-db
+      - TEST_DB_PORT=${TEST_DB_PORT:-5432}
+      - TEST_DB_NAME=${TEST_DB_NAME:-testdb}
+      - TEST_DB_USER=${TEST_DB_USER:-testuser}
+      - TEST_DB_PASSWORD=${TEST_DB_PASSWORD:-testpass}
+      # Generic DATABASE_URL for frameworks that support it
+      - DATABASE_URL=${TEST_DATABASE_URL:-}
+    volumes:
+      - test-results:/results
+    networks:
+      - test-net
+    depends_on:
+      test-db-postgres:
+        condition: service_healthy
+        required: false
+      test-db-mysql:
+        condition: service_healthy
+        required: false
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — test database (activate with --profile postgres)
+  # ---------------------------------------------------------------------------
+  test-db-postgres:
+    image: postgres:16-alpine
+    container_name: ${CC_PROJECT_NAME:-app}-test-postgres
+    profiles:
+      - postgres
+    restart: "no"
+    environment:
+      - POSTGRES_DB=${TEST_DB_NAME:-testdb}
+      - POSTGRES_USER=${TEST_DB_USER:-testuser}
+      - POSTGRES_PASSWORD=${TEST_DB_PASSWORD:-testpass}
+    volumes:
+      - pg-test-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TEST_DB_USER:-testuser} -d ${TEST_DB_NAME:-testdb}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - test-net
+
+  # ---------------------------------------------------------------------------
+  # MySQL — test database (activate with --profile mysql)
+  # ---------------------------------------------------------------------------
+  test-db-mysql:
+    image: mysql:8.0
+    container_name: ${CC_PROJECT_NAME:-app}-test-mysql
+    profiles:
+      - mysql
+    restart: "no"
+    environment:
+      - MYSQL_DATABASE=${TEST_DB_NAME:-testdb}
+      - MYSQL_USER=${TEST_DB_USER:-testuser}
+      - MYSQL_PASSWORD=${TEST_DB_PASSWORD:-testpass}
+      - MYSQL_ROOT_PASSWORD=${TEST_DB_ROOT_PASSWORD:-rootpass}
+    volumes:
+      - mysql-test-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${TEST_DB_ROOT_PASSWORD:-rootpass}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    networks:
+      - test-net

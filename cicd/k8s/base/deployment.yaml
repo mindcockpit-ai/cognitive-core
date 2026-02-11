@@ -1,0 +1,133 @@
+# =============================================================================
+# Application Deployment — cognitive-core framework
+# =============================================================================
+# Generic application deployment template.
+# Customize placeholders marked with CUSTOMIZE comments for your project.
+#
+# Usage with Kustomize:
+#   kubectl apply -k cicd/k8s/base/
+#   kubectl apply -k cicd/k8s/overlays/example/
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+  labels:
+    app.kubernetes.io/name: my-app
+    app.kubernetes.io/part-of: my-app
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: my-app
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: my-app
+        app.kubernetes.io/part-of: my-app
+    spec:
+      # -----------------------------------------------------------------------
+      # Security: run as non-root with read-only root filesystem
+      # -----------------------------------------------------------------------
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+        - name: app
+          # -----------------------------------------------------------------
+          # CUSTOMIZE: Set your container registry, image name, and tag
+          # Examples:
+          #   ghcr.io/my-org/my-app:latest
+          #   docker.io/my-org/my-app:v1.0.0
+          #   my-registry.azurecr.io/my-app:sha-abc1234
+          # -----------------------------------------------------------------
+          image: REGISTRY/my-app:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          # -----------------------------------------------------------------
+          # Environment from ConfigMap and Secrets
+          # -----------------------------------------------------------------
+          envFrom:
+            - configMapRef:
+                name: my-app-config
+          # -----------------------------------------------------------------
+          # CUSTOMIZE: Add secret references as needed
+          # -----------------------------------------------------------------
+          # env:
+          #   - name: DB_PASSWORD
+          #     valueFrom:
+          #       secretKeyRef:
+          #         name: my-app-secrets
+          #         key: db-password
+          # -----------------------------------------------------------------
+          # Resource limits — adjust based on your application profile
+          # -----------------------------------------------------------------
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          # -----------------------------------------------------------------
+          # Probes — adjust paths and timing for your application
+          # -----------------------------------------------------------------
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # -----------------------------------------------------------------
+          # Container security context
+          # -----------------------------------------------------------------
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          # -----------------------------------------------------------------
+          # CUSTOMIZE: Volume mounts (if using PVC or ConfigMap volumes)
+          # -----------------------------------------------------------------
+          volumeMounts:
+            - name: app-data
+              mountPath: /app/data
+            - name: tmp
+              mountPath: /tmp
+      # -----------------------------------------------------------------------
+      # Volumes
+      # -----------------------------------------------------------------------
+      volumes:
+        - name: app-data
+          persistentVolumeClaim:
+            claimName: my-app-data
+        - name: tmp
+          emptyDir: {}
+      # -----------------------------------------------------------------------
+      # CUSTOMIZE: Image pull secrets for private registries
+      # -----------------------------------------------------------------------
+      # imagePullSecrets:
+      #   - name: registry-credentials
+      terminationGracePeriodSeconds: 30

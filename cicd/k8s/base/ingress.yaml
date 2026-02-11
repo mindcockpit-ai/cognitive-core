@@ -1,0 +1,50 @@
+# =============================================================================
+# Application Ingress — cognitive-core framework
+# =============================================================================
+# Ingress resource for external HTTPS access via nginx ingress controller.
+# Requires:
+#   - nginx ingress controller installed in the cluster
+#   - cert-manager installed for automatic TLS certificate provisioning
+#
+# CUSTOMIZE: Replace app.example.com with your actual domain.
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-app
+  labels:
+    app.kubernetes.io/name: my-app
+    app.kubernetes.io/part-of: my-app
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    # -------------------------------------------------------------------------
+    # Nginx ingress controller annotations
+    # -------------------------------------------------------------------------
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    # -------------------------------------------------------------------------
+    # cert-manager: automatic TLS via Let's Encrypt
+    # CUSTOMIZE: Use letsencrypt-staging for testing, letsencrypt-prod for production
+    # -------------------------------------------------------------------------
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        # CUSTOMIZE: Your application domain
+        - app.example.com
+      secretName: my-app-tls
+  rules:
+    - host: app.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-app
+                port:
+                  name: http

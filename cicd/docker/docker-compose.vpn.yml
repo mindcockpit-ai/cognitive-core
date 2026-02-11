@@ -1,0 +1,75 @@
+# =============================================================================
+# WireGuard VPN — cognitive-core framework
+# =============================================================================
+# Secure VPN tunnel for runner-to-monitoring communication.
+# Uses linuxserver/wireguard for easy peer management.
+#
+# Usage:
+#   # Configure environment
+#   cp ../monitoring/.env.template .env
+#   # Set WG_SERVERURL, WG_PEERS, WG_TZ in .env
+#
+#   # Start VPN server:
+#   docker compose -f docker-compose.vpn.yml up -d
+#
+#   # Peer configs are generated in the wireguard-config volume.
+#   # Extract peer configs:
+#   docker compose -f docker-compose.vpn.yml exec wireguard ls /config/peer*
+#   docker compose -f docker-compose.vpn.yml cp wireguard:/config/peer_runner1 ./peer-configs/
+#
+#   # View server status:
+#   docker compose -f docker-compose.vpn.yml exec wireguard wg show
+#
+# Environment variables:
+#   WG_SERVERURL      Public hostname/IP of the VPN server (required)
+#   WG_SERVERPORT     WireGuard listen port (default: 51820)
+#   WG_PEERS          Number of peers or comma-separated names (default: 1)
+#   WG_PEERDNS        DNS server for peers (default: 1.1.1.1)
+#   WG_INTERNAL_SUBNET  VPN subnet (default: 10.13.13.0)
+#   WG_ALLOWEDIPS     Allowed IPs for peers (default: 0.0.0.0/0)
+#   WG_TZ             Timezone (default: UTC)
+# =============================================================================
+
+version: "3.8"
+
+volumes:
+  wireguard-config: {}
+
+services:
+  # ---------------------------------------------------------------------------
+  # WireGuard VPN Server
+  # ---------------------------------------------------------------------------
+  wireguard:
+    image: lscr.io/linuxserver/wireguard:latest
+    container_name: wireguard
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${WG_TZ:-UTC}
+      # Server configuration
+      - SERVERURL=${WG_SERVERURL:?Set WG_SERVERURL to your public hostname or IP}
+      - SERVERPORT=${WG_SERVERPORT:-51820}
+      - PEERS=${WG_PEERS:-1}
+      - PEERDNS=${WG_PEERDNS:-1.1.1.1}
+      - INTERNAL_SUBNET=${WG_INTERNAL_SUBNET:-10.13.13.0}
+      - ALLOWEDIPS=${WG_ALLOWEDIPS:-0.0.0.0/0}
+      # Logging
+      - LOG_CONFS=true
+    volumes:
+      - wireguard-config:/config
+      - /lib/modules:/lib/modules:ro
+    ports:
+      - "${WG_SERVERPORT:-51820}:51820/udp"
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv4.ip_forward=1
+    healthcheck:
+      test: ["CMD-SHELL", "wg show wg0 2>/dev/null | grep -q 'interface' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
