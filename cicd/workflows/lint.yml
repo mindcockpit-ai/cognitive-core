@@ -1,0 +1,329 @@
+# =============================================================================
+# Code Quality Lint Workflow — cognitive-core framework
+# =============================================================================
+# White-labeled, language-agnostic linting pipeline.
+#
+# Findings resolved:
+#   #13 — Changed-files-only: uses git diff to lint only modified files,
+#          avoiding full-repo scans on every push.
+#
+# All thresholds and tool versions are configurable via repository variables.
+# =============================================================================
+
+name: Code Quality Lint
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - 'release/**'
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+
+# Cancel in-progress runs for the same ref (saves runner minutes)
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Override via repository variables as needed
+  PERL_VERSION: ${{ vars.PERL_VERSION || '5.38' }}
+  NODE_VERSION: ${{ vars.NODE_VERSION || '20' }}
+  PYTHON_VERSION: ${{ vars.PYTHON_VERSION || '3.12' }}
+  PERLCRITIC_SEVERITY: ${{ vars.PERLCRITIC_SEVERITY || '4' }}
+  ESLINT_MAX_WARNINGS: ${{ vars.ESLINT_MAX_WARNINGS || '0' }}
+  PYLINT_MIN_SCORE: ${{ vars.PYLINT_MIN_SCORE || '8.0' }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Step 1: Detect changed files and classify by language
+  # Finding #13 fix — only lint files that actually changed
+  # ---------------------------------------------------------------------------
+  detect-changes:
+    name: Detect Changed Files
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    outputs:
+      perl_files: ${{ steps.changes.outputs.perl_files }}
+      js_files: ${{ steps.changes.outputs.js_files }}
+      python_files: ${{ steps.changes.outputs.python_files }}
+      shell_files: ${{ steps.changes.outputs.shell_files }}
+      yaml_files: ${{ steps.changes.outputs.yaml_files }}
+      docker_files: ${{ steps.changes.outputs.docker_files }}
+      has_perl: ${{ steps.changes.outputs.has_perl }}
+      has_js: ${{ steps.changes.outputs.has_js }}
+      has_python: ${{ steps.changes.outputs.has_python }}
+      has_shell: ${{ steps.changes.outputs.has_shell }}
+      has_yaml: ${{ steps.changes.outputs.has_yaml }}
+      has_docker: ${{ steps.changes.outputs.has_docker }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for accurate diff
+
+      - name: Identify changed files by type
+        id: changes
+        run: |
+          # Finding #13: Use git diff to scope linting to changed files only.
+          # For PRs: diff against base branch. For pushes: diff against parent commit.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+            # Handle initial push (no parent)
+            if [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+              BASE="$(git rev-list --max-parents=0 HEAD | head -1)"
+            fi
+          fi
+
+          CHANGED=$(git diff --name-only --diff-filter=ACMR "$BASE" HEAD 2>/dev/null || git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
+
+          # Classify files by extension
+          PERL=$(echo "$CHANGED" | grep -E '\.(pl|pm|t|psgi)$' || true)
+          JS=$(echo "$CHANGED" | grep -E '\.(js|ts|jsx|tsx|vue|svelte)$' || true)
+          PYTHON=$(echo "$CHANGED" | grep -E '\.(py)$' || true)
+          SHELL=$(echo "$CHANGED" | grep -E '\.(sh|bash)$' || true)
+          YAML=$(echo "$CHANGED" | grep -E '\.(yml|yaml)$' || true)
+          DOCKER=$(echo "$CHANGED" | grep -iE '(Dockerfile|\.dockerfile)' || true)
+
+          # Multi-line safe output via delimiter
+          {
+            echo "perl_files<<DELIM"
+            echo "$PERL"
+            echo "DELIM"
+            echo "js_files<<DELIM"
+            echo "$JS"
+            echo "DELIM"
+            echo "python_files<<DELIM"
+            echo "$PYTHON"
+            echo "DELIM"
+            echo "shell_files<<DELIM"
+            echo "$SHELL"
+            echo "DELIM"
+            echo "yaml_files<<DELIM"
+            echo "$YAML"
+            echo "DELIM"
+            echo "docker_files<<DELIM"
+            echo "$DOCKER"
+            echo "DELIM"
+          } >> "$GITHUB_OUTPUT"
+
+          # Boolean flags for conditional job execution
+          echo "has_perl=$( [ -n "$PERL" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+          echo "has_js=$( [ -n "$JS" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+          echo "has_python=$( [ -n "$PYTHON" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+          echo "has_shell=$( [ -n "$SHELL" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+          echo "has_yaml=$( [ -n "$YAML" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+          echo "has_docker=$( [ -n "$DOCKER" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+
+          echo "::group::Changed file summary"
+          echo "Perl:   $(echo "$PERL" | grep -c . || echo 0) files"
+          echo "JS/TS:  $(echo "$JS" | grep -c . || echo 0) files"
+          echo "Python: $(echo "$PYTHON" | grep -c . || echo 0) files"
+          echo "Shell:  $(echo "$SHELL" | grep -c . || echo 0) files"
+          echo "YAML:   $(echo "$YAML" | grep -c . || echo 0) files"
+          echo "Docker: $(echo "$DOCKER" | grep -c . || echo 0) files"
+          echo "::endgroup::"
+
+  # ---------------------------------------------------------------------------
+  # Perl linting (perlcritic + perl -c)
+  # ---------------------------------------------------------------------------
+  lint-perl:
+    name: Lint Perl
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_perl == 'true'
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Perl
+        uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: ${{ env.PERL_VERSION }}
+
+      - name: Install linting tools
+        run: |
+          cpanm --notest Perl::Critic Perl::Tidy
+
+      - name: Run perlcritic on changed files
+        run: |
+          FILES="${{ needs.detect-changes.outputs.perl_files }}"
+          echo "$FILES" | while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            [ ! -f "$file" ] && continue
+            echo "::group::perlcritic $file"
+            perlcritic --severity "${{ env.PERLCRITIC_SEVERITY }}" "$file" || EXIT=1
+            echo "::endgroup::"
+          done
+          exit ${EXIT:-0}
+
+      - name: Syntax check changed files
+        run: |
+          FILES="${{ needs.detect-changes.outputs.perl_files }}"
+          echo "$FILES" | while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            [ ! -f "$file" ] && continue
+            perl -c "$file" 2>&1 || echo "::warning::Syntax issue in $file"
+          done
+
+  # ---------------------------------------------------------------------------
+  # JavaScript/TypeScript linting (eslint)
+  # ---------------------------------------------------------------------------
+  lint-js:
+    name: Lint JavaScript/TypeScript
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_js == 'true'
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci
+          elif [ -f yarn.lock ]; then yarn install --frozen-lockfile
+          elif [ -f package.json ]; then npm install
+          else echo "No package.json found, installing eslint globally"; npm install -g eslint
+          fi
+
+      - name: Run eslint on changed files
+        run: |
+          FILES="${{ needs.detect-changes.outputs.js_files }}"
+          FILELIST=$(echo "$FILES" | tr '\n' ' ')
+          if command -v npx &>/dev/null && [ -f .eslintrc* ] || [ -f eslint.config.* ]; then
+            npx eslint --max-warnings "${{ env.ESLINT_MAX_WARNINGS }}" $FILELIST
+          else
+            echo "::notice::No eslint config found, skipping"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Python linting (pylint/ruff)
+  # ---------------------------------------------------------------------------
+  lint-python:
+    name: Lint Python
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_python == 'true'
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install linters
+        run: pip install ruff pylint
+
+      - name: Run ruff on changed files
+        run: |
+          FILES="${{ needs.detect-changes.outputs.python_files }}"
+          echo "$FILES" | while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            [ ! -f "$file" ] && continue
+            ruff check "$file" || true
+          done
+
+  # ---------------------------------------------------------------------------
+  # Shell linting (shellcheck)
+  # ---------------------------------------------------------------------------
+  lint-shell:
+    name: Lint Shell Scripts
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_shell == 'true'
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run shellcheck on changed files
+        run: |
+          FILES="${{ needs.detect-changes.outputs.shell_files }}"
+          echo "$FILES" | while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            [ ! -f "$file" ] && continue
+            echo "::group::shellcheck $file"
+            shellcheck "$file" || echo "::warning::Issues in $file"
+            echo "::endgroup::"
+          done
+
+  # ---------------------------------------------------------------------------
+  # YAML linting (yamllint)
+  # ---------------------------------------------------------------------------
+  lint-yaml:
+    name: Lint YAML
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_yaml == 'true'
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Run yamllint on changed files
+        run: |
+          FILES="${{ needs.detect-changes.outputs.yaml_files }}"
+          echo "$FILES" | while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            [ ! -f "$file" ] && continue
+            yamllint -d relaxed "$file" || echo "::warning::Issues in $file"
+          done
+
+  # ---------------------------------------------------------------------------
+  # Dockerfile linting (hadolint)
+  # ---------------------------------------------------------------------------
+  lint-docker:
+    name: Lint Dockerfiles
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_docker == 'true'
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run hadolint on changed Dockerfiles
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ needs.detect-changes.outputs.docker_files }}
+          failure-threshold: warning
+
+  # ---------------------------------------------------------------------------
+  # Summary gate
+  # ---------------------------------------------------------------------------
+  lint-status:
+    name: Lint Status
+    needs: [lint-perl, lint-js, lint-python, lint-shell, lint-yaml, lint-docker]
+    if: always()
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    steps:
+      - name: Check lint results
+        run: |
+          echo "::group::Lint Results Summary"
+          echo "Perl:       ${{ needs.lint-perl.result }}"
+          echo "JS/TS:      ${{ needs.lint-js.result }}"
+          echo "Python:     ${{ needs.lint-python.result }}"
+          echo "Shell:      ${{ needs.lint-shell.result }}"
+          echo "YAML:       ${{ needs.lint-yaml.result }}"
+          echo "Docker:     ${{ needs.lint-docker.result }}"
+          echo "::endgroup::"
+
+          # Fail if any required lint job failed (skipped is OK)
+          RESULTS=("${{ needs.lint-perl.result }}" "${{ needs.lint-js.result }}" \
+                   "${{ needs.lint-python.result }}" "${{ needs.lint-shell.result }}" \
+                   "${{ needs.lint-yaml.result }}" "${{ needs.lint-docker.result }}")
+          for r in "${RESULTS[@]}"; do
+            if [ "$r" = "failure" ]; then
+              echo "::error::One or more lint jobs failed"
+              exit 1
+            fi
+          done
+          echo "All lint checks passed or were skipped (no matching files)."

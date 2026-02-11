@@ -1,0 +1,172 @@
+# {{CC_PROJECT_NAME}} - Agent Architecture
+
+## Hub-and-Spoke Model
+
+```
+                    +---------------------------+
+                    |   project-coordinator     |
+                    |   (Smart Orchestrator)    |
+                    |   Model: {{CC_LEAD_MODEL}}|
+                    +---------------------------+
+                               |
+            +------------------+------------------+
+            |         |        |        |         |
+     +------+--+ +---+----+ +-+------+ +-+-----+ +--------+
+     |solution- | |code-   | |test-   | |research| |database|
+     |architect | |reviewer| |specialist| |analyst| |specialist|
+     +---------+ +--------+ +---------+ +--------+ +--------+
+```
+
+All agent definitions live in `.claude/agents/`. The **project-coordinator** is the
+hub that receives requests and delegates to the appropriate specialist.
+
+---
+
+## Agent Catalog
+
+### 1. project-coordinator (HUB)
+
+| Field | Value |
+|-------|-------|
+| **File** | `.claude/agents/project-coordinator.md` |
+| **Model** | {{CC_LEAD_MODEL}} |
+| **Role** | Smart orchestrator, project planning, cross-team coordination |
+| **When to Use** | Multi-step tasks, project planning, coordinating multiple agents |
+
+Automatically analyzes incoming requests and delegates to the right specialist.
+
+### 2. solution-architect
+
+| Field | Value |
+|-------|-------|
+| **File** | `.claude/agents/solution-architect.md` |
+| **Model** | {{CC_ARCHITECT_MODEL}} |
+| **Role** | Business workflows, architecture decisions, requirements analysis |
+| **When to Use** | New features, workflow design, integration decisions, compliance |
+
+### 3. code-standards-reviewer
+
+| Field | Value |
+|-------|-------|
+| **File** | `.claude/agents/code-standards-reviewer.md` |
+| **Model** | {{CC_REVIEWER_MODEL}} |
+| **Role** | Coding standards, CLAUDE.md compliance, code quality review |
+| **When to Use** | After code implementation, refactoring, pull request reviews |
+
+### 4. test-specialist
+
+| Field | Value |
+|-------|-------|
+| **File** | `.claude/agents/test-specialist.md` |
+| **Model** | {{CC_TEST_MODEL}} |
+| **Role** | Unit/integration tests, test coverage, quality assurance |
+| **When to Use** | New code needs tests, test failures, coverage gaps |
+
+### 5. research-analyst
+
+| Field | Value |
+|-------|-------|
+| **File** | `.claude/agents/research-analyst.md` |
+| **Model** | {{CC_RESEARCH_MODEL}} |
+| **Role** | External research, library evaluation, best practices |
+| **When to Use** | Unknown technologies, error investigation, library comparison |
+
+### 6. database-specialist
+
+| Field | Value |
+|-------|-------|
+| **File** | `.claude/agents/database-specialist.md` |
+| **Model** | {{CC_DB_MODEL}} |
+| **Role** | Database optimization, query tuning, bulk operations |
+| **When to Use** | Slow queries, import performance, schema design, migrations |
+
+---
+
+## Quick Reference
+
+### Delegation Decision Tree
+
+```
+IF request involves:
++-- New feature/workflow/business process   --> solution-architect
++-- Code just written, needs review         --> code-standards-reviewer
++-- Tests needed/failing/coverage gaps      --> test-specialist
++-- Unknown error/technology/library        --> research-analyst
++-- Slow query/import/database issue        --> database-specialist
++-- Project planning/coordination           --> project-coordinator (handle directly)
+```
+
+### Agent Selection by Task Type
+
+| Task Type | Primary Agent | Secondary Agent |
+|-----------|---------------|-----------------|
+| New feature | solution-architect | code-standards-reviewer |
+| Bug fix | research-analyst | test-specialist |
+| Performance issue | database-specialist | research-analyst |
+| Code review | code-standards-reviewer | test-specialist |
+| Test creation | test-specialist | code-standards-reviewer |
+| Architecture decision | solution-architect | database-specialist |
+| Library evaluation | research-analyst | solution-architect |
+
+### Escalation Paths
+
+```
+code-standards-reviewer finds performance issue --> database-specialist
+test-specialist finds architectural flaw        --> solution-architect
+database-specialist needs external research     --> research-analyst
+solution-architect identifies test gaps         --> test-specialist
+```
+
+---
+
+## Agent Teams
+
+Teams are defined in `cognitive-core.conf` via `CC_AGENT_TEAMS`:
+
+```bash
+CC_AGENT_TEAMS="{{CC_AGENT_TEAMS}}"
+```
+
+### Team Workflow
+
+1. **project-coordinator** receives the request
+2. Analyzes scope and identifies required expertise
+3. Delegates to primary specialist with clear requirements
+4. Collects results, delegates to secondary specialist if needed
+5. Synthesizes all results into unified deliverable
+6. **Always ends with** code-standards-reviewer for code changes
+
+### Mandatory Quality Gate
+
+Every implementation plan MUST include:
+
+```
+[ ] Implementation tasks...
+[ ] Unit tests (test-specialist)
+[ ] Integration tests (test-specialist)
+[ ] Code Standards Review (code-standards-reviewer)    <-- MANDATORY
+[ ] Automated lint verification                        <-- MANDATORY
+[ ] Documentation update
+```
+
+---
+
+## Configuration
+
+### Model Assignment
+
+Assign models to agents based on task complexity:
+
+| Complexity | Recommended Model | Use For |
+|------------|-------------------|---------|
+| High | opus | Architecture, coordination, research |
+| Medium | sonnet | Code review, testing, standards |
+| Low | haiku | Simple lookups, formatting |
+
+### Adding New Agents
+
+1. Create agent definition in `.claude/agents/<agent-name>.md`
+2. Follow the existing frontmatter format (name, description, tools, model)
+3. Add to the Agent Catalog in this document
+4. Update `CC_AGENT_TEAMS` in `cognitive-core.conf`
+5. Test delegation from project-coordinator

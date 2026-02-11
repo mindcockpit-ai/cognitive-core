@@ -1,0 +1,103 @@
+# {{CC_PROJECT_NAME}} - Claude Development Guide
+
+## Quick Reference - Most Common Issues
+
+| Issue | Symptom | Solution |
+|-------|---------|----------|
+{{CC_QUICK_REFERENCE_ROWS}}
+
+**Lint Check**: `{{CC_LINT_COMMAND}}` - Run before every commit!
+
+---
+
+## Project & Architecture
+
+**Stack**: {{CC_STACK_DESCRIPTION}}
+**Principles**: {{CC_ARCHITECTURE_PRINCIPLES}}
+**Pattern**: {{CC_ARCHITECTURE_PATTERN}}
+**Structure**: {{CC_PROJECT_STRUCTURE}}
+
+## Code Standards
+
+**Language**: {{CC_LANGUAGE}}
+**Formatting**: {{CC_FORMAT_RULES}}
+
+**Automated Lint**: Run before every commit
+
+```bash
+{{CC_LINT_COMMAND}}
+```
+
+## Git Commit Guidelines
+
+**NO AI/Claude references in commits** - Professional codebase only
+
+**Format:** `type(scope): subject` (feat/fix/docs/style/refactor/test/chore)
+**Example:** `feat({{CC_DEFAULT_SCOPE}}): add validation for import workflow`
+
+## Claude Code Hooks
+
+All hooks are installed in `.claude/hooks/` and registered in `.claude/settings.json`.
+
+| Hook | Event | Matcher | Purpose |
+|------|-------|---------|---------|
+| `setup-env.sh` | SessionStart | `startup` | Sets environment variables, prints project status |
+| `compact-reminder.sh` | SessionStart | `compact` | Re-injects critical rules after context compaction |
+| `validate-bash.sh` | PreToolUse | `Bash` | Blocks dangerous commands (rm -rf /, force push, etc.) |
+| `post-edit-lint.sh` | PostToolUse | `Write\|Edit` | Auto-lints files after edits |
+
+### Hook Configuration
+
+Hooks read from `cognitive-core.conf` in the project root or `.claude/` directory:
+
+```bash
+# cognitive-core.conf
+CC_PROJECT_NAME="{{CC_PROJECT_NAME}}"
+CC_LANGUAGE="{{CC_LANGUAGE}}"
+CC_LINT_COMMAND="{{CC_LINT_COMMAND}}"
+CC_LINT_EXTENSIONS="{{CC_LINT_EXTENSIONS}}"
+CC_TEST_COMMAND="{{CC_TEST_COMMAND}}"
+CC_MAIN_BRANCH="{{CC_MAIN_BRANCH}}"
+```
+
+## Development Workflow
+
+**New Entity**: {{CC_NEW_ENTITY_WORKFLOW}}
+**Testing**: `{{CC_TEST_COMMAND}}`
+**Server**: {{CC_SERVER_COMMAND}}
+**Quality**: `{{CC_LINT_COMMAND}}`
+
+## Troubleshooting
+
+{{CC_TROUBLESHOOTING_CONTENT}}
+
+## Specialized Agents
+
+**Full Documentation:** `/.claude/AGENTS_README.md`
+
+**Agent Team (Hub-and-Spoke Model):**
+
+| Agent | Role | Model |
+|-------|------|-------|
+| **project-coordinator** | Smart orchestrator (HUB) - delegates to specialists | {{CC_LEAD_MODEL}} |
+{{CC_AGENT_TABLE_ROWS}}
+
+**Quick Selection:**
+
+```text
+{{CC_AGENT_QUICK_SELECTION}}
+```
+
+## Context Management
+
+**Cleanup**: `{{CC_CLEANUP_COMMAND}}`
+**Health Check**: `{{CC_HEALTH_CHECK_COMMAND}}`
+
+### Context Budget Guidelines
+
+| Component | Max Size | Enforcement |
+|-----------|----------|-------------|
+| SKILL.md files | 500 lines | health check warns |
+| Agent definitions | 300 lines | health check warns |
+| CLAUDE.md | 400 lines | health check warns |
+| Auto-load context total | <100KB | health check estimates |

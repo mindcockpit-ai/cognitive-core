@@ -1,0 +1,119 @@
+#!/bin/false
+# cognitive-core.conf — Project Configuration
+# Sourced by hooks at runtime. Shell syntax required.
+# Location: $PROJECT_ROOT/cognitive-core.conf or .claude/cognitive-core.conf
+
+# ===== PROJECT IDENTITY =====
+CC_PROJECT_NAME="my-project"
+CC_PROJECT_DESCRIPTION="Brief project description"
+CC_ORG="my-org"
+
+# ===== LANGUAGE & STACK =====
+# Primary language: perl|python|node|java|go|rust|csharp
+CC_LANGUAGE="python"
+# File extensions to lint (space-separated, include dots)
+CC_LINT_EXTENSIONS=".py .pyi"
+# Lint command ($1 = file path)
+CC_LINT_COMMAND="ruff check \$1"
+# Format command (optional, $1 = file path)
+CC_FORMAT_COMMAND="ruff format --check \$1"
+# Test runner command
+CC_TEST_COMMAND="pytest"
+# Test file glob pattern
+CC_TEST_PATTERN="tests/**/*.py"
+
+# ===== DATABASE (optional) =====
+# Database type: oracle|postgresql|mysql|sqlite|none
+CC_DATABASE="none"
+
+# ===== ENVIRONMENT SETUP =====
+# Environment variables to set on session start (newline-separated KEY=VALUE)
+# Use ${PROJECT_DIR} for the project root path
+CC_ENV_VARS="
+PYTHONPATH=\${PROJECT_DIR}/src:\${PYTHONPATH:-}
+"
+
+# ===== ARCHITECTURE =====
+# Architecture pattern: ddd|mvc|clean|hexagonal|layered|none
+CC_ARCHITECTURE="ddd"
+# Source root (relative to project root)
+CC_SRC_ROOT="src"
+# Test root (relative to project root)
+CC_TEST_ROOT="tests"
+
+# ===== AGENTS =====
+# Which agents to install (space-separated)
+# Options: coordinator reviewer architect tester researcher database
+CC_AGENTS="coordinator reviewer architect tester researcher"
+# Coordinator model: opus|sonnet
+CC_COORDINATOR_MODEL="opus"
+# Specialist model: opus|sonnet
+CC_SPECIALIST_MODEL="sonnet"
+
+# ===== SKILLS =====
+# Which skills to install (space-separated)
+# Options: session-resume session-sync code-review pre-commit fitness
+#          project-status workflow-analysis test-scaffold tech-intel
+CC_SKILLS="session-resume code-review pre-commit fitness project-status"
+
+# ===== HOOKS =====
+# Which hooks to enable (space-separated)
+# Options: setup-env compact-reminder validate-bash post-edit-lint
+CC_HOOKS="setup-env compact-reminder validate-bash post-edit-lint"
+
+# ===== COMPACT RULES =====
+# Critical rules re-injected after context compaction (one per line)
+# These are your project's "golden rules" that must survive compaction
+CC_COMPACT_RULES="
+1. Always use type hints in function signatures
+2. Use parameterized queries for all database operations
+3. Follow the architecture pattern defined in CLAUDE.md
+4. Git commits: type(scope): subject format, no AI references
+5. Run lint before every commit
+"
+
+# ===== SAFETY RULES =====
+# Additional bash patterns to block (space-separated regex, beyond built-in safety)
+CC_BLOCKED_PATTERNS=""
+
+# ===== GIT =====
+# Main branch name
+CC_MAIN_BRANCH="main"
+# Commit format: conventional|freeform
+CC_COMMIT_FORMAT="conventional"
+# Commit scopes (space-separated, for documentation)
+CC_COMMIT_SCOPES="api ui db auth core"
+
+# ===== CI/CD =====
+# Install CI/CD pipeline: true|false
+CC_ENABLE_CICD="true"
+# Runner type: self-hosted|github-hosted
+CC_RUNNER_TYPE="self-hosted"
+# Install monitoring stack: true|false
+CC_MONITORING="true"
+# Fitness gate thresholds (percentage)
+CC_FITNESS_LINT="60"
+CC_FITNESS_COMMIT="80"
+CC_FITNESS_TEST="85"
+CC_FITNESS_MERGE="90"
+CC_FITNESS_DEPLOY="95"
+
+# ===== HORIZONTAL SCALING =====
+# Number of runner VPS nodes
+CC_RUNNER_NODES="1"
+# Runner labels (comma-separated)
+CC_RUNNER_LABELS="self-hosted,linux,docker"
+
+# ===== EXPERIMENTAL =====
+# Enable Agent Teams: true|false
+CC_AGENT_TEAMS="false"
+# MCP servers (space-separated): context7
+CC_MCP_SERVERS="context7"
+
+# ===== CONTEXT MANAGEMENT =====
+# Enable weekly cleanup cron: true|false
+CC_ENABLE_CLEANUP_CRON="true"
+# Session docs directory (relative to project root)
+CC_SESSION_DOCS_DIR="docs"
+# Max age for session doc archival (days)
+CC_SESSION_MAX_AGE_DAYS="30"

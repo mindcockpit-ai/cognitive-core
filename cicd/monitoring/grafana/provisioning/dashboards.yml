@@ -1,0 +1,20 @@
+# =============================================================================
+# Grafana Dashboard Provisioning — cognitive-core framework
+# =============================================================================
+# Auto-loads dashboards from the dashboards folder on Grafana startup.
+# =============================================================================
+
+apiVersion: 1
+
+providers:
+  - name: 'default'
+    orgId: 1
+    folder: 'CI/CD'
+    folderUid: 'cicd'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

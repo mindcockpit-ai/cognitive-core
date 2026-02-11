@@ -1,0 +1,147 @@
+# =============================================================================
+# Multi-stage Dockerfile Template — cognitive-core framework
+# =============================================================================
+# White-labeled, generic multi-stage build template.
+# Customize the marked sections for your language/framework.
+#
+# Features:
+#   - Multi-stage build (builder + runtime) for minimal image size
+#   - Non-root user for security
+#   - Built-in health check
+#   - OCI-compliant labels
+#   - Placeholder sections clearly marked with CUSTOMIZE comments
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# CUSTOMIZE: Choose your base images
+# Examples:
+#   perl:5.38-slim, node:20-alpine, python:3.12-slim, golang:1.22-alpine
+# ---------------------------------------------------------------------------
+ARG BUILD_IMAGE=ubuntu:22.04
+ARG RUNTIME_IMAGE=ubuntu:22.04
+
+# ===========================================================================
+# Stage 1: Builder
+# ===========================================================================
+FROM ${BUILD_IMAGE} AS builder
+
+ARG PROJECT_NAME=app
+ARG BUILD_DATE
+ARG VCS_REF
+
+LABEL org.opencontainers.image.title="${PROJECT_NAME}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.source="https://github.com/OWNER/REPO"
+
+WORKDIR /build
+
+# ---------------------------------------------------------------------------
+# CUSTOMIZE: Install build dependencies
+# Examples:
+#   Perl:   apt-get install -y build-essential libssl-dev && cpanm --installdeps .
+#   Node:   npm ci --production=false
+#   Python: pip install --no-cache-dir -r requirements.txt
+#   Go:     (dependencies fetched automatically)
+# ---------------------------------------------------------------------------
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#       build-essential \
+#     && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency manifests first (layer caching)
+# ---------------------------------------------------------------------------
+# CUSTOMIZE: Copy your dependency file
+# Examples:
+#   COPY cpanfile cpanfile.snapshot ./
+#   COPY package.json package-lock.json ./
+#   COPY requirements.txt ./
+#   COPY go.mod go.sum ./
+# ---------------------------------------------------------------------------
+# COPY package.json package-lock.json ./
+
+# Install dependencies (cached layer)
+# ---------------------------------------------------------------------------
+# CUSTOMIZE: Install command
+# ---------------------------------------------------------------------------
+# RUN npm ci
+
+# Copy application source
+COPY . .
+
+# ---------------------------------------------------------------------------
+# CUSTOMIZE: Build step (if applicable)
+# Examples:
+#   Node:   RUN npm run build
+#   Go:     RUN CGO_ENABLED=0 go build -o /build/app ./cmd/server
+#   Perl:   (typically no build step)
+#   Python: (typically no build step)
+# ---------------------------------------------------------------------------
+# RUN npm run build
+
+
+# ===========================================================================
+# Stage 2: Runtime (minimal image)
+# ===========================================================================
+FROM ${RUNTIME_IMAGE} AS runtime
+
+ARG PROJECT_NAME=app
+
+# Non-root user for security
+RUN groupadd --gid 1001 appuser && \
+    useradd --uid 1001 --gid appuser --shell /bin/false --create-home appuser
+
+WORKDIR /app
+
+# ---------------------------------------------------------------------------
+# CUSTOMIZE: Install runtime-only dependencies
+# Examples:
+#   Perl:   apt-get install -y perl libdbi-perl libdbd-oracle-perl
+#   Node:   (node already in base image)
+#   Python: pip install --no-cache-dir -r requirements.txt
+# ---------------------------------------------------------------------------
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#       ca-certificates curl \
+#     && rm -rf /var/lib/apt/lists/*
+
+# Copy built artifacts from builder stage
+# ---------------------------------------------------------------------------
+# CUSTOMIZE: Copy what you need from the builder
+# Examples:
+#   Node:   COPY --from=builder /build/dist ./dist
+#           COPY --from=builder /build/node_modules ./node_modules
+#   Go:     COPY --from=builder /build/app ./app
+#   Perl:   COPY --from=builder /build/lib ./lib
+#           COPY --from=builder /build/bin ./bin
+#   Python: COPY --from=builder /build/ ./
+# ---------------------------------------------------------------------------
+# COPY --from=builder /build/dist ./dist
+# COPY --from=builder /build/node_modules ./node_modules
+# COPY --from=builder /build/package.json ./
+
+# Set ownership
+RUN chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# ---------------------------------------------------------------------------
+# CUSTOMIZE: Expose your application port
+# ---------------------------------------------------------------------------
+EXPOSE 8080
+
+# Health check
+# ---------------------------------------------------------------------------
+# CUSTOMIZE: Adjust the health check endpoint/command for your app
+# ---------------------------------------------------------------------------
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
+
+# ---------------------------------------------------------------------------
+# CUSTOMIZE: Start command
+# Examples:
+#   Perl:   CMD ["plackup", "-p", "8080", "bin/app.psgi"]
+#   Node:   CMD ["node", "dist/server.js"]
+#   Python: CMD ["gunicorn", "-b", "0.0.0.0:8080", "app:create_app()"]
+#   Go:     CMD ["./app"]
+# ---------------------------------------------------------------------------
+CMD ["echo", "Replace this CMD with your application start command"]

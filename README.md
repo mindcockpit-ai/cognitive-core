@@ -1,261 +1,279 @@
 # cognitive-core
 
-A vendor-agnostic, biomimetic skill framework for AI agents.
+A portable framework that installs production-grade hooks, agents, skills, CI/CD pipelines, and monitoring into any Claude Code project in under 60 seconds.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+## Feature Highlights
 
-## Why cognitive-core?
-
-Most AI agent frameworks focus on **capability** (what agents can do). cognitive-core focuses on **quality** (how well they do it) and **portability** (running the same skills across different AI providers).
-
-| Existing Frameworks | cognitive-core Difference |
-|---------------------|---------------------------|
-| Capability-focused | **Quality-focused** (fitness functions) |
-| Vendor lock-in | **Universal YAML** + adapters |
-| Chain/graph models | **Biological hierarchy** (atomic→organism) |
-| Trust-all execution | **Immune system** security layers |
-
-## Core Principles
-
-🧬 **Biomimetic Architecture**
-Skills evolve like biological systems—from atomic primitives to complex organisms.
-
-📊 **Fitness-First Development**
-Measurable quality gates at every stage. Code survives or goes extinct based on fitness.
-
-🔒 **Immune System Security**
-Defense-in-depth with innate (fast rules) and adaptive (learned patterns) protection layers.
-
-🌐 **Vendor-Agnostic Design**
-Write skills once in universal YAML, run on Claude, OpenAI, Ollama, or any future agent.
-
-## The Biomimetic Hierarchy
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         SKILL HIERARCHY                                     │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  LEVEL 4: ORGANISM        Complete workflows, multi-step processes          │
-│           ▲               /implement-feature, /migrate-legacy               │
-│           │                                                                 │
-│  LEVEL 3: CELLULAR        Domain-specific combinations                      │
-│           ▲               /python-patterns, /spring-patterns                │
-│           │                                                                 │
-│  LEVEL 2: MOLECULAR       Composed operations                               │
-│           ▲               /pre-commit, /code-review, /fitness               │
-│           │                                                                 │
-│  LEVEL 1: ATOMIC          Universal primitives                              │
-│                           /validate, /search, /format, /extract             │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-## Evolutionary CI/CD
-
-Inspired by Search-Based Software Engineering (SBSE), cognitive-core treats software development as an evolutionary process:
-
-```
-MUTATION           SELECTION              SURVIVAL
-(Development)      (Quality Gates)        (Production)
-
-┌──────────┐      ┌──────────┐           ┌──────────┐
-│ Developer│ ───▶ │ Fitness  │ ───▶      │ Canary   │
-│ writes   │      │ Functions│           │ Deploy   │
-│ code     │      └────┬─────┘           └────┬─────┘
-└──────────┘           │                      │
-                  FAIL │                 FAIL │
-                       ▼                      ▼
-                 ┌──────────┐           ┌──────────┐
-                 │ Rejected │           │ Rollback │
-                 │(extinct) │           │(extinct) │
-                 └──────────┘           └──────────┘
-```
-
-### Quality Gates (Selection Pressure)
-
-| Gate | Threshold | Selection Pressure |
-|------|-----------|-------------------|
-| Lint | 0.60 | Low |
-| Commit | 0.80 | Medium |
-| Test | 0.85 | Medium-High |
-| Merge | 0.90 | High |
-| Deploy | 0.95 | Critical |
-
-## Immune System Security
-
-Based on Artificial Immune Systems (AIS) research:
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    DEFENSE-IN-DEPTH STACK                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  Layer 5: AUDIT & MONITORING        (Nervous System)                        │
-│  Layer 4: HUMAN OVERSIGHT           (Consciousness)                         │
-│  Layer 3: RUNTIME ISOLATION         (Quarantine)                            │
-│  Layer 2: CAPABILITY ENFORCEMENT    (Adaptive Immunity)                     │
-│  Layer 1: INPUT/OUTPUT GUARDRAILS   (Innate Immunity)                       │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+- **Hooks** -- Session startup, bash validation, post-edit linting, compaction reminders with shared library
+- **Agents** -- Hub-and-spoke team of 6 specialists (coordinator, architect, reviewer, tester, researcher, database)
+- **Skills** -- 9 reusable skills from session-resume to tech-intel, with language and database packs
+- **CI/CD** -- Evolutionary pipeline with fitness gates, self-hosted runner setup, GitHub Actions workflows
+- **Monitoring** -- Prometheus, Grafana dashboards, Alertmanager with Slack/email/PagerDuty
+- **Kubernetes** -- Base manifests, Kustomize overlays, monitoring stack for horizontal scaling
+- **Checksum updater** -- Safe framework updates that preserve your customizations
 
 ## Quick Start
 
-### Installation
-
 ```bash
-# Clone the repository
+# 1. Clone the framework
 git clone https://github.com/mindcockpit-ai/cognitive-core.git
+cd cognitive-core
 
-# Copy skills to your agent's skill directory
-# For Claude Code:
-cp -r cognitive-core/skills/* ~/.claude/skills/
+# 2. Install into your project (interactive setup)
+./install.sh /path/to/your-project
 
-# For project-specific skills:
-cp -r cognitive-core/skills/cellular/templates/* .claude/skills/
+# 3. Start a Claude Code session -- hooks load automatically
+cd /path/to/your-project && claude
 ```
 
-### Using Skills
+## Architecture
+
+```
+cognitive-core/                         Your project after install:
++-- core/                               .claude/
+|   +-- hooks/                            +-- hooks/
+|   |   +-- _lib.sh          -------->    |   +-- _lib.sh
+|   |   +-- setup-env.sh     -------->    |   +-- setup-env.sh
+|   |   +-- validate-bash.sh -------->    |   +-- validate-bash.sh
+|   |   +-- post-edit-lint.sh-------->    |   +-- post-edit-lint.sh
+|   |   +-- compact-reminder.sh------>    |   +-- compact-reminder.sh
+|   +-- agents/                           +-- agents/
+|   |   +-- project-coordinator.md--->    |   +-- project-coordinator.md
+|   |   +-- code-standards-reviewer-->    |   +-- code-standards-reviewer.md
+|   |   +-- solution-architect.md---->    |   +-- solution-architect.md
+|   |   +-- test-specialist.md------->    |   +-- test-specialist.md
+|   |   +-- research-analyst.md------>    |   +-- research-analyst.md
+|   |   +-- database-specialist.md--->    |   +-- database-specialist.md
+|   +-- skills/                           +-- skills/
+|   |   +-- session-resume/ --------->    |   +-- session-resume/
+|   |   +-- code-review/   --------->    |   +-- code-review/
+|   |   +-- pre-commit/    --------->    |   +-- pre-commit/
+|   |   +-- fitness/        --------->    |   +-- fitness/
+|   |   +-- ...                           |   +-- ...
+|   +-- templates/                        +-- settings.json
+|   +-- utilities/                        +-- cognitive-core/
++-- language-packs/                       |   +-- version.json
+|   +-- perl/, python/, node/             +-- AGENTS_README.md
+|   +-- java/, go/, rust/, csharp/    CLAUDE.md
++-- database-packs/                   cognitive-core.conf
+|   +-- oracle/, postgresql/, mysql/
++-- cicd/
+|   +-- workflows/
+|   +-- docker/
+|   +-- scripts/
+|   +-- monitoring/
+|   +-- k8s/
++-- install.sh
++-- update.sh
++-- cognitive-core.conf.example
+```
+
+## What's Included
+
+### Hooks
+
+| Hook | Event | Purpose |
+|------|-------|---------|
+| `setup-env.sh` | SessionStart | Sets environment variables, prints branch status |
+| `validate-bash.sh` | PreToolUse (Bash) | Blocks dangerous commands (rm -rf /, force push to main) |
+| `post-edit-lint.sh` | PostToolUse (Edit/Write) | Runs lint on every file edit automatically |
+| `compact-reminder.sh` | Notification (compact) | Re-injects critical rules after context compaction |
+| `_lib.sh` | (shared) | Config loading, JSON output helpers for all hooks |
+
+### Agents
+
+| Agent | Model | Role |
+|-------|-------|------|
+| project-coordinator | opus | Hub orchestrator -- analyzes requests and delegates |
+| solution-architect | opus | Business workflows, architecture, requirements |
+| code-standards-reviewer | sonnet | Code review against CLAUDE.md standards |
+| test-specialist | sonnet | Unit/integration tests, coverage, QA |
+| research-analyst | opus | External research, library evaluation |
+| database-specialist | opus | Query optimization, bulk operations, schema design |
+
+### Skills
+
+| Skill | Auto-load | Purpose |
+|-------|-----------|---------|
+| session-resume | yes | Recovers context at session start |
+| session-sync | manual | Cross-machine session synchronization |
+| code-review | yes | Structured code review checklist |
+| pre-commit | manual | Pre-commit validation checks |
+| fitness | manual | Codebase fitness scoring |
+| project-status | manual | Project status dashboard |
+| workflow-analysis | manual | Workflow and process analysis |
+| test-scaffold | manual | Test file generation from source |
+| tech-intel | yes | Technology intelligence and research |
+
+## Configuration
+
+All configuration lives in a single `cognitive-core.conf` file (shell syntax, sourced by hooks at runtime).
 
 ```bash
-# Validate input (atomic)
-/validate email user@example.com
-
-# Run pre-commit checks (molecular)
-/pre-commit src/services/
-
-# Evaluate fitness (molecular)
-/fitness --gate=commit src/
-
-# Deploy with survival monitoring (molecular)
-/deploy production --strategy=canary
+# Key configuration sections:
+CC_PROJECT_NAME="my-project"      # Project identity
+CC_LANGUAGE="python"               # perl|python|node|java|go|rust|csharp
+CC_DATABASE="postgresql"           # oracle|postgresql|mysql|sqlite|none
+CC_ARCHITECTURE="ddd"             # ddd|mvc|clean|hexagonal|layered|none
+CC_AGENTS="coordinator reviewer"   # Which agents to install
+CC_SKILLS="session-resume ..."     # Which skills to install
+CC_HOOKS="setup-env ..."           # Which hooks to enable
+CC_ENABLE_CICD="true"             # Install CI/CD pipeline
+CC_MONITORING="true"              # Install monitoring stack
 ```
 
-### Creating Custom Skills
+See `cognitive-core.conf.example` for the complete reference with all options.
 
-```yaml
-# .claude/skills/my-skill/SKILL.md
----
-name: my-skill
-extends: global:validate          # Inherit from atomic skill
-description: Domain-specific validation
-argument-hint: [target]
-allowed-tools: Read, Grep
----
+## Language Packs
 
-# My Skill
+Language packs add language-specific skills and patterns.
 
-Custom instructions here...
-```
+| Language | Pack | Skills Included |
+|----------|------|-----------------|
+| Perl | `language-packs/perl/` | perl-patterns |
+| Python | `language-packs/python/` | python-patterns |
+| Node.js | `language-packs/node/` | (planned) |
+| Java | `language-packs/java/` | (planned) |
+| Go | `language-packs/go/` | (planned) |
+| Rust | `language-packs/rust/` | (planned) |
+| C# | `language-packs/csharp/` | (planned) |
 
-## Universal Skill Format
+### Database Packs
 
-cognitive-core uses a universal YAML format that adapters translate for each AI provider:
+| Database | Pack | Skills Included |
+|----------|------|-----------------|
+| Oracle | `database-packs/oracle/` | oracle-patterns |
+| PostgreSQL | `database-packs/postgresql/` | (planned) |
+| MySQL | `database-packs/mysql/` | (planned) |
 
-```yaml
-# skills/molecular/code-review/skill.yaml
-name: code-review
-version: 1.0.0
-description: Comprehensive code review with quality gates
+## CI/CD Pipeline
 
-inputs:
-  - name: target
-    type: file|directory
-    required: true
-  - name: depth
-    type: enum[quick|standard|deep]
-    default: standard
-
-capabilities:
-  - file_read
-  - pattern_search
-  - static_analysis
-
-fitness:
-  security: 0.25
-  architecture: 0.25
-  quality: 0.25
-  performance: 0.25
-
-outputs:
-  - type: report
-    format: markdown
-  - type: score
-    range: [0.0, 1.0]
-```
-
-## Adapters
-
-| Adapter | Status | Description |
-|---------|--------|-------------|
-| **Claude** | ✅ Ready | Claude Code SKILL.md format |
-| **OpenAI** | 🚧 Planned | GPT Actions / Assistants |
-| **Ollama** | 🚧 Planned | Local LLM support |
-| **LangChain** | 🚧 Planned | Chain integration |
-
-## Project Structure
+The evolutionary CI/CD pipeline gates deployments on codebase fitness scores.
 
 ```
-cognitive-core/
-├── docs/
-│   ├── architecture/          # Biomimetic, evolutionary, security docs
-│   ├── adapters/              # Adapter implementation guides
-│   └── best-practices/        # Usage patterns and tips
-├── skills/
-│   ├── atomic/                # Universal primitives
-│   ├── molecular/             # Composed operations
-│   └── cellular/              # Domain templates
-├── adapters/
-│   ├── claude/                # Claude Code adapter
-│   ├── openai/                # OpenAI adapter
-│   └── ollama/                # Ollama adapter
-└── examples/
-    └── architecture/          # DDD examples (Python, Java, C#, TypeScript)
+  Commit  --->  Lint Gate (60%)  --->  Test Gate (85%)  --->  Merge Gate (90%)
+                     |                      |                       |
+                 fitness-check.sh      fitness-check.sh       fitness-check.sh
+                     |                      |                       |
+                push-metrics.sh -----> Prometheus -----> Grafana Dashboards
+                                                              |
+                                                        Alert Rules
+                                                       /     |      \
+                                                 Slack   Email   PagerDuty
 ```
 
-## Scientific Foundation
+### Included Components
 
-cognitive-core is built on peer-reviewed research:
+- **GitHub Actions** -- `lint.yml` and `evolutionary-cicd.yml` workflows
+- **Docker** -- Runner Dockerfile, compose files for runners and monitoring
+- **Scripts** -- `setup-runner.sh`, `fitness-check.sh`, `push-metrics.sh`
+- **Monitoring** -- Prometheus config, Grafana dashboards (CI/CD overview, app metrics), Alertmanager
+- **Kubernetes** -- Base manifests, Kustomize overlays, monitoring manifests
 
-- **SBSE**: Harman & Jones, "Search-Based Software Engineering" (ACM 2001)
-- **AIS**: Artificial Immune Systems for intrusion detection (Wiley 2025)
-- **CaMeL**: Google DeepMind's capability-based security (2025)
-- **Constitutional AI**: Anthropic's value alignment approach
-- **Fitness Functions**: ThoughtWorks' architectural fitness
+### Fitness Gates
+
+Configurable thresholds that increase strictness as code moves toward production:
+
+| Gate | Default | When |
+|------|---------|------|
+| Lint | 60% | Every commit |
+| Commit | 80% | Commit message quality |
+| Test | 85% | Test coverage |
+| Merge | 90% | Pull request merge |
+| Deploy | 95% | Production deployment |
+
+## Horizontal Scaling
+
+For teams running multiple CI/CD runners:
+
+```bash
+# In cognitive-core.conf
+CC_RUNNER_NODES="3"
+CC_RUNNER_LABELS="self-hosted,linux,docker"
+```
+
+The `setup-runner.sh` script provisions self-hosted GitHub Actions runners with Docker-in-Docker support. Scale horizontally by running the setup on additional VPS nodes.
+
+## Updating
+
+The `update.sh` script safely updates framework files while preserving your customizations:
+
+```bash
+# Pull latest framework
+cd /path/to/cognitive-core && git pull
+
+# Update your project
+./update.sh /path/to/your-project
+```
+
+The updater:
+1. Reads the version manifest to identify tracked files
+2. Computes checksums of installed files vs. originals
+3. Updates files you have not modified
+4. Preserves files you have customized (warns you to review manually)
+5. Installs new framework files added since your last install
+6. Writes an updated version manifest
+
+## Design Decisions
+
+This framework was built from 21 findings identified during a comprehensive CI/CD and developer-experience audit. Key resolutions:
+
+| # | Finding | Resolution |
+|---|---------|------------|
+| 1 | Hook reliability | Shared `_lib.sh` with JSON helpers, `set -euo pipefail` everywhere |
+| 2 | Config sprawl | Single `cognitive-core.conf` sourced by all hooks |
+| 3 | Agent coordination | Hub-and-spoke model with mandatory quality gate |
+| 4 | Skill bloat | Progressive disclosure: SKILL.md + references/ subdirectory |
+| 5 | Context budget | Auto-load estimation, size warnings in health checks |
+| 6 | Docker socket security | Externalized `DOCKER_GID` in .env, not hardcoded |
+| 7 | Credential management | `.env.template` pattern, nothing committed to git |
+| 8 | Cross-platform | macOS + Linux support in all scripts |
+| 9 | Update safety | Checksum-based updater preserves user modifications |
+| 10 | Fitness scoring | Configurable per-gate thresholds |
+| 11 | Horizontal scaling | Multi-node runner provisioning |
+| 12 | Monitoring | Prometheus + Grafana + Alertmanager with multi-channel alerts |
+| 13 | Language agnostic | Language packs with per-language skills and patterns |
+| 14 | Database agnostic | Database packs with per-database skills and patterns |
+| 15 | Secrets in config | All credentials externalized to .env files |
+| 16 | Pushgateway exposure | Localhost-only binding by default |
+| 17 | Interactive install | Guided setup with sane defaults for every option |
+| 18 | Bash validation | PreToolUse hook blocks dangerous commands |
+| 19 | Compaction survival | Critical rules re-injected after context compaction |
+| 20 | Session continuity | session-resume skill with live context injection |
+| 21 | Version tracking | Manifest with file checksums for safe updates |
 
 ## Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feat/my-feature`
+3. Make your changes following the conventional commit format
+4. Test the install flow: `./install.sh /tmp/test-project`
+5. Test the update flow: `./update.sh /tmp/test-project`
+6. Submit a pull request
 
-### Areas of Interest
+### Project Structure
 
-- 🔌 New adapters (Gemini, Mistral, etc.)
-- 🧬 Domain-specific cellular skills
-- 📊 Fitness function implementations
-- 🔒 Security layer enhancements
-- 📚 Documentation and examples
+```
+core/           Framework core (hooks, agents, skills, templates, utilities)
+language-packs/ Language-specific extensions (perl, python, node, ...)
+database-packs/ Database-specific extensions (oracle, postgresql, mysql)
+cicd/           CI/CD pipeline (workflows, docker, scripts, monitoring, k8s)
+docs/           Framework documentation
+install.sh      Interactive bootstrapper
+update.sh       Checksum-based updater
+```
 
-## Roadmap
+### Adding a Language Pack
 
-- [x] Core architecture design
-- [x] Claude Code adapter
-- [x] Atomic and molecular skills
-- [ ] OpenAI adapter
-- [ ] Ollama adapter
-- [ ] GitHub Actions integration
-- [ ] Fitness dashboard
-- [ ] Community skill marketplace
+1. Create `language-packs/<language>/skills/<skill-name>/SKILL.md`
+2. Add language defaults to the install.sh `case` statement
+3. Test: `./install.sh /tmp/test --force` with `CC_LANGUAGE=<language>`
+
+### Adding a Database Pack
+
+1. Create `database-packs/<database>/skills/<skill-name>/SKILL.md`
+2. Test: `./install.sh /tmp/test --force` with `CC_DATABASE=<database>`
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
-## About
-
-cognitive-core is developed by [mindcockpit.ai](https://mindcockpit.ai), building AI-enhanced infrastructure for enterprise modernization.
-
----
-
-*"In nature, every improvement is tested. cognitive-core brings natural selection to software development."*
+MIT License. See [LICENSE](LICENSE) for details.

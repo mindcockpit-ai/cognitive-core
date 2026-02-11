@@ -1,0 +1,357 @@
+# =============================================================================
+# Evolutionary CI/CD Pipeline — cognitive-core framework
+# =============================================================================
+# 5-gate progressive quality pipeline. Findings resolved:
+#   #2=self-hosted permissions, #3=continue-on-error syntax, #5=mkdir -p logs,
+#   #13=changed-files-only, #19=single-pass tests, #20=semgrep scan
+# All thresholds configurable via repository variables.
+# =============================================================================
+name: Evolutionary CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, master, develop, 'release/**']
+  pull_request:
+    branches: [main, master, develop]
+  workflow_dispatch:
+    inputs:
+      skip_deploy:
+        description: 'Skip deployment gate'
+        type: boolean
+        default: true
+      force_full_lint:
+        description: 'Lint all files, not just changed'
+        type: boolean
+        default: false
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT_NAME: ${{ vars.PROJECT_NAME || 'app' }}
+  PROJECT_IMAGE: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}/${{ github.repository }}
+  GATE_TEST_MIN_PASS_RATE: ${{ vars.GATE_TEST_MIN_PASS_RATE || '95' }}
+  GATE_MERGE_FITNESS_THRESHOLD: ${{ vars.GATE_MERGE_FITNESS_THRESHOLD || '70' }}
+  GATE_DEPLOY_FITNESS_THRESHOLD: ${{ vars.GATE_DEPLOY_FITNESS_THRESHOLD || '80' }}
+
+jobs:
+  # =========================================================================
+  # GATE 1: LINT
+  # =========================================================================
+  gate-1-lint:
+    name: "Gate 1: Lint"
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    outputs:
+      changed_files: ${{ steps.diff.outputs.files }}
+      file_count: ${{ steps.diff.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Finding #2: Fix workspace permissions on self-hosted runners
+      - name: Fix workspace permissions (Finding #2)
+        if: ${{ vars.RUNNER_LABEL != '' && vars.RUNNER_LABEL != 'ubuntu-latest' }}
+        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+
+      # Finding #5: Ensure logs directory exists before checks
+      - name: Prepare directories (Finding #5)
+        run: mkdir -p logs artifacts
+
+      # Finding #13: Changed-files-only detection
+      - name: Detect changed files (Finding #13)
+        id: diff
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+            [ "$BASE" = "0000000000000000000000000000000000000000" ] && \
+              BASE="$(git rev-list --max-parents=0 HEAD | head -1)"
+          fi
+          if [ "${{ inputs.force_full_lint }}" = "true" ]; then
+            FILES=$(find . -type f \( -name '*.pl' -o -name '*.pm' -o -name '*.t' \
+              -o -name '*.js' -o -name '*.ts' -o -name '*.py' -o -name '*.sh' \) \
+              | sed 's|^\./||' | head -500)
+          else
+            FILES=$(git diff --name-only --diff-filter=ACMR "$BASE" HEAD 2>/dev/null || echo "")
+          fi
+          { echo "files<<EOF"; echo "$FILES"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+          echo "count=$(echo "$FILES" | grep -c . || echo 0)" >> "$GITHUB_OUTPUT"
+
+      # Finding #3: continue-on-error for syntax checks
+      - name: Syntax check (Perl) (Finding #3)
+        continue-on-error: true
+        run: |
+          echo "${{ steps.diff.outputs.files }}" | grep -E '\.(pl|pm|t)$' | while IFS= read -r f; do
+            [ -z "$f" ] || [ ! -f "$f" ] && continue
+            perl -c "$f" 2>&1 || echo "::warning file=$f::Syntax issue"
+          done
+
+      - name: Syntax check (Shell) (Finding #3)
+        continue-on-error: true
+        run: |
+          echo "${{ steps.diff.outputs.files }}" | grep -E '\.(sh|bash)$' | while IFS= read -r f; do
+            [ -z "$f" ] || [ ! -f "$f" ] && continue
+            bash -n "$f" 2>&1 || echo "::warning file=$f::Syntax issue"
+          done
+
+      - name: Syntax check (Python) (Finding #3)
+        continue-on-error: true
+        run: |
+          echo "${{ steps.diff.outputs.files }}" | grep -E '\.py$' | while IFS= read -r f; do
+            [ -z "$f" ] || [ ! -f "$f" ] && continue
+            python3 -m py_compile "$f" 2>&1 || echo "::warning file=$f::Syntax issue"
+          done
+
+      - name: Upload lint logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-logs
+          path: logs/
+          retention-days: 7
+
+  # =========================================================================
+  # GATE 2: COMMIT — Pre-commit validation + security scan
+  # =========================================================================
+  gate-2-commit:
+    name: "Gate 2: Commit Validation"
+    needs: gate-1-lint
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fix workspace permissions (Finding #2)
+        if: ${{ vars.RUNNER_LABEL != '' && vars.RUNNER_LABEL != 'ubuntu-latest' }}
+        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+      - name: Prepare directories (Finding #5)
+        run: mkdir -p logs artifacts
+
+      - name: Check for secrets in changed files
+        run: |
+          FOUND=0
+          echo "${{ needs.gate-1-lint.outputs.changed_files }}" | while IFS= read -r f; do
+            [ -z "$f" ] || [ ! -f "$f" ] && continue
+            if grep -nEi '(password|secret|api_key|token|private_key)\s*[:=]\s*["\x27][^"\x27]{8,}' "$f" 2>/dev/null; then
+              echo "::error file=$f::Potential secret detected"; FOUND=1
+            fi
+          done
+          [ "$FOUND" = "1" ] && echo "::warning::Potential secrets — review before merge"; true
+
+      # Finding #20: Semgrep security scan
+      - name: Semgrep security scan (Finding #20)
+        uses: returntocorp/semgrep-action@v1
+        continue-on-error: true
+        with:
+          config: >-
+            p/default
+            p/security-audit
+            p/secrets
+        env:
+          SEMGREP_RULES: ${{ vars.SEMGREP_RULES || 'p/default' }}
+
+      - name: Validate commit messages
+        if: github.event_name == 'pull_request'
+        run: |
+          PATTERN='^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .{1,72}'
+          git log --format='%s' "${{ github.event.pull_request.base.sha }}..HEAD" | while read -r msg; do
+            echo "$msg" | grep -qE "$PATTERN" || echo "::warning::Non-conventional commit: $msg"
+          done
+
+  # =========================================================================
+  # GATE 3: TEST — Single-pass execution + fitness scoring
+  # =========================================================================
+  gate-3-test:
+    name: "Gate 3: Test"
+    needs: gate-2-commit
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    outputs:
+      test_pass_rate: ${{ steps.results.outputs.pass_rate }}
+      fitness_score: ${{ steps.fitness.outputs.score }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix workspace permissions (Finding #2)
+        if: ${{ vars.RUNNER_LABEL != '' && vars.RUNNER_LABEL != 'ubuntu-latest' }}
+        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+      - name: Prepare directories (Finding #5)
+        run: mkdir -p logs artifacts test-results
+
+      # Finding #19: Run tests ONCE, output JUnit directly (no double-run)
+      - name: Run tests — single pass (Finding #19)
+        id: run-tests
+        continue-on-error: true
+        run: |
+          if [ -f "Makefile.PL" ] || [ -f "cpanfile" ]; then
+            prove -l --timer --formatter TAP::Formatter::JUnit t/ > test-results/junit.xml 2>&1 || true
+            [ ! -s test-results/junit.xml ] && prove -l --timer t/ > test-results/tap-output.txt 2>&1 || true
+          elif [ -f "package.json" ]; then
+            if grep -q '"jest"' package.json 2>/dev/null; then
+              npx jest --ci --reporters=default --reporters=jest-junit 2>&1 || true
+              cp junit.xml test-results/ 2>/dev/null || true
+            elif grep -q '"mocha"' package.json 2>/dev/null; then
+              npx mocha --reporter mocha-junit-reporter \
+                --reporter-options mochaFile=test-results/junit.xml 2>&1 || true
+            else
+              npm test > test-results/output.txt 2>&1 || true
+            fi
+          elif [ -f "setup.py" ] || [ -f "pyproject.toml" ]; then
+            python -m pytest --junitxml=test-results/junit.xml -v 2>&1 || true
+          elif [ -f "go.mod" ]; then
+            if command -v gotestsum &>/dev/null; then
+              gotestsum --junitfile test-results/junit.xml ./... 2>&1 || true
+            else
+              go test -v ./... > test-results/output.txt 2>&1 || true
+            fi
+          else
+            echo "::notice::No recognized test framework found"
+            echo '<testsuite tests="0" />' > test-results/junit.xml
+          fi
+
+      - name: Parse test results
+        id: results
+        run: |
+          if [ -f test-results/junit.xml ]; then
+            TESTS=$(grep -oP 'tests="(\d+)"' test-results/junit.xml | head -1 | grep -oP '\d+' || echo 0)
+            FAIL=$(grep -oP 'failures="(\d+)"' test-results/junit.xml | head -1 | grep -oP '\d+' || echo 0)
+            ERR=$(grep -oP 'errors="(\d+)"' test-results/junit.xml | head -1 | grep -oP '\d+' || echo 0)
+          else TESTS=0; FAIL=0; ERR=0; fi
+          PASSED=$((TESTS - FAIL - ERR))
+          RATE=$(( TESTS > 0 ? PASSED * 100 / TESTS : 100 ))
+          echo "pass_rate=$RATE" >> "$GITHUB_OUTPUT"
+          echo "Tests=$TESTS Passed=$PASSED Failed=$FAIL Errors=$ERR Rate=${RATE}%"
+          [ "$RATE" -lt "${{ env.GATE_TEST_MIN_PASS_RATE }}" ] && \
+            { echo "::error::Pass rate ${RATE}% < threshold ${{ env.GATE_TEST_MIN_PASS_RATE }}%"; exit 1; }
+          true
+
+      - name: Run fitness check
+        id: fitness
+        continue-on-error: true
+        run: |
+          for script in cicd/scripts/fitness-check.sh scripts/fitness-check.sh; do
+            if [ -x "$script" ]; then
+              SCORE=$(bash "$script" --score-only 2>/dev/null || echo "0")
+              echo "score=$SCORE" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+          done
+          echo "score=0" >> "$GITHUB_OUTPUT"
+          echo "::notice::No fitness-check.sh found"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 14
+
+      - uses: mikepenz/action-junit-report@v4
+        if: always()
+        continue-on-error: true
+        with:
+          report_paths: test-results/junit.xml
+          fail_on_failure: false
+
+  # =========================================================================
+  # GATE 4: MERGE — Quality gate for merge readiness
+  # =========================================================================
+  gate-4-merge:
+    name: "Gate 4: Merge Readiness"
+    needs: [gate-1-lint, gate-3-test]
+    if: github.event_name == 'pull_request'
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    steps:
+      - name: Evaluate merge readiness
+        run: |
+          RATE="${{ needs.gate-3-test.outputs.test_pass_rate }}"
+          FIT="${{ needs.gate-3-test.outputs.fitness_score }}"
+          echo "========================================"
+          echo "  MERGE READINESS REPORT"
+          echo "  Test pass rate:    ${RATE:-N/A}%"
+          echo "  Fitness score:     ${FIT:-N/A}/100"
+          echo "  Changed files:     ${{ needs.gate-1-lint.outputs.file_count }}"
+          echo "  Fitness threshold: ${{ env.GATE_MERGE_FITNESS_THRESHOLD }}"
+          echo "========================================"
+          READY=true
+          [ -n "$RATE" ] && [ "$RATE" -lt "${{ env.GATE_TEST_MIN_PASS_RATE }}" ] && \
+            { echo "::error::Test pass rate below threshold"; READY=false; }
+          [ -n "$FIT" ] && [ "$FIT" -lt "${{ env.GATE_MERGE_FITNESS_THRESHOLD }}" ] && \
+            echo "::warning::Fitness $FIT below merge threshold ${{ env.GATE_MERGE_FITNESS_THRESHOLD }}"
+          [ "$READY" = "false" ] && exit 1
+          echo "Merge readiness: APPROVED"
+
+  # =========================================================================
+  # GATE 5: DEPLOY — Container build and deployment
+  # =========================================================================
+  gate-5-deploy:
+    name: "Gate 5: Deploy"
+    needs: [gate-3-test]
+    if: |
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') &&
+      inputs.skip_deploy != true
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix workspace permissions (Finding #2)
+        if: ${{ vars.RUNNER_LABEL != '' && vars.RUNNER_LABEL != 'ubuntu-latest' }}
+        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+
+      - name: Check deploy fitness threshold
+        run: |
+          FIT="${{ needs.gate-3-test.outputs.fitness_score }}"
+          [ -n "$FIT" ] && [ "$FIT" -lt "${{ env.GATE_DEPLOY_FITNESS_THRESHOLD }}" ] && \
+            { echo "::error::Fitness $FIT < deploy threshold ${{ env.GATE_DEPLOY_FITNESS_THRESHOLD }}"; exit 1; }
+          true
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.PROJECT_IMAGE }}:${{ github.sha }}
+            ${{ env.PROJECT_IMAGE }}:latest
+          build-args: |
+            PROJECT_NAME=${{ env.PROJECT_NAME }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+
+      - name: Push deployment metrics
+        if: always()
+        continue-on-error: true
+        run: |
+          [ -x "cicd/scripts/push-metrics.sh" ] && bash cicd/scripts/push-metrics.sh job_end \
+            --job deploy --status "${{ job.status }}" --project "${{ env.PROJECT_NAME }}" || true
+
+  # =========================================================================
+  # Pipeline summary (always runs)
+  # =========================================================================
+  pipeline-summary:
+    name: Pipeline Summary
+    needs: [gate-1-lint, gate-2-commit, gate-3-test]
+    if: always()
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    steps:
+      - name: Pipeline outcome
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<SUMMARY
+          ## Pipeline Summary
+          | Gate | Status |
+          |------|--------|
+          | 1. Lint | ${{ needs.gate-1-lint.result }} |
+          | 2. Commit | ${{ needs.gate-2-commit.result }} |
+          | 3. Test | ${{ needs.gate-3-test.result }} |
+
+          **Test pass rate:** ${{ needs.gate-3-test.outputs.test_pass_rate }}%
+          **Fitness score:** ${{ needs.gate-3-test.outputs.fitness_score }}/100
+          SUMMARY

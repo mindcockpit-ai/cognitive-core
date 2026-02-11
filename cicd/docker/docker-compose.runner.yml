@@ -1,0 +1,119 @@
+# =============================================================================
+# Self-Hosted GitHub Actions Runner — cognitive-core framework
+# =============================================================================
+# Multi-node support with parameterized ORG/REPO.
+#
+# Findings resolved:
+#   #6  — DOCKER_GID group binding for Docker-in-Docker access
+#
+# Usage:
+#   # Single node:
+#   GITHUB_ORG=myorg GITHUB_REPO=myrepo RUNNER_TOKEN=xxx \
+#     docker compose -f docker/docker-compose.runner.yml up -d
+#
+#   # Multi-node (scale or explicit IDs):
+#   RUNNER_NODE_ID=2 docker compose -f docker/docker-compose.runner.yml up -d runner-node-2
+# =============================================================================
+
+version: "3.8"
+
+networks:
+  runner-net:
+    driver: bridge
+
+services:
+  # ---------------------------------------------------------------------------
+  # Runner Node 1 (default)
+  # ---------------------------------------------------------------------------
+  runner-node-1:
+    image: myoung34/github-runner:latest
+    container_name: gh-runner-${RUNNER_NODE_ID:-1}
+    restart: unless-stopped
+    environment:
+      - RUNNER_NAME=${RUNNER_NAME_PREFIX:-runner}-${RUNNER_NODE_ID:-1}
+      - RUNNER_TOKEN=${RUNNER_TOKEN:?Set RUNNER_TOKEN in environment}
+      - RUNNER_WORKDIR=/tmp/github-runner
+      - RUNNER_SCOPE=${RUNNER_SCOPE:-repo}
+      # Parameterized org/repo — no hardcoded values
+      - ORG_NAME=${GITHUB_ORG:?Set GITHUB_ORG in environment}
+      - REPO_URL=https://github.com/${GITHUB_ORG}/${GITHUB_REPO:?Set GITHUB_REPO}
+      - RUNNER_GROUP=${RUNNER_GROUP:-default}
+      - LABELS=${RUNNER_LABELS:-self-hosted,linux,x64}
+      - EPHEMERAL=${RUNNER_EPHEMERAL:-false}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - runner-work-1:/tmp/github-runner
+    # Finding #6 fix: DOCKER_GID group binding.
+    # The runner container needs access to the host Docker socket.
+    # The DOCKER_GID must match the host's docker group ID.
+    # Find it with: getent group docker | cut -d: -f3
+    group_add:
+      - "${DOCKER_GID:?Set DOCKER_GID to host docker group ID}"
+    security_opt:
+      - label:disable
+    networks:
+      - runner-net
+
+  # ---------------------------------------------------------------------------
+  # Runner Node 2 (optional — start explicitly or via --scale)
+  # ---------------------------------------------------------------------------
+  runner-node-2:
+    image: myoung34/github-runner:latest
+    container_name: gh-runner-2
+    restart: unless-stopped
+    profiles:
+      - multi-node
+    environment:
+      - RUNNER_NAME=${RUNNER_NAME_PREFIX:-runner}-2
+      - RUNNER_TOKEN=${RUNNER_TOKEN}
+      - RUNNER_WORKDIR=/tmp/github-runner
+      - RUNNER_SCOPE=${RUNNER_SCOPE:-repo}
+      - ORG_NAME=${GITHUB_ORG}
+      - REPO_URL=https://github.com/${GITHUB_ORG}/${GITHUB_REPO}
+      - RUNNER_GROUP=${RUNNER_GROUP:-default}
+      - LABELS=${RUNNER_LABELS:-self-hosted,linux,x64}
+      - EPHEMERAL=${RUNNER_EPHEMERAL:-false}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - runner-work-2:/tmp/github-runner
+    # Finding #6: Same DOCKER_GID binding
+    group_add:
+      - "${DOCKER_GID}"
+    security_opt:
+      - label:disable
+    networks:
+      - runner-net
+
+  # ---------------------------------------------------------------------------
+  # Runner Node 3 (optional)
+  # ---------------------------------------------------------------------------
+  runner-node-3:
+    image: myoung34/github-runner:latest
+    container_name: gh-runner-3
+    restart: unless-stopped
+    profiles:
+      - multi-node
+    environment:
+      - RUNNER_NAME=${RUNNER_NAME_PREFIX:-runner}-3
+      - RUNNER_TOKEN=${RUNNER_TOKEN}
+      - RUNNER_WORKDIR=/tmp/github-runner
+      - RUNNER_SCOPE=${RUNNER_SCOPE:-repo}
+      - ORG_NAME=${GITHUB_ORG}
+      - REPO_URL=https://github.com/${GITHUB_ORG}/${GITHUB_REPO}
+      - RUNNER_GROUP=${RUNNER_GROUP:-default}
+      - LABELS=${RUNNER_LABELS:-self-hosted,linux,x64}
+      - EPHEMERAL=${RUNNER_EPHEMERAL:-false}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - runner-work-3:/tmp/github-runner
+    group_add:
+      - "${DOCKER_GID}"
+    security_opt:
+      - label:disable
+    networks:
+      - runner-net
+
+volumes:
+  runner-work-1: {}
+  runner-work-2: {}
+  runner-work-3: {}

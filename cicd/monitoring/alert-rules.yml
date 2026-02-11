@@ -1,0 +1,285 @@
+# =============================================================================
+# Alert Rules — cognitive-core framework
+# =============================================================================
+# Generic alert rules for CI/CD, fitness, containers, hosts, and runners.
+# No project-specific prefixes — all rules use generic names.
+# =============================================================================
+
+groups:
+  # ===========================================================================
+  # CI/CD Pipeline Alerts
+  # ===========================================================================
+  - name: cicd_pipeline
+    rules:
+      - alert: PipelineFailureRate
+        expr: |
+          (
+            sum(rate(cicd_job_status{status="failure"}[1h])) /
+            sum(rate(cicd_job_status[1h]))
+          ) > 0.3
+        for: 5m
+        labels:
+          severity: warning
+          category: cicd
+        annotations:
+          summary: "Pipeline failure rate above 30%"
+          description: "{{ $value | humanizePercentage }} of pipeline jobs failed in the last hour."
+
+      - alert: PipelineDurationHigh
+        expr: cicd_job_duration_seconds{job="pushgateway"} > 1800
+        for: 0m
+        labels:
+          severity: warning
+          category: cicd
+        annotations:
+          summary: "Pipeline job running longer than 30 minutes"
+          description: "Job {{ $labels.job_name }} has been running for {{ $value | humanizeDuration }}."
+
+      - alert: DeploymentFailed
+        expr: cicd_job_status{job_name="deploy", status="failure"} == 1
+        for: 0m
+        labels:
+          severity: critical
+          category: cicd
+        annotations:
+          summary: "Deployment failed"
+          description: "The deployment job for {{ $labels.project }} failed."
+
+      - alert: PushgatewayDown
+        expr: up{job="pushgateway"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          category: cicd
+        annotations:
+          summary: "Pushgateway is unreachable"
+          description: "CI/CD metrics cannot be pushed. Pipeline observability is degraded."
+
+  # ===========================================================================
+  # Fitness Function Alerts
+  # ===========================================================================
+  - name: fitness_functions
+    rules:
+      - alert: FitnessScoreLow
+        expr: fitness_score < 60
+        for: 0m
+        labels:
+          severity: warning
+          category: cicd
+        annotations:
+          summary: "Fitness score below 60"
+          description: "Project {{ $labels.project }} fitness score is {{ $value }}/100."
+
+      - alert: FitnessScoreCritical
+        expr: fitness_score < 40
+        for: 0m
+        labels:
+          severity: critical
+          category: cicd
+        annotations:
+          summary: "Fitness score critically low"
+          description: "Project {{ $labels.project }} fitness score is {{ $value }}/100. Deployment should be blocked."
+
+      - alert: FitnessScoreDeclining
+        expr: |
+          fitness_score < fitness_score offset 1d - 10
+        for: 0m
+        labels:
+          severity: warning
+          category: cicd
+        annotations:
+          summary: "Fitness score dropped by >10 points in 24h"
+          description: "Project {{ $labels.project }} fitness score dropped to {{ $value }}."
+
+      - alert: TestPassRateLow
+        expr: cicd_test_pass_rate < 90
+        for: 0m
+        labels:
+          severity: warning
+          category: cicd
+        annotations:
+          summary: "Test pass rate below 90%"
+          description: "{{ $labels.project }} test pass rate is {{ $value }}%."
+
+  # ===========================================================================
+  # Container Resource Alerts
+  # ===========================================================================
+  - name: container_resources
+    rules:
+      - alert: ContainerCpuHigh
+        expr: |
+          (
+            sum(rate(container_cpu_usage_seconds_total{name!=""}[5m])) by (name)
+            / sum(container_spec_cpu_quota{name!=""} / container_spec_cpu_period{name!=""}) by (name)
+          ) > 0.80
+        for: 5m
+        labels:
+          severity: warning
+          category: container
+        annotations:
+          summary: "Container {{ $labels.name }} CPU usage above 80%"
+          description: "Container {{ $labels.name }} is using {{ $value | humanizePercentage }} of its CPU limit."
+
+      - alert: ContainerMemoryHigh
+        expr: |
+          (container_memory_working_set_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""}) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          category: container
+        annotations:
+          summary: "Container {{ $labels.name }} memory above 85%"
+          description: "Container {{ $labels.name }} is using {{ $value | humanizePercentage }} of its memory limit."
+
+      - alert: ContainerMemoryCritical
+        expr: |
+          (container_memory_working_set_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""}) > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          category: container
+        annotations:
+          summary: "Container {{ $labels.name }} memory above 95%"
+          description: "Container {{ $labels.name }} is at {{ $value | humanizePercentage }} memory. OOM kill imminent."
+
+      - alert: ContainerRestarting
+        expr: increase(container_restart_count{name!=""}[1h]) > 3
+        for: 0m
+        labels:
+          severity: warning
+          category: container
+        annotations:
+          summary: "Container {{ $labels.name }} restarting frequently"
+          description: "Container {{ $labels.name }} has restarted {{ $value }} times in the last hour."
+
+      - alert: ContainerDown
+        expr: |
+          absent(container_last_seen{name=~".+"}) or
+          (time() - container_last_seen{name!=""}) > 300
+        for: 5m
+        labels:
+          severity: critical
+          category: container
+        annotations:
+          summary: "Container {{ $labels.name }} is down"
+          description: "Container {{ $labels.name }} has not been seen for 5 minutes."
+
+  # ===========================================================================
+  # Host System Alerts
+  # ===========================================================================
+  - name: host_system
+    rules:
+      - alert: HostDown
+        expr: up{job="node-exporter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: host
+        annotations:
+          summary: "Host {{ $labels.instance }} is unreachable"
+          description: "Node exporter on {{ $labels.instance }} has been down for 2 minutes."
+
+      - alert: HostCpuHigh
+        expr: |
+          (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) by (instance)) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          category: host
+        annotations:
+          summary: "Host CPU usage above 85%"
+          description: "{{ $labels.instance }} CPU usage is {{ $value | humanizePercentage }}."
+
+      - alert: HostMemoryHigh
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          category: host
+        annotations:
+          summary: "Host memory usage above 85%"
+          description: "{{ $labels.instance }} memory usage is {{ $value | humanizePercentage }}."
+
+      - alert: HostDiskSpaceLow
+        expr: |
+          (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          category: host
+        annotations:
+          summary: "Host disk usage above 85%"
+          description: "{{ $labels.instance }} root filesystem is {{ $value | humanizePercentage }} full."
+
+      - alert: HostDiskSpaceCritical
+        expr: |
+          (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          category: host
+        annotations:
+          summary: "Host disk nearly full (>95%)"
+          description: "{{ $labels.instance }} root filesystem is {{ $value | humanizePercentage }} full."
+
+      - alert: HostNetworkErrors
+        expr: |
+          rate(node_network_receive_errs_total[5m]) + rate(node_network_transmit_errs_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: host
+        annotations:
+          summary: "Host network errors detected"
+          description: "{{ $labels.instance }} has {{ $value }} network errors/sec on {{ $labels.device }}."
+
+  # ===========================================================================
+  # GitHub Runner Alerts
+  # ===========================================================================
+  - name: github_runners
+    rules:
+      - alert: RunnerContainerDown
+        expr: |
+          absent(container_last_seen{name=~"gh-runner.*"}) or
+          (time() - container_last_seen{name=~"gh-runner.*"}) > 300
+        for: 5m
+        labels:
+          severity: critical
+          category: runner
+        annotations:
+          summary: "GitHub runner container is down"
+          description: "Runner container {{ $labels.name }} has not been seen for 5 minutes."
+
+      - alert: RunnerHighCpu
+        expr: |
+          sum(rate(container_cpu_usage_seconds_total{name=~"gh-runner.*"}[5m])) by (name) > 0.9
+        for: 15m
+        labels:
+          severity: warning
+          category: runner
+        annotations:
+          summary: "GitHub runner CPU usage very high"
+          description: "Runner {{ $labels.name }} is using {{ $value | humanizePercentage }} CPU for 15+ minutes."
+
+      - alert: RunnerHighMemory
+        expr: |
+          container_memory_working_set_bytes{name=~"gh-runner.*"} > 4e+09
+        for: 10m
+        labels:
+          severity: warning
+          category: runner
+        annotations:
+          summary: "GitHub runner using >4GB memory"
+          description: "Runner {{ $labels.name }} is using {{ $value | humanize1024 }}B of memory."
+
+      - alert: AllRunnersDown
+        expr: |
+          count(container_last_seen{name=~"gh-runner.*"}) == 0
+        for: 5m
+        labels:
+          severity: critical
+          category: runner
+        annotations:
+          summary: "All GitHub runners are down"
+          description: "No runner containers are running. CI/CD pipeline execution is blocked."

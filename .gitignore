@@ -1,0 +1,107 @@
+# =============================================================================
+# cognitive-core .gitignore
+# =============================================================================
+
+# Environment and secrets
+.env
+.env.*
+!.env.template
+*.pem
+*.key
+*.crt
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editor / IDE
+.vscode/
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-workspace
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+.npm
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Java
+*.class
+*.jar
+*.war
+target/
+
+# Go
+vendor/
+
+# Rust
+target/
+Cargo.lock
+
+# C#
+bin/
+obj/
+*.user
+*.suo
+
+# Perl
+blib/
+.build/
+_build/
+cover_db/
+inc/
+Build
+Build.bat
+MYMETA.*
+
+# Logs
+*.log
+/tmp/
+
+# Docker
+docker-compose.override.yml
+
+# Monitoring data (runtime, not config)
+prometheus_data/
+grafana_data/
+
+# Test artifacts
+coverage/
+.nyc_output/
+htmlcov/
+
+# Archives
+*.tar.gz
+*.zip

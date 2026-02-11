@@ -1,0 +1,193 @@
+# =============================================================================
+# Alertmanager Configuration — cognitive-core framework
+# =============================================================================
+# Finding #14 fix: REAL receiver templates with actual webhook/SMTP/PagerDuty
+# configuration. Previous version had stubs pointing to localhost:9999.
+#
+# All credentials externalized via environment variables.
+# Configure via monitoring/.env file.
+# =============================================================================
+
+global:
+  # SMTP defaults for email notifications
+  smtp_smarthost: '${SMTP_HOST}:${SMTP_PORT}'
+  smtp_from: '${SMTP_FROM}'
+  smtp_auth_username: '${SMTP_USERNAME}'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+  smtp_require_tls: true
+
+  # Slack defaults
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+
+  # PagerDuty defaults
+  pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+
+  # Timing
+  resolve_timeout: 5m
+
+# ---------------------------------------------------------------------------
+# Inhibition rules — suppress lower-severity alerts when critical fires
+# ---------------------------------------------------------------------------
+inhibit_rules:
+  # If a critical alert fires, suppress warnings for the same alertname
+  - source_matchers:
+      - severity="critical"
+    target_matchers:
+      - severity="warning"
+    equal: ['alertname', 'instance']
+
+  # If host is down, suppress all other host alerts
+  - source_matchers:
+      - alertname="HostDown"
+    target_matchers:
+      - severity=~"warning|info"
+    equal: ['instance']
+
+# ---------------------------------------------------------------------------
+# Routing tree — route alerts by severity to appropriate receivers
+# Finding #14: Proper routing tree, not stub receivers
+# ---------------------------------------------------------------------------
+route:
+  # Default receiver for unmatched alerts
+  receiver: 'slack-warnings'
+
+  # Group alerts by these labels
+  group_by: ['alertname', 'severity', 'job']
+
+  # Wait before sending grouped notification
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+  # Child routes (evaluated in order, first match wins)
+  routes:
+    # Critical alerts → PagerDuty + Slack
+    - matchers:
+        - severity="critical"
+      receiver: 'pagerduty-critical'
+      group_wait: 10s
+      repeat_interval: 1h
+      continue: true  # Also send to next matching route
+
+    - matchers:
+        - severity="critical"
+      receiver: 'slack-critical'
+      group_wait: 10s
+
+    # Warning alerts → Slack warnings channel
+    - matchers:
+        - severity="warning"
+      receiver: 'slack-warnings'
+      repeat_interval: 4h
+
+    # Info/watchdog → email digest
+    - matchers:
+        - severity="info"
+      receiver: 'email-digest'
+      group_wait: 1m
+      repeat_interval: 12h
+
+    # CI/CD pipeline alerts → dedicated Slack channel
+    - matchers:
+        - category="cicd"
+      receiver: 'slack-cicd'
+      repeat_interval: 2h
+
+# ---------------------------------------------------------------------------
+# Receivers — actual notification targets
+# Finding #14: These are REAL receivers, not stubs
+# ---------------------------------------------------------------------------
+receivers:
+  # --- Slack: Critical alerts ---
+  - name: 'slack-critical'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '${SLACK_CHANNEL_CRITICAL:-#alerts-critical}'
+        send_resolved: true
+        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+        title: '{{ .Status | toUpper }}: {{ .CommonLabels.alertname }}'
+        text: >-
+          *Alert:* {{ .CommonAnnotations.summary }}
+
+          *Description:* {{ .CommonAnnotations.description }}
+
+          *Severity:* {{ .CommonLabels.severity }}
+
+          *Details:*
+          {{ range .Alerts }}
+            - *{{ .Labels.instance }}*: {{ .Annotations.description }}
+          {{ end }}
+        actions:
+          - type: button
+            text: 'View in Grafana'
+            url: '${GRAFANA_ROOT_URL:-http://localhost:3000}'
+          - type: button
+            text: 'Silence'
+            url: '${ALERTMANAGER_URL:-http://localhost:9093}/#/silences/new'
+
+  # --- Slack: Warning alerts ---
+  - name: 'slack-warnings'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '${SLACK_CHANNEL_WARNINGS:-#alerts-warnings}'
+        send_resolved: true
+        color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'
+        title: '{{ .Status | toUpper }}: {{ .CommonLabels.alertname }}'
+        text: >-
+          *Alert:* {{ .CommonAnnotations.summary }}
+
+          *Severity:* {{ .CommonLabels.severity }}
+
+          {{ range .Alerts }}
+            - {{ .Labels.instance }}: {{ .Annotations.description }}
+          {{ end }}
+
+  # --- Slack: CI/CD pipeline alerts ---
+  - name: 'slack-cicd'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '${SLACK_CHANNEL_CICD:-#cicd-alerts}'
+        send_resolved: true
+        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+        title: 'CI/CD: {{ .CommonLabels.alertname }}'
+        text: >-
+          *Pipeline Alert:* {{ .CommonAnnotations.summary }}
+
+          {{ range .Alerts }}
+            - Job: {{ .Labels.job }} | {{ .Annotations.description }}
+          {{ end }}
+
+  # --- PagerDuty: Critical alerts ---
+  - name: 'pagerduty-critical'
+    pagerduty_configs:
+      - service_key: '${PAGERDUTY_SERVICE_KEY}'
+        severity: '{{ .CommonLabels.severity }}'
+        description: '{{ .CommonAnnotations.summary }}'
+        details:
+          alertname: '{{ .CommonLabels.alertname }}'
+          instance: '{{ .CommonLabels.instance }}'
+          description: '{{ .CommonAnnotations.description }}'
+
+  # --- Email: Digest for info-level alerts ---
+  - name: 'email-digest'
+    email_configs:
+      - to: '${ALERT_EMAIL_TO}'
+        send_resolved: true
+        headers:
+          Subject: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+        html: |
+          <h2>Alert: {{ .CommonLabels.alertname }}</h2>
+          <p><b>Status:</b> {{ .Status }}</p>
+          <p><b>Summary:</b> {{ .CommonAnnotations.summary }}</p>
+          <table border="1" cellpadding="5">
+            <tr><th>Instance</th><th>Description</th></tr>
+            {{ range .Alerts }}
+            <tr><td>{{ .Labels.instance }}</td><td>{{ .Annotations.description }}</td></tr>
+            {{ end }}
+          </table>
+
+# ---------------------------------------------------------------------------
+# Templates (optional — for custom notification formatting)
+# ---------------------------------------------------------------------------
+# templates:
+#   - '/etc/alertmanager/templates/*.tmpl'
