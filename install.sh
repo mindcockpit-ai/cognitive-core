@@ -147,8 +147,8 @@ else
     # Skills
     echo ""
     info "Available skills: session-resume session-sync code-review pre-commit fitness"
-    info "                  project-status project-board workflow-analysis test-scaffold tech-intel"
-    prompt_default CC_SKILLS "Skills to install" "session-resume code-review pre-commit fitness project-status project-board"
+    info "                  project-status project-board acceptance-verification workflow-analysis test-scaffold tech-intel"
+    prompt_default CC_SKILLS "Skills to install" "session-resume code-review pre-commit fitness project-status project-board acceptance-verification"
 
     # Hooks
     prompt_default CC_HOOKS "Hooks to enable" "setup-env compact-reminder validate-bash post-edit-lint"
