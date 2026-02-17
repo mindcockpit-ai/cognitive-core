@@ -201,6 +201,7 @@ else
     CC_RUNNER_NODES="${CC_RUNNER_NODES:-1}"
     CC_RUNNER_LABELS="${CC_RUNNER_LABELS:-self-hosted,linux,docker}"
     CC_AGENT_TEAMS="false"
+    # shellcheck disable=SC2034
     CC_MCP_SERVERS="context7"
     CC_UPDATE_AUTO_CHECK="true"
     CC_UPDATE_CHECK_INTERVAL="7"

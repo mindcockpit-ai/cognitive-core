@@ -61,6 +61,7 @@ header "Analyzing installed files"
 # Source shared library for _cc_compute_sha256
 _LIB_FILE="${FRAMEWORK_DIR}/core/hooks/_lib.sh"
 if [ -f "$_LIB_FILE" ]; then
+    # shellcheck disable=SC2034
     CC_PROJECT_DIR="$PROJECT_DIR"
     # shellcheck disable=SC1090
     source "$_LIB_FILE"
@@ -199,6 +200,7 @@ process_file() {
 for ((i=0; i<FILE_COUNT; i++)); do
     eval "rel_path=\${MANIFEST_PATH_${i}}"
     eval "orig_sha=\${MANIFEST_SHA_${i}}"
+    # shellcheck disable=SC2154
     process_file "$rel_path" "$orig_sha"
 done
 
