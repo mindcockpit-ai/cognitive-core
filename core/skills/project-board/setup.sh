@@ -51,7 +51,7 @@ header "Creating GitHub Project"
 PROJECT_ID=$(gh api graphql -f query='
 mutation {
   createProjectV2(input: {
-    ownerId: "'$(gh api graphql -f query='query { user(login: "'"$OWNER"'") { id } }' --jq '.data.user.id')'"
+    ownerId: "'"$(gh api graphql -f query='query { user(login: "'"$OWNER"'") { id } }' --jq '.data.user.id')"'"
     title: "'"$PROJECT_NAME"'"
   }) { projectV2 { id number } }
 }' --jq '.data.createProjectV2.projectV2.id' 2>/dev/null) || {

@@ -16,6 +16,7 @@
 set -euo pipefail
 
 # Colors (disabled if not a terminal)
+# shellcheck disable=SC2034
 if [ -t 1 ]; then
     RED="\033[0;31m"
     GREEN="\033[0;32m"
