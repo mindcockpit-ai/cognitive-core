@@ -1,8 +1,10 @@
 ---
 name: code-standards-reviewer
 description: Use this agent when you need to review recently written code against the project's established best practices and standards. Invoke after implementing new features, refactoring existing code, or making significant changes to ensure compliance with CLAUDE.md guidelines.
-tools: Task, Bash, Glob, Grep, LS, ExitPlanMode, Read, Edit, MultiEdit, Write, NotebookEdit, WebFetch, TodoWrite, WebSearch, BashOutput, KillBash, mcp__ide__getDiagnostics, mcp__ide__executeCode, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 model: sonnet
+disallowedTools:
+  - WebFetch
+  - WebSearch
 ---
 
 **THINKING MODE: ALWAYS ENABLED**

@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feat/**", "fix/**"]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        if: runner.os == 'macOS'
+        run: brew install shellcheck
+
+      - name: Run ShellCheck on core scripts
+        run: |
+          find core/ -name "*.sh" -type f | xargs shellcheck -S warning
+          shellcheck -S warning install.sh update.sh
+
+  frontmatter:
+    name: Skill Frontmatter Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate SKILL.md frontmatter
+        run: bash tests/suites/02-skill-frontmatter.sh
+
+  hook-protocol:
+    name: Hook Protocol Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run hook protocol tests
+        run: bash tests/suites/03-hook-protocol.sh
+
+  security-hooks:
+    name: Security Hook Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run security hook tests
+        run: bash tests/suites/06-security-hooks.sh
+
+  agent-permissions:
+    name: Agent Permissions Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify agent permissions
+        run: bash tests/suites/07-agent-permissions.sh
+
+  install-integration:
+    name: Install & Update Integration
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run install dry-run test
+        run: bash tests/suites/04-install-dryrun.sh
+
+      - name: Run update flow test
+        run: bash tests/suites/05-update-flow.sh
+
+  summary:
+    name: CI Summary
+    needs: [shellcheck, frontmatter, hook-protocol, security-hooks, agent-permissions, install-integration]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          echo "## CI Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ShellCheck | ${{ needs.shellcheck.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontmatter | ${{ needs.frontmatter.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Hook Protocol | ${{ needs.hook-protocol.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Hooks | ${{ needs.security-hooks.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Agent Permissions | ${{ needs.agent-permissions.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Install Integration | ${{ needs.install-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail if any job failed
+        if: contains(needs.*.result, 'failure')
+        run: exit 1

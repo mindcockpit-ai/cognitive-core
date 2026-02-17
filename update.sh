@@ -58,14 +58,27 @@ fi
 # ---- Compute checksums ----
 header "Analyzing installed files"
 
+# Source shared library for _cc_compute_sha256
+_LIB_FILE="${FRAMEWORK_DIR}/core/hooks/_lib.sh"
+if [ -f "$_LIB_FILE" ]; then
+    CC_PROJECT_DIR="$PROJECT_DIR"
+    # shellcheck disable=SC1090
+    source "$_LIB_FILE"
+fi
+
 compute_sha256() {
-    local file="$1"
-    if command -v sha256sum &>/dev/null; then
-        sha256sum "$file" | awk '{print $1}'
-    elif command -v shasum &>/dev/null; then
-        shasum -a 256 "$file" | awk '{print $1}'
+    if type _cc_compute_sha256 &>/dev/null; then
+        _cc_compute_sha256 "$1"
     else
-        openssl dgst -sha256 "$file" | awk '{print $NF}'
+        # Inline fallback if _lib.sh unavailable
+        local file="$1"
+        if command -v sha256sum &>/dev/null; then
+            sha256sum "$file" | awk '{print $1}'
+        elif command -v shasum &>/dev/null; then
+            shasum -a 256 "$file" | awk '{print $1}'
+        else
+            openssl dgst -sha256 "$file" | awk '{print $NF}'
+        fi
     fi
 }
 
@@ -232,6 +245,29 @@ for hook in ${CC_HOOKS:-}; do
         chmod +x "$dest"
         info "  NEW (hook): ${hook}.sh"
         echo "1" >> /tmp/cc_update_new_$$
+    fi
+done
+
+# Check for updated utilities
+for util_name in check-update.sh context-cleanup.sh health-check.sh; do
+    UTIL_SRC="${FRAMEWORK_DIR}/core/utilities/${util_name}"
+    UTIL_DEST="${CLAUDE_DIR}/cognitive-core/${util_name}"
+    if [ -f "$UTIL_SRC" ]; then
+        if [ ! -f "$UTIL_DEST" ]; then
+            cp "$UTIL_SRC" "$UTIL_DEST"
+            chmod +x "$UTIL_DEST"
+            info "  NEW (utility): ${util_name}"
+            echo "1" >> /tmp/cc_update_new_$$
+        else
+            local_sha=$(compute_sha256 "$UTIL_DEST")
+            source_sha=$(compute_sha256 "$UTIL_SRC")
+            if [ "$local_sha" != "$source_sha" ]; then
+                cp "$UTIL_SRC" "$UTIL_DEST"
+                chmod +x "$UTIL_DEST"
+                info "  UPDATED (utility): ${util_name}"
+                echo "1" >> /tmp/cc_update_new_$$
+            fi
+        fi
     fi
 done
 

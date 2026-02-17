@@ -1,12 +1,46 @@
 # Security Considerations
 
-This document covers the security architecture of cognitive-core, including the built-in safety mechanisms, credential management, and production hardening recommendations.
+This document covers the security architecture of cognitive-core, including the multi-tool security guard, credential management, and production hardening recommendations.
+
+## Security Guard Architecture
+
+cognitive-core implements a defense-in-depth security model using Claude Code's PreToolUse and PostToolUse hook system. Every tool call is intercepted and validated before (or after) execution.
+
+### Security Levels
+
+Configure via `CC_SECURITY_LEVEL` in `cognitive-core.conf`:
+
+| Level | Description |
+|-------|-------------|
+| `minimal` | 8 built-in destructive command patterns only |
+| `standard` (default) | + exfiltration, encoded commands, pipe-to-shell, domain escalation |
+| `strict` | + network destination allowlisting, unknown domains blocked |
+
+### Hook Coverage
+
+| Hook | Event | Tool | Purpose |
+|------|-------|------|---------|
+| `validate-bash.sh` | PreToolUse | Bash | Blocks destructive commands, exfiltration, pipe-to-shell |
+| `validate-read.sh` | PreToolUse | Read | Prevents reading sensitive system files |
+| `validate-fetch.sh` | PreToolUse | WebFetch, WebSearch | Audits URLs, domain filtering |
+| `validate-write.sh` | PostToolUse | Write, Edit | Scans for hardcoded secrets |
+| `setup-env.sh` | SessionStart | — | Verifies hook integrity at session start |
+| `post-edit-lint.sh` | PostToolUse | Write, Edit | Auto-lints after edits |
+
+### Graduated Response Model
+
+Inspired by Metasploit's graduated response pattern:
+
+1. **Allow** — safe operation, no output (silent pass)
+2. **Ask** — suspicious but not clearly malicious, escalates to human (e.g., unknown domain in standard mode)
+3. **Deny** — blocked with explanation in JSON response
+4. **Log** — all security events written to `.claude/cognitive-core/security.log`
 
 ## Bash Validation Hook
 
 The `validate-bash.sh` hook intercepts every bash command before execution (PreToolUse event) and blocks dangerous patterns.
 
-### Built-In Blocked Patterns
+### Built-In Blocked Patterns (Always Active)
 
 | Pattern | Reason |
 |---------|--------|
@@ -19,6 +53,14 @@ The `validate-bash.sh` hook intercepts every bash command before execution (PreT
 | `rm .git` | Repository destruction |
 | `chmod 777` | Insecure file permissions |
 
+### Standard Level Patterns (Default)
+
+| Category | Pattern | Risk |
+|----------|---------|------|
+| Exfiltration | `curl -d @file`, `cat \| curl`, `cat \| nc`, `env \|` | Data theft |
+| Encoded bypass | `base64 -d \| sh`, `echo \| base64 -d`, `eval $(...)` | Obfuscated execution |
+| Pipe-to-shell | `curl \| sh`, `wget \| bash`, `wget -O- \|` | Supply chain attack |
+
 ### Custom Blocked Patterns
 
 Add project-specific patterns via `CC_BLOCKED_PATTERNS` in `cognitive-core.conf`:
@@ -26,12 +68,6 @@ Add project-specific patterns via `CC_BLOCKED_PATTERNS` in `cognitive-core.conf`
 ```bash
 CC_BLOCKED_PATTERNS="curl.*\|.*sh eval.*unsafe"
 ```
-
-Patterns are space-separated extended regex. Each is tested against the lowercased command.
-
-### Database Pack Patterns
-
-Database packs append their own safety patterns. For example, the Oracle pack adds `drop\s+table` and `truncate\s+table` to the blocked list.
 
 ### How Blocking Works
 
@@ -42,12 +78,63 @@ When a command matches a blocked pattern, the hook outputs a JSON deny response:
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
     "permissionDecision": "deny",
-    "permissionDecisionReason": "Blocked: force push to main"
+    "permissionDecisionReason": "Blocked: potential data exfiltration (cat | curl)"
   }
 }
 ```
 
-Claude Code reads this response and refuses to execute the command. Non-blocked commands produce no output (silent pass).
+## Read Guard
+
+The `validate-read.sh` hook prevents reading sensitive files:
+
+- `/etc/shadow`, `/etc/master.passwd` — system password hashes
+- `~/.ssh/id_rsa`, `~/.ssh/id_ed25519` — SSH private keys
+- `~/.aws/credentials` — AWS credentials
+- `~/.gnupg/` — GnuPG private keys
+- `.env` files outside the project directory
+
+**CTF Exception:** If `CC_SKILLS` contains `ctf-pentesting`, read guard checks are skipped (CTF work legitimately needs to read sensitive files on target systems).
+
+## Fetch Guard
+
+The `validate-fetch.sh` hook audits all external URL access:
+
+- **All modes**: Every WebFetch/WebSearch is logged to security.log
+- **Standard mode**: Unknown domains trigger human escalation ("ask" decision)
+- **Strict mode**: Only `CC_ALLOWED_DOMAINS` are permitted
+
+Built-in known-safe domains include: github.com, stackoverflow.com, docs.python.org, developer.mozilla.org, and other major documentation sites.
+
+## Secret Scanner
+
+The `validate-write.sh` hook (PostToolUse) scans file writes for:
+
+- AWS access keys (`AKIA...`)
+- PEM private keys (`-----BEGIN PRIVATE KEY-----`)
+- API key/secret/token assignments
+- Hardcoded passwords (long string values)
+
+Test files and documentation are excluded to reduce false positives. Warnings are non-blocking (PostToolUse cannot prevent the write) but are logged and reported to the user.
+
+## Integrity Verification
+
+At session start, `setup-env.sh` verifies hook files haven't been tampered with:
+
+1. Reads the `source` field from `version.json` to locate the framework source directory
+2. Computes SHA256 of each installed hook file
+3. Compares against the corresponding file in the framework source
+4. Reports mismatches in the session context and security.log
+
+This comparison is against the **framework source directory** (not version.json checksums), which fixes the TOCTOU vulnerability where an attacker could modify both the hook and its recorded checksum.
+
+## Per-Agent Tool Restrictions
+
+Agents use `disallowedTools` in their frontmatter for least-privilege:
+
+| Agent | Restricted Tools | Rationale |
+|-------|-----------------|-----------|
+| code-standards-reviewer | WebFetch, WebSearch | Code review doesn't need external access |
+| research-analyst | Write, Edit | Research shouldn't modify project files |
 
 ## Credential Management
 
@@ -60,8 +147,6 @@ cicd/monitoring/.env.template    <-- Committed (placeholder values)
 cicd/monitoring/.env             <-- NOT committed (real credentials)
 ```
 
-The `.env.template` file documents every required variable with placeholder values. The `.env` file contains real credentials and must be in `.gitignore`.
-
 ### Credentials in .env
 
 | Credential | Variable | Where Used |
@@ -73,135 +158,60 @@ The `.env.template` file documents every required variable with placeholder valu
 | Runner registration token | `RUNNER_TOKEN` | docker-compose.runner.yml |
 | Docker group ID | `DOCKER_GID` | docker-compose.runner.yml |
 
-### Required Credential Pattern
-
-The `GRAFANA_ADMIN_PASSWORD` variable uses Docker Compose's `${VAR:?error}` syntax, which causes the compose command to fail with an error if the variable is not set:
-
-```yaml
-- GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
-```
-
-This prevents accidental deployment with missing credentials.
-
 ### Secret Scanning in CI
 
-Gate 2 of the pipeline scans changed files for potential secrets using pattern matching:
+Gate 2 of the pipeline scans changed files for potential secrets. Additionally, `validate-write.sh` provides real-time secret scanning during development.
 
-```bash
-grep -nEi '(password|secret|api_key|token|private_key)\s*[:=]\s*["\x27][^"\x27]{8,}' "$file"
-```
+## OWASP LLM Top 10 2025 Coverage
 
-Additionally, Semgrep runs security-focused rulesets (`p/security-audit`, `p/secrets`) as part of Gate 2.
+See `core/skills/security-baseline/references/owasp-quick-ref.md` for the full assessment.
 
-### Fitness Check: No Hardcoded Secrets
+| # | Risk | Status | Notes |
+|---|------|--------|-------|
+| LLM01 | Prompt Injection | **Partial** | Reduced surface, architecturally unsolved |
+| LLM02 | Sensitive Info Disclosure | **Addressed** | Secret scanning + read guard |
+| LLM03 | Supply Chain | **Partial** | Integrity check + pipe-to-shell blocking |
+| LLM04 | Data/Model Poisoning | Out of scope | Claude's model, not ours |
+| LLM05 | Improper Output Handling | **Partial** | post-edit-lint |
+| LLM06 | Excessive Agency | **Addressed** | Per-agent restrictions, graduated response |
+| LLM07 | System Prompt Leakage | Not addressed | Architecture limitation |
+| LLM08 | Vector/Embedding Issues | Out of scope | No RAG system |
+| LLM09 | Misinformation | Not addressed | Model behavior |
+| LLM10 | Unbounded Consumption | **Partial** | Context management tools |
 
-The fitness check system includes a "No hardcoded secrets" check (weight: 15) that scans configuration files for credential patterns. Each detected occurrence reduces the fitness score by 20 points.
+### Honest Limitations
+
+- **Prompt injection is not solved.** Defense-in-depth reduces the attack surface but single-LLM systems cannot fully prevent indirect prompt injection.
+- **settings.json `deny` rules are bugged** (GitHub issues #6699, #6631, #8961). All enforcement uses PreToolUse hooks instead.
+- **PostToolUse hooks cannot block** — `validate-write.sh` warns but cannot prevent a secret from being written. The write has already occurred.
+- **No CaMeL pattern** — Dual-LLM verification is not achievable within Claude Code's hook architecture.
 
 ## Pushgateway Security
 
-Pushgateway accepts arbitrary metrics via HTTP POST/PUT. By default, it is bound to localhost only:
-
-```yaml
-pushgateway:
-  ports:
-    - "127.0.0.1:9091:9091"  # Localhost only
-```
-
-This means only processes on the same host can push metrics. For multi-node setups where remote runners need to push metrics, see the options below.
-
-### Multi-Node Pushgateway Access
-
-For multi-node setups: use a VPN (recommended), SSH tunnel, or open with strict firewall rules (bind to `0.0.0.0:9091` with IP allowlisting). See `docs/HORIZONTAL_SCALING.md` for details.
+Pushgateway is bound to localhost only by default. For multi-node setups, use VPN, SSH tunnel, or strict firewall rules.
 
 ## Docker Socket Security
 
-Runner containers mount the host Docker socket for Docker-in-Docker capability:
-
-```yaml
-volumes:
-  - /var/run/docker.sock:/var/run/docker.sock
-```
-
-This grants the runner container full control over the host Docker daemon. Mitigations:
-
-1. **DOCKER_GID binding**: The `group_add` directive uses `${DOCKER_GID}` to match the host Docker group, avoiding running the container as root.
-
-2. **Security label disable**: `security_opt: label:disable` is required for Docker socket access on SELinux systems.
-
-3. **Dedicated runner user**: Run the runner process as a non-root user that is a member of the Docker group.
-
-4. **Ephemeral runners**: Use `RUNNER_EPHEMERAL=true` so each runner picks up one job and terminates, reducing the window of exposure.
-
-### Docker Group ID
-
-Find the Docker group ID on your host:
-
-```bash
-getent group docker | cut -d: -f3
-```
-
-Set this in `.env`:
-
-```bash
-DOCKER_GID=999
-```
-
-## Grafana Authentication
-
-Default configuration:
-
-```yaml
-- GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-- GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?...}
-- GF_USERS_ALLOW_SIGN_UP=false
-```
-
-Sign-up is disabled by default. For production:
-
-1. Change the admin password from the default
-2. Configure LDAP or OAuth authentication via Grafana environment variables
-3. Place Grafana behind a reverse proxy with TLS
+Mitigations: DOCKER_GID binding, security_opt, dedicated runner user, ephemeral runners.
 
 ## HTTPS / TLS
 
-The monitoring stack does not include TLS by default. For production deployments:
-
-### Reverse Proxy with TLS
-
-The included Nginx container can be extended with TLS. Mount certificates into the container and update `nginx-monitoring.conf` to redirect HTTP to HTTPS with `ssl_certificate` and `ssl_certificate_key` directives. Internal communication between Prometheus, Grafana, and Alertmanager uses the Docker bridge network and does not need TLS.
-
-## Secrets in CI/CD
-
-### GitHub Actions Secrets
-
-The pipeline uses `secrets.GITHUB_TOKEN` (auto-provided) for container registry authentication. Store additional secrets in GitHub repository settings:
-
-- **Settings > Secrets and variables > Actions > Secrets**
-- Never echo secrets in workflow logs
-- Use `${{ secrets.NAME }}` syntax
-
-### Environment Variable Exposure
-
-The pipeline reads several values from `vars.*` (repository variables), not `secrets.*`. Variables are visible in logs. Only store non-sensitive configuration in variables:
-
-| Safe for vars | Use secrets instead |
-|---------------|-------------------|
-| `RUNNER_LABEL` | `RUNNER_TOKEN` |
-| `PROJECT_NAME` | `SLACK_WEBHOOK_URL` |
-| `GATE_TEST_MIN_PASS_RATE` | `PAGERDUTY_SERVICE_KEY` |
-| `CONTAINER_REGISTRY` | Any API key or password |
+No TLS by default. Use a reverse proxy with TLS for production deployments.
 
 ## Security Checklist
 
 Before deploying to production:
 
+- [ ] `CC_SECURITY_LEVEL` set appropriately for your threat model
 - [ ] `GRAFANA_ADMIN_PASSWORD` is set to a strong, unique value
 - [ ] `.env` file is in `.gitignore` and not committed
 - [ ] Pushgateway is not exposed on public network
 - [ ] Docker socket access is limited to the Docker group
 - [ ] TLS is enabled for any externally accessible service
-- [ ] Slack webhook URLs, SMTP passwords, and PagerDuty keys are rotated periodically
+- [ ] Credentials are rotated periodically
 - [ ] Runner tokens are generated fresh for each node setup
 - [ ] Semgrep security scan is enabled in Gate 2
 - [ ] `CC_BLOCKED_PATTERNS` includes any project-specific dangerous operations
 - [ ] Firewall rules restrict access between nodes to required ports only
+- [ ] `CC_ALLOWED_DOMAINS` configured if using strict mode
+- [ ] Per-agent tool restrictions reviewed for your team's workflow

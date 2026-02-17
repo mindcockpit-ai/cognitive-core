@@ -10,6 +10,18 @@
 
 ---
 
+## Critical Rules
+
+These rules survive context compaction and are always enforced:
+
+1. **Architecture**: Follow the `{{CC_ARCHITECTURE}}` pattern. Respect layer boundaries.
+2. **Git commits**: `type(scope): subject` format. **NO AI/Claude references**. Professional codebase.
+3. **Lint**: Run `{{CC_LINT_COMMAND}}` before every commit.
+4. **Security**: Level `{{CC_SECURITY_LEVEL}}` active. Hooks guard Bash, Read, WebFetch, Write.
+5. **Code review**: MANDATORY via code-standards-reviewer before any code is merged.
+
+---
+
 ## Project & Architecture
 
 **Stack**: {{CC_STACK_DESCRIPTION}}
@@ -43,8 +55,11 @@ All hooks are installed in `.claude/hooks/` and registered in `.claude/settings.
 |------|-------|---------|---------|
 | `setup-env.sh` | SessionStart | `startup` | Sets environment variables, prints project status |
 | `compact-reminder.sh` | SessionStart | `compact` | Re-injects critical rules after context compaction |
-| `validate-bash.sh` | PreToolUse | `Bash` | Blocks dangerous commands (rm -rf /, force push, etc.) |
+| `validate-bash.sh` | PreToolUse | `Bash` | Blocks dangerous/exfiltration commands |
+| `validate-read.sh` | PreToolUse | `Read` | Blocks sensitive file access |
+| `validate-fetch.sh` | PreToolUse | `WebFetch\|WebSearch` | Domain filtering, audit logging |
 | `post-edit-lint.sh` | PostToolUse | `Write\|Edit` | Auto-lints files after edits |
+| `validate-write.sh` | PostToolUse | `Write\|Edit` | Secret scanning (API keys, PEM, passwords) |
 
 ### Hook Configuration
 
@@ -58,6 +73,7 @@ CC_LINT_COMMAND="{{CC_LINT_COMMAND}}"
 CC_LINT_EXTENSIONS="{{CC_LINT_EXTENSIONS}}"
 CC_TEST_COMMAND="{{CC_TEST_COMMAND}}"
 CC_MAIN_BRANCH="{{CC_MAIN_BRANCH}}"
+CC_SECURITY_LEVEL="{{CC_SECURITY_LEVEL}}"
 ```
 
 ## Development Workflow
@@ -71,9 +87,11 @@ CC_MAIN_BRANCH="{{CC_MAIN_BRANCH}}"
 
 {{CC_TROUBLESHOOTING_CONTENT}}
 
+---
+
 ## Specialized Agents
 
-**Full Documentation:** `/.claude/AGENTS_README.md`
+**Full Documentation:** `.claude/AGENTS_README.md`
 
 **Agent Team (Hub-and-Spoke Model):**
 
@@ -82,11 +100,22 @@ CC_MAIN_BRANCH="{{CC_MAIN_BRANCH}}"
 | **project-coordinator** | Smart orchestrator (HUB) - delegates to specialists | {{CC_LEAD_MODEL}} |
 {{CC_AGENT_TABLE_ROWS}}
 
-**Quick Selection:**
+**Quick Selection (Keyword → Agent):**
 
 ```text
 {{CC_AGENT_QUICK_SELECTION}}
 ```
+
+| Keywords | Route To |
+|----------|----------|
+| feature, workflow, design, architecture | solution-architect |
+| review, standards, refactor, compliance | code-standards-reviewer |
+| test, coverage, QA, failing | test-specialist |
+| research, library, error, best practice | research-analyst |
+| query, performance, database, bulk | database-specialist |
+| plan, sprint, coordinate, board | project-coordinator |
+
+---
 
 ## Context Management
 
@@ -101,3 +130,8 @@ CC_MAIN_BRANCH="{{CC_MAIN_BRANCH}}"
 | Agent definitions | 300 lines | health check warns |
 | CLAUDE.md | 400 lines | health check warns |
 | Auto-load context total | <100KB | health check estimates |
+
+**Tips:**
+- Split large skills: SKILL.md (rules, <500 lines) → `references/` (details, read on demand)
+- Use `disable-model-invocation: true` for manual-only skills (not auto-loaded)
+- Run `health-check.sh` periodically to verify context stays within budget

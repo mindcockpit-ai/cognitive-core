@@ -58,8 +58,9 @@ CC_SKILLS="session-resume code-review pre-commit fitness project-status"
 
 # ===== HOOKS =====
 # Which hooks to enable (space-separated)
-# Options: setup-env compact-reminder validate-bash post-edit-lint
-CC_HOOKS="setup-env compact-reminder validate-bash post-edit-lint"
+# Options: setup-env compact-reminder validate-bash validate-read validate-fetch
+#          validate-write post-edit-lint
+CC_HOOKS="setup-env compact-reminder validate-bash validate-read validate-fetch validate-write post-edit-lint"
 
 # ===== COMPACT RULES =====
 # Critical rules re-injected after context compaction (one per line)
@@ -73,8 +74,22 @@ CC_COMPACT_RULES="
 "
 
 # ===== SAFETY RULES =====
+# Security level: minimal|standard|strict
+# minimal: destructive commands only (8 built-in patterns)
+# standard: + exfiltration, encoded commands, pipe-to-shell, domain escalation
+# strict: + network destination allowlisting, blocked unknown domains
+CC_SECURITY_LEVEL="standard"
+
 # Additional bash patterns to block (space-separated regex, beyond built-in safety)
 CC_BLOCKED_PATTERNS=""
+
+# Allowed domains for WebFetch in strict mode (comma-separated)
+# Only effective when CC_SECURITY_LEVEL="strict"
+CC_ALLOWED_DOMAINS=""
+
+# Additional known-safe domains (comma-separated, extends built-in list)
+# Used in standard mode to skip human escalation for trusted domains
+CC_KNOWN_SAFE_DOMAINS=""
 
 # ===== GIT =====
 # Main branch name
@@ -103,6 +118,12 @@ CC_FITNESS_DEPLOY="95"
 CC_RUNNER_NODES="1"
 # Runner labels (comma-separated)
 CC_RUNNER_LABELS="self-hosted,linux,docker"
+
+# ===== CONNECTED PROJECTS =====
+# Check for framework updates at session start: true|false
+CC_UPDATE_AUTO_CHECK="true"
+# Days between update checks (0 = every session)
+CC_UPDATE_CHECK_INTERVAL="7"
 
 # ===== EXPERIMENTAL =====
 # Enable Agent Teams: true|false

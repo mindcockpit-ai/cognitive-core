@@ -64,6 +64,50 @@ if [ -z "$REASON" ] && echo "$CMD_LOWER" | grep -qE 'git\s+clean\s+-[a-z]*f' && 
     REASON="Blocked: git clean -f (removes untracked files)"
 fi
 
+# --- Security level gated patterns ---
+# CC_SECURITY_LEVEL: minimal|standard|strict (default: standard)
+_SECURITY_LEVEL="${CC_SECURITY_LEVEL:-standard}"
+
+if [ "$_SECURITY_LEVEL" != "minimal" ]; then
+    # === Standard level: exfiltration, encoded commands, pipe-to-shell ===
+
+    # Exfiltration patterns
+    if [ -z "$REASON" ] && echo "$CMD_LOWER" | grep -qE 'curl\s+.*-d\s+.*@'; then
+        REASON="Blocked: potential data exfiltration (curl -d @file)"
+    fi
+    if [ -z "$REASON" ] && echo "$CMD_LOWER" | grep -qE 'cat\s+.*\|.*curl'; then
+        REASON="Blocked: potential data exfiltration (cat | curl)"
+    fi
+    if [ -z "$REASON" ] && echo "$CMD_LOWER" | grep -qE 'cat\s+.*\|.*\bnc\b'; then
+        REASON="Blocked: potential data exfiltration (cat | nc)"
+    fi
+    if [ -z "$REASON" ] && echo "$CMD_LOWER" | grep -qE '\benv\s*\|'; then
+        REASON="Blocked: environment variable leak (env |)"
+    fi
+
+    # Encoded command bypass
+    if [ -z "$REASON" ] && echo "$CMD_LOWER" | grep -qE 'base64.*-d.*\|.*(ba)?sh'; then
+        REASON="Blocked: encoded command execution (base64 -d | sh)"
+    fi
+    if [ -z "$REASON" ] && echo "$CMD_LOWER" | grep -qE 'echo\s+.*\|.*base64.*-d'; then
+        REASON="Blocked: encoded command execution (echo | base64 -d)"
+    fi
+    if [ -z "$REASON" ] && echo "$CMD_LOWER" | grep -qE '\beval\s+.*\$\('; then
+        REASON="Blocked: eval with command substitution"
+    fi
+
+    # Pipe-to-shell (supply chain attack vector)
+    if [ -z "$REASON" ] && echo "$CMD_LOWER" | grep -qE 'curl\s+.*\|.*(ba)?sh'; then
+        REASON="Blocked: pipe-to-shell (curl | sh) — supply chain risk"
+    fi
+    if [ -z "$REASON" ] && echo "$CMD_LOWER" | grep -qE 'wget\s+.*\|.*(ba)?sh'; then
+        REASON="Blocked: pipe-to-shell (wget | sh) — supply chain risk"
+    fi
+    if [ -z "$REASON" ] && echo "$CMD_LOWER" | grep -qE 'wget\s+.*-O-\s*\|'; then
+        REASON="Blocked: pipe-to-shell (wget -O- |) — supply chain risk"
+    fi
+fi
+
 # --- Project-specific blocked patterns (from config) ---
 if [ -z "$REASON" ] && [ -n "${CC_BLOCKED_PATTERNS:-}" ]; then
     for pattern in $CC_BLOCKED_PATTERNS; do
@@ -76,6 +120,7 @@ fi
 
 # Output deny JSON if blocked, otherwise silent exit 0
 if [ -n "$REASON" ]; then
+    _cc_security_log "DENY" "bash-blocked" "${REASON} | cmd=${CMD}"
     _cc_json_pretool_deny "$REASON"
 fi
 

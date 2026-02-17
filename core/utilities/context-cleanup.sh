@@ -285,6 +285,55 @@ show_doc_statistics() {
 }
 
 # ---------------------------------------------------------------------------
+# Rotate security log
+# ---------------------------------------------------------------------------
+rotate_security_log() {
+    echo "Rotating security log..."
+
+    SEC_LOG="$PROJECT_DIR/.claude/cognitive-core/security.log"
+    if [ -f "$SEC_LOG" ]; then
+        SIZE=$(du -sh "$SEC_LOG" 2>/dev/null | cut -f1)
+        FILE_SIZE=$(get_file_size "$SEC_LOG")
+        if [ "$FILE_SIZE" -gt 1048576 ]; then
+            # Keep last 500 lines, archive the rest
+            ARCHIVE_FILE="${SEC_LOG}.$(date +%Y%m%d)"
+            cp "$SEC_LOG" "$ARCHIVE_FILE" 2>/dev/null || true
+            tail -500 "$SEC_LOG" > "${SEC_LOG}.tmp" && mv "${SEC_LOG}.tmp" "$SEC_LOG"
+            print_status "Rotated security.log (was $SIZE, archived to $(basename "$ARCHIVE_FILE"))"
+        else
+            print_status "Security log size OK ($SIZE)"
+        fi
+
+        # Clean old archived logs (>90 days)
+        find "$(dirname "$SEC_LOG")" -name "security.log.*" -mtime +90 -delete 2>/dev/null || true
+    else
+        print_info "No security.log found"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Setup cron
+# ---------------------------------------------------------------------------
+setup_cron() {
+    echo "Setting up weekly cleanup cron..."
+
+    SELF_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+    CRON_ENTRY="0 13 * * 1 ${SELF_PATH} --all >> /tmp/cc_cleanup.log 2>&1"
+
+    # Check if already installed
+    if crontab -l 2>/dev/null | grep -q "context-cleanup.sh"; then
+        print_warning "Crontab entry already exists:"
+        crontab -l 2>/dev/null | grep "context-cleanup.sh" | while read -r line; do
+            echo "    $line"
+        done
+        return
+    fi
+
+    (crontab -l 2>/dev/null; echo "$CRON_ENTRY") | crontab -
+    print_status "Installed weekly cron: $CRON_ENTRY"
+}
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 case "${1:-}" in
@@ -293,6 +342,7 @@ case "${1:-}" in
         clean_claude_history
         clean_temp_files
         archive_old_sessions
+        rotate_security_log
         check_context_health
         show_doc_statistics
         ;;
@@ -310,14 +360,22 @@ case "${1:-}" in
         archive_old_sessions
         show_doc_statistics
         ;;
+    --security)
+        rotate_security_log
+        ;;
+    --setup-cron)
+        setup_cron
+        ;;
     *)
-        echo "Usage: $0 [--all|--health|--cache|--history|--docs]"
+        echo "Usage: $0 [--all|--health|--cache|--history|--docs|--security|--setup-cron]"
         echo ""
-        echo "  --all       Full cleanup + context health check"
-        echo "  --health    Context health check only (read-only, safe anytime)"
-        echo "  --cache     Clean CLI + MCP caches"
-        echo "  --history   Trim Claude history only"
-        echo "  --docs      Archive old sessions + show stats"
+        echo "  --all          Full cleanup + context health check"
+        echo "  --health       Context health check only (read-only, safe anytime)"
+        echo "  --cache        Clean CLI + MCP caches"
+        echo "  --history      Trim Claude history only"
+        echo "  --docs         Archive old sessions + show stats"
+        echo "  --security     Rotate security log"
+        echo "  --setup-cron   Install weekly cleanup crontab entry"
         echo ""
         echo "Crontab (weekly Monday 13:00):"
         echo "  0 13 * * 1 $0 --all >> /tmp/cc_cleanup.log 2>&1"
