@@ -149,16 +149,16 @@ else
 
     # Agents
     echo ""
-    info "Available agents: coordinator reviewer architect tester researcher database security-analyst"
-    prompt_default CC_AGENTS "Agents to install" "coordinator reviewer architect tester researcher"
+    info "Available agents: coordinator reviewer architect tester researcher database security-analyst skill-updater"
+    prompt_default CC_AGENTS "Agents to install" "coordinator reviewer architect tester researcher skill-updater"
     prompt_choice CC_COORDINATOR_MODEL "Coordinator model" "opus|sonnet" "opus"
     prompt_choice CC_SPECIALIST_MODEL "Specialist model" "opus|sonnet" "sonnet"
 
     # Skills
     echo ""
-    info "Available skills: session-resume session-sync code-review pre-commit fitness"
+    info "Available skills: session-resume session-sync skill-sync code-review pre-commit fitness"
     info "                  project-status project-board acceptance-verification workflow-analysis test-scaffold tech-intel ctf-pentesting"
-    prompt_default CC_SKILLS "Skills to install" "session-resume code-review pre-commit fitness project-status project-board acceptance-verification security-baseline"
+    prompt_default CC_SKILLS "Skills to install" "session-resume skill-sync code-review pre-commit fitness project-status project-board acceptance-verification security-baseline"
 
     # Hooks
     prompt_default CC_HOOKS "Hooks to enable" "setup-env compact-reminder validate-bash validate-read validate-fetch validate-write post-edit-lint"
@@ -305,6 +305,7 @@ agent_file_for() {
         researcher)  echo "research-analyst.md" ;;
         database)          echo "database-specialist.md" ;;
         security-analyst)  echo "security-analyst.md" ;;
+        skill-updater)     echo "skill-updater.md" ;;
         *) echo "" ;;
     esac
 }

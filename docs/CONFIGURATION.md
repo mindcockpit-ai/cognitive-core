@@ -155,6 +155,15 @@ CC_COMPACT_RULES="
 | `CC_AGENT_TEAMS` | bool | `"false"` | Enable agent team coordination features |
 | `CC_MCP_SERVERS` | string | `"context7"` | Space-separated MCP servers to configure |
 
+### Framework Synchronization
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `CC_UPDATE_AUTO_CHECK` | bool | `"true"` | Enable automatic update checking at session start |
+| `CC_UPDATE_CHECK_INTERVAL` | int | `7` | Days between automatic update checks |
+| `CC_SKILL_AUTO_UPDATE` | bool | `"false"` | Auto-apply safe updates without prompting (only unmodified files) |
+| `CC_SKILL_UPDATE_SOURCES` | string | `"core"` | Sources to check: `core`, `language-packs`, `database-packs` |
+
 ### Context Management
 
 | Variable | Type | Default | Description |

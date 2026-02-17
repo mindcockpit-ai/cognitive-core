@@ -101,8 +101,12 @@ The **project-coordinator** is the hub. It receives requests, analyzes them, and
 | test-specialist | sonnet | Tests, coverage, QA |
 | research-analyst | opus | External research, library evaluation |
 | database-specialist | opus | Query optimization, schema design |
+| security-analyst | opus | Offensive security, pentest, vulnerability analysis |
+| skill-updater | sonnet | Framework synchronization, component updates |
 
 Which agents to install is controlled by `CC_AGENTS` in configuration.
+
+The **skill-updater** agent works with the `/skill-sync` skill to keep installed components synchronized with the framework source using checksum-based three-way merging (see `update.sh`).
 
 ## Skill Hierarchy
 
@@ -113,7 +117,7 @@ Skills are reusable knowledge modules installed to `.claude/skills/<name>/SKILL.
 | Type | Behavior | Examples |
 |------|----------|---------|
 | Auto-load | Claude reads at session start | session-resume, code-review, tech-intel |
-| Manual | Invoked explicitly via `/skill-name` | pre-commit, fitness, project-status, session-sync, workflow-analysis, test-scaffold |
+| Manual | Invoked explicitly via `/skill-name` | pre-commit, fitness, project-status, session-sync, skill-sync, workflow-analysis, test-scaffold |
 
 Manual skills use `disable-model-invocation: true` to avoid consuming context budget at startup.
 

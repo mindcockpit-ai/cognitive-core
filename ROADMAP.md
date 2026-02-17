@@ -19,6 +19,7 @@ A biomimetic, vendor-agnostic skill framework for AI agents that mirrors biologi
 | **Skill Templates** | Python, Java, React, Angular, Vue, Svelte | ✅ Published |
 | **Architectural Patterns** | Messaging, API Integration, Testing, Security, CI/CD | ✅ Published |
 | **Claude Adapter** | SKILL.md generation for Claude Code | ✅ Published |
+| **Skill Sync** | Checksum-based component synchronization with `/skill-sync` skill and `skill-updater` agent | ✅ Published |
 
 ---
 
@@ -36,7 +37,7 @@ A biomimetic, vendor-agnostic skill framework for AI agents that mirrors biologi
 
 | Feature | Description | Priority |
 |---------|-------------|----------|
-| Skill Marketplace | Registry for sharing skills | Medium |
+| Skill Marketplace | Registry for sharing skills (builds on skill-sync) | Medium |
 | Fitness Dashboard | Visualize fitness metrics over time | Medium |
 | Pre-commit Hooks | Ready-to-use git hooks | High |
 
