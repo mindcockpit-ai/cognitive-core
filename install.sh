@@ -139,7 +139,7 @@ else
 
     # Agents
     echo ""
-    info "Available agents: coordinator reviewer architect tester researcher database"
+    info "Available agents: coordinator reviewer architect tester researcher database security-analyst"
     prompt_default CC_AGENTS "Agents to install" "coordinator reviewer architect tester researcher"
     prompt_choice CC_COORDINATOR_MODEL "Coordinator model" "opus|sonnet" "opus"
     prompt_choice CC_SPECIALIST_MODEL "Specialist model" "opus|sonnet" "sonnet"
@@ -147,7 +147,7 @@ else
     # Skills
     echo ""
     info "Available skills: session-resume session-sync code-review pre-commit fitness"
-    info "                  project-status project-board acceptance-verification workflow-analysis test-scaffold tech-intel"
+    info "                  project-status project-board acceptance-verification workflow-analysis test-scaffold tech-intel ctf-pentesting"
     prompt_default CC_SKILLS "Skills to install" "session-resume code-review pre-commit fitness project-status project-board acceptance-verification"
 
     # Hooks
@@ -277,7 +277,8 @@ agent_file_for() {
         architect)   echo "solution-architect.md" ;;
         tester)      echo "test-specialist.md" ;;
         researcher)  echo "research-analyst.md" ;;
-        database)    echo "database-specialist.md" ;;
+        database)          echo "database-specialist.md" ;;
+        security-analyst)  echo "security-analyst.md" ;;
         *) echo "" ;;
     esac
 }
