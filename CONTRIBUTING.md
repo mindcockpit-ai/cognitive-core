@@ -158,9 +158,9 @@ git push origin feature/my-contribution
 
 ## Questions?
 
-- Open a GitHub Discussion
+- Visit [multivac42.ai](https://multivac42.ai) for an overview
+- Open a [GitHub Discussion](https://github.com/mindcockpit-ai/cognitive-core/discussions)
 - Tag maintainers for guidance
-- Join community channels (TBD)
 
 ## License
 

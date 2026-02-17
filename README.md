@@ -1,5 +1,9 @@
 # cognitive-core
 
+[![Website](https://img.shields.io/badge/website-multivac42.ai-38bdf8?style=flat-square)](https://multivac42.ai)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+[![GitHub](https://img.shields.io/github/stars/mindcockpit-ai/cognitive-core?style=flat-square)](https://github.com/mindcockpit-ai/cognitive-core)
+
 A portable framework that installs production-grade hooks, agents, skills, CI/CD pipelines, and monitoring into any Claude Code project in under 60 seconds.
 
 ## Feature Highlights
@@ -273,6 +277,12 @@ update.sh       Checksum-based updater
 
 1. Create `database-packs/<database>/skills/<skill-name>/SKILL.md`
 2. Test: `./install.sh /tmp/test --force` with `CC_DATABASE=<database>`
+
+## Links
+
+- **Website**: [multivac42.ai](https://multivac42.ai)
+- **GitHub**: [mindcockpit-ai/cognitive-core](https://github.com/mindcockpit-ai/cognitive-core)
+- **Docs**: [docs/](docs/)
 
 ## License
 

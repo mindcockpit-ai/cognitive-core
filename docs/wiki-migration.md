@@ -39,6 +39,7 @@ Add cognitive-core section:
 
 A vendor-agnostic, biomimetic skill framework for AI agents.
 
+**Website**: [multivac42.ai](https://multivac42.ai)
 **Repository**: [github.com/mindcockpit-ai/cognitive-core](https://github.com/mindcockpit-ai/cognitive-core)
 
 Key features:
@@ -89,7 +90,7 @@ New wiki page:
 
 | Project | Description | Status |
 |---------|-------------|--------|
-| [cognitive-core](https://github.com/mindcockpit-ai/cognitive-core) | Biomimetic AI skill framework | Active |
+| [cognitive-core](https://github.com/mindcockpit-ai/cognitive-core) | Biomimetic AI skill framework — [multivac42.ai](https://multivac42.ai) | Active |
 | [mindcockpit-ai](https://github.com/mindcockpit-ai/mindcockpit-ai) | Organization introduction | Active |
 
 ## Private Projects
