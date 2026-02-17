@@ -81,6 +81,16 @@ if ! git -C "$PROJECT_DIR" rev-parse --is-inside-work-tree &>/dev/null; then
 fi
 info "Git repository verified."
 
+# ---- Supply chain integrity check (framework source) ----
+if git -C "$SCRIPT_DIR" rev-parse --is-inside-work-tree &>/dev/null; then
+    _fw_dirty=$(git -C "$SCRIPT_DIR" status --porcelain 2>/dev/null | grep -c '.' || echo "0")
+    _fw_commit=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+    if [ "$_fw_dirty" -gt 0 ]; then
+        warn "Framework source has ${_fw_dirty} uncommitted change(s). Install may not match a released version."
+    fi
+    info "Framework commit: ${_fw_commit}"
+fi
+
 # ---- Check existing installation ----
 VERSION_FILE="${PROJECT_DIR}/.claude/cognitive-core/version.json"
 if [ -f "$VERSION_FILE" ] && [ "$FORCE" = false ]; then
@@ -148,10 +158,10 @@ else
     echo ""
     info "Available skills: session-resume session-sync code-review pre-commit fitness"
     info "                  project-status project-board acceptance-verification workflow-analysis test-scaffold tech-intel ctf-pentesting"
-    prompt_default CC_SKILLS "Skills to install" "session-resume code-review pre-commit fitness project-status project-board acceptance-verification"
+    prompt_default CC_SKILLS "Skills to install" "session-resume code-review pre-commit fitness project-status project-board acceptance-verification security-baseline"
 
     # Hooks
-    prompt_default CC_HOOKS "Hooks to enable" "setup-env compact-reminder validate-bash post-edit-lint"
+    prompt_default CC_HOOKS "Hooks to enable" "setup-env compact-reminder validate-bash validate-read validate-fetch validate-write post-edit-lint"
 
     # CI/CD
     prompt_choice CC_ENABLE_CICD "Install CI/CD pipeline?" "true|false" "false"
@@ -176,7 +186,10 @@ else
 2. Git commits: type(scope): subject format, no AI references
 3. Run lint before every commit
 }"
+    CC_SECURITY_LEVEL="standard"
     CC_BLOCKED_PATTERNS=""
+    CC_ALLOWED_DOMAINS=""
+    CC_KNOWN_SAFE_DOMAINS=""
     CC_ENABLE_CLEANUP_CRON="true"
     CC_SESSION_DOCS_DIR="docs"
     CC_SESSION_MAX_AGE_DAYS="30"
@@ -188,7 +201,10 @@ else
     CC_RUNNER_NODES="${CC_RUNNER_NODES:-1}"
     CC_RUNNER_LABELS="${CC_RUNNER_LABELS:-self-hosted,linux,docker}"
     CC_AGENT_TEAMS="false"
+    # shellcheck disable=SC2034
     CC_MCP_SERVERS="context7"
+    CC_UPDATE_AUTO_CHECK="true"
+    CC_UPDATE_CHECK_INTERVAL="7"
 
     # Write config file
     info "Writing configuration to ${CONF_FILE}"
@@ -229,6 +245,12 @@ CC_SKILLS="${CC_SKILLS}"
 # ===== HOOKS =====
 CC_HOOKS="${CC_HOOKS}"
 
+# ===== SECURITY =====
+CC_SECURITY_LEVEL="${CC_SECURITY_LEVEL}"
+CC_BLOCKED_PATTERNS="${CC_BLOCKED_PATTERNS}"
+CC_ALLOWED_DOMAINS="${CC_ALLOWED_DOMAINS}"
+CC_KNOWN_SAFE_DOMAINS="${CC_KNOWN_SAFE_DOMAINS}"
+
 # ===== GIT =====
 CC_MAIN_BRANCH="${CC_MAIN_BRANCH}"
 CC_COMMIT_FORMAT="${CC_COMMIT_FORMAT}"
@@ -247,6 +269,10 @@ CC_FITNESS_DEPLOY="${CC_FITNESS_DEPLOY}"
 # ===== HORIZONTAL SCALING =====
 CC_RUNNER_NODES="${CC_RUNNER_NODES}"
 CC_RUNNER_LABELS="${CC_RUNNER_LABELS}"
+
+# ===== CONNECTED PROJECTS =====
+CC_UPDATE_AUTO_CHECK="${CC_UPDATE_AUTO_CHECK}"
+CC_UPDATE_CHECK_INTERVAL="${CC_UPDATE_CHECK_INTERVAL}"
 
 # ===== CONTEXT MANAGEMENT =====
 CC_ENABLE_CLEANUP_CRON="${CC_ENABLE_CLEANUP_CRON}"
@@ -297,6 +323,18 @@ for hook in ${CC_HOOKS:-}; do
         info "Installed hook: ${hook}"
     else
         warn "Hook not found: ${hook} (skipped)"
+    fi
+done
+
+# ---- Install utilities ----
+header "Installing utilities"
+
+for util in check-update.sh context-cleanup.sh health-check.sh; do
+    UTIL_SRC="${SCRIPT_DIR}/core/utilities/${util}"
+    if [ -f "$UTIL_SRC" ]; then
+        cp "$UTIL_SRC" "${CLAUDE_DIR}/cognitive-core/${util}"
+        chmod +x "${CLAUDE_DIR}/cognitive-core/${util}"
+        info "Installed utility: ${util}"
     fi
 done
 
@@ -536,49 +574,122 @@ The agent team follows a hub-and-spoke pattern where the **project-coordinator**
 acts as the central orchestrator, delegating to specialist agents based on task type.
 
 ```
-                    +---------------------+
-                    | project-coordinator |
-                    |     (Hub / Opus)    |
-                    +----------+----------+
-                               |
-         +----------+----------+----------+----------+
-         |          |          |          |          |
-    +----+----+ +---+---+ +---+---+ +---+----+ +---+----+
-    |solution | | code  | | test  | |research| |database|
-    |architect| |reviewer| |  spec | |analyst | |  spec  |
-    +---------+ +-------+ +-------+ +--------+ +--------+
+                         ┌───────────────────┐
+                         │       USER        │
+                         │    (Developer)    │
+                         └─────────┬─────────┘
+                                   │
+                                   ▼
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
+│                  PROJECT-COORDINATOR (Hub)                   │
+│                  Smart Orchestrator / Opus                   │
+│                                                              │
+│  • Analyze incoming requests                                 │
+│  • Route to appropriate specialist                           │
+│  • Coordinate multi-agent workflows                          │
+│  • Synthesize results into unified response                  │
+│  • Manage project board and sprint planning                  │
+│                                                              │
+└────────┬──────────┬──────────┬──────────┬──────────┬─────────┘
+         │          │          │          │          │
+         ▼          ▼          ▼          ▼          ▼
+   ┌──────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
+   │ solution │ │  code  │ │  test  │ │research│ │database│
+   │ architect│ │reviewer│ │  spec  │ │ analyst│ │  spec  │
+   │  (Opus)  │ │(Sonnet)│ │(Sonnet)│ │ (Opus) │ │ (Opus) │
+   └──────────┘ └────────┘ └────────┘ └────────┘ └────────┘
 ```
 
 ## Agent Catalog
 
-| Agent | File | Model | Role |
-|-------|------|-------|------|
-| project-coordinator | `project-coordinator.md` | opus | Smart orchestrator, delegates to specialists |
-| solution-architect | `solution-architect.md` | opus | Business workflows, architecture, requirements |
-| code-standards-reviewer | `code-standards-reviewer.md` | sonnet | Code review, standards compliance |
-| test-specialist | `test-specialist.md` | sonnet | Unit/integration tests, coverage, QA |
-| research-analyst | `research-analyst.md` | opus | External research, library evaluation |
-| database-specialist | `database-specialist.md` | opus | Query optimization, bulk operations |
+### project-coordinator (Hub)
+- **File**: `project-coordinator.md` | **Model**: opus
+- **Role**: Smart orchestrator — analyzes requests and delegates to specialists
+- **Use when**: Project planning, multi-agent coordination, sprint planning, risk assessment, TODO creation
+- **Don't use for**: Simple single-task requests, direct code implementation, single-domain tasks
 
-## Quick Selection Guide
+### solution-architect
+- **File**: `solution-architect.md` | **Model**: opus
+- **Role**: Business workflows, architectural decisions, requirements analysis
+- **Use when**: New feature design, workflow implementation, integration decisions, technical feasibility
+- **Don't use for**: Code fixes, code review, test creation, DB performance, pure research
 
-| Need | Agent |
-|------|-------|
-| New feature or workflow | solution-architect |
-| Code review | code-standards-reviewer |
-| Tests needed or failing | test-specialist |
-| Unknown error or library | research-analyst |
-| Slow query or DB design | database-specialist |
-| Multi-step coordination | project-coordinator |
+### code-standards-reviewer
+- **File**: `code-standards-reviewer.md` | **Model**: sonnet
+- **Role**: Code review, standards compliance, architecture pattern verification
+- **Use when**: After code implementation, PR reviews, refactoring validation, standards verification
+- **Don't use for**: Writing new code, business analysis, test creation, research
+- **Restrictions**: No WebFetch, No WebSearch (reviews code, not web)
+
+### test-specialist
+- **File**: `test-specialist.md` | **Model**: sonnet
+- **Role**: Unit/integration/UI tests, coverage analysis, QA strategy
+- **Use when**: New code needs tests, test failures, coverage gaps, test refactoring
+- **Don't use for**: Code implementation without test focus, business analysis, code review
+
+### research-analyst
+- **File**: `research-analyst.md` | **Model**: opus
+- **Role**: External research, library evaluation, technology assessment, best practices
+- **Use when**: Unknown technologies, error investigation, library selection, industry patterns
+- **Don't use for**: Internal code questions, code review, test creation
+- **Restrictions**: No Write, No Edit (research only, does not modify code)
+
+### database-specialist
+- **File**: `database-specialist.md` | **Model**: opus
+- **Role**: Database optimization, query tuning, bulk operations, index analysis
+- **Use when**: Slow queries, import performance, database design, bulk data operations
+- **Don't use for**: Simple CRUD, business logic, code review without performance concerns
+
+### security-analyst (optional)
+- **File**: `security-analyst.md` | **Model**: opus
+- **Role**: Offensive security, CTF mentoring, vulnerability analysis, forensic investigation
+- **Use when**: Pentest, CTF challenges, vulnerability scanning, security code review, breach analysis
+- **Don't use for**: General code review, business analysis, non-security tasks
+
+## Keyword → Agent Routing
+
+| Keywords in Request | Route To |
+|---------------------|----------|
+| "implement feature", "new workflow", "approval process", "design" | solution-architect |
+| "review code", "check standards", "CLAUDE.md compliance", "refactor" | code-standards-reviewer |
+| "write tests", "test coverage", "failing test", "QA" | test-specialist |
+| "research", "best practice", "which library", "error investigation" | research-analyst |
+| "slow query", "performance", "bulk import", "database", "index" | database-specialist |
+| "plan project", "create TODO", "sprint", "coordinate", "board" | project-coordinator |
+| "pentest", "CTF", "vulnerability", "exploit", "security scan" | security-analyst |
 
 ## Delegation Flow
 
 1. Request arrives at **project-coordinator**
 2. Coordinator analyzes and identifies required expertise
-3. Delegates to appropriate specialist(s)
+3. Delegates to appropriate specialist(s) with clear scope
 4. Specialist completes work and reports back
 5. Coordinator synthesizes results
-6. **code-standards-reviewer** performs final quality gate (mandatory)
+6. **code-standards-reviewer** performs final quality gate (**MANDATORY** for code changes)
+
+## Escalation Paths
+
+```
+code-standards-reviewer finds performance issue  → database-specialist
+test-specialist finds architectural flaw          → solution-architect
+database-specialist needs research                → research-analyst
+security-analyst finds systemic vulnerability     → project-coordinator
+Any agent blocked or needs cross-cutting work     → project-coordinator
+```
+
+## Mandatory Quality Gate
+
+Every code change MUST include a code-standards-reviewer pass before completion:
+
+```
+[ ] Implementation tasks...
+[ ] Unit tests (test-specialist)
+[ ] Integration tests (test-specialist)
+[ ] Code Standards Review (code-standards-reviewer) ← MANDATORY
+[ ] Automated lint verification ← MANDATORY
+[ ] Documentation update
+```
 AGENTSEOF
 info "Generated AGENTS_README.md."
 
@@ -714,10 +825,16 @@ header "Next steps"
 echo ""
 echo "  1. Review and customize CLAUDE.md for your project"
 echo "  2. Review .claude/settings.json hook configuration"
-echo "  3. Commit the .claude/ directory and CLAUDE.md to git:"
+echo "  3. Review .claude/AGENTS_README.md for agent team documentation"
+echo "  4. Run context health check:"
+printf "     ${CYAN}bash .claude/cognitive-core/health-check.sh${RESET}\n"
+echo "  5. Commit the .claude/ directory and CLAUDE.md to git:"
 echo ""
 printf "     ${CYAN}git add .claude/ CLAUDE.md cognitive-core.conf${RESET}\n"
 printf "     ${CYAN}git commit -m \"chore: install cognitive-core v${CC_VERSION}\"${RESET}\n"
+echo ""
+echo "  6. (Optional) Set up weekly context cleanup cron:"
+printf "     ${CYAN}bash .claude/cognitive-core/context-cleanup.sh --setup-cron${RESET}\n"
 echo ""
 if [ "${CC_ENABLE_CICD:-false}" = "true" ]; then
     echo "  4. Copy and configure cicd/monitoring/.env.template:"
