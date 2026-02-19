@@ -52,9 +52,10 @@ CC_SPECIALIST_MODEL="sonnet"
 
 # ===== SKILLS =====
 # Which skills to install (space-separated)
-# Options: session-resume session-sync code-review pre-commit fitness
-#          project-status workflow-analysis test-scaffold tech-intel
-CC_SKILLS="session-resume code-review pre-commit fitness project-status"
+# Options: session-resume session-sync skill-sync code-review pre-commit fitness
+#          project-status project-board acceptance-verification workflow-analysis
+#          test-scaffold tech-intel workspace-monitor ctf-pentesting security-baseline
+CC_SKILLS="session-resume skill-sync code-review pre-commit fitness project-status"
 
 # ===== HOOKS =====
 # Which hooks to enable (space-separated)
@@ -130,6 +131,25 @@ CC_UPDATE_CHECK_INTERVAL="7"
 CC_AGENT_TEAMS="false"
 # MCP servers (space-separated): context7
 CC_MCP_SERVERS="context7"
+
+# ===== WORKSPACE MONITOR =====
+# Log directories to scan (space-separated, relative to project root)
+CC_MONITOR_LOG_DIRS="logs"
+# Test result directories (space-separated, relative to project root)
+CC_MONITOR_TEST_DIRS="test-results"
+# Build artifact directories (space-separated, relative to project root)
+CC_MONITOR_BUILD_DIRS="target dist build"
+# Additional error regex (pipe-separated, appended to language defaults)
+CC_MONITOR_EXTRA_PATTERNS=""
+# Default time window for monitoring
+CC_MONITOR_SINCE="24h"
+# Report output directory (relative to project root)
+CC_MONITOR_REPORT_DIR="${CC_SESSION_DOCS_DIR:-docs}/monitor-reports"
+# Max log file size before alerting (bytes, default 100MB)
+CC_MONITOR_MAX_LOG_SIZE="104857600"
+# Workspace mode: additional project directories to scan (absolute paths, space-separated)
+# Leave empty for single-project mode (default)
+CC_WORKSPACE_PROJECTS=""
 
 # ===== CONTEXT MANAGEMENT =====
 # Enable weekly cleanup cron: true|false
