@@ -72,6 +72,12 @@ cognitive-core/                         Your project after install:
 +-- cognitive-core.conf.example
 ```
 
+## Framework Health
+
+Live test results and component inventory from the latest build, visible at [multivac42.ai/#health](https://multivac42.ai/#health).
+
+![Framework Health](docs/screenshots/framework-health.png)
+
 ## What's Included
 
 ### Hooks
