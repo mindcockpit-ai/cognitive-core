@@ -3,7 +3,7 @@ name: project-board
 description: Manage GitHub Project board — issues, sprints, status tracking, acceptance verification, and release management. White-labeled template for any project.
 user-invocable: true
 allowed-tools: Bash, Read, Grep, Glob
-argument-hint: "[list|create|close|assign|sprint|sprint-plan|triage|board|move|verify] [options]"
+argument-hint: "[list|create|close|cancel|assign|sprint|sprint-plan|triage|board|move|verify] [options]"
 ---
 
 # Project Board — GitHub Issue & Sprint Management
@@ -30,6 +30,7 @@ CC_SPRINT_FIELD_ID="PVTIF_xxx"              # Sprint iteration field ID (optiona
 
 ```
 Roadmap → Backlog → Todo → In Progress → To Be Tested → Done
+                                                       ↘ Canceled
 ```
 
 | Column | Meaning | Sprint Required |
@@ -39,7 +40,8 @@ Roadmap → Backlog → Todo → In Progress → To Be Tested → Done
 | **Todo** | Committed to a sprint, not yet started | Yes |
 | **In Progress** | Actively being developed | Yes |
 | **To Be Tested** | Code complete, needs verification | Yes |
-| **Done** | Verified and closed | — |
+| **Done** | Verified and closed (terminal) | — |
+| **Canceled** | Abandoned or deferred (terminal) | — |
 
 ### Status Option IDs
 
@@ -52,7 +54,46 @@ todo       → {{STATUS_TODO_ID}}
 progress   → {{STATUS_PROGRESS_ID}}
 testing    → {{STATUS_TESTING_ID}}
 done       → {{STATUS_DONE_ID}}
+canceled   → {{STATUS_CANCELED_ID}}
 ```
+
+## Workflow Transition Rules
+
+Based on Linear/Jira/Kanban best practices. The `move` command MUST enforce these rules.
+
+### Allowed Transitions Matrix
+
+```
+FROM → TO         Roadmap  Backlog  Todo  In Progress  To Be Tested  Done  Canceled
+─────────────────────────────────────────────────────────────────────────────────────
+Roadmap              -       ✓       ✓        -             -          -      ✓
+Backlog              ✓       -       ✓        -             -          -      ✓
+Todo                 -       ✓       -        ✓             -          -      ✓
+In Progress          -       -       -        -             ✓          -      ✓
+To Be Tested         -       -       -        ✓*            -          ✓      ✓
+Done                 -       -       -        -             -          -      -
+Canceled             -       -       -        -             -          -      -
+```
+
+`✓` = Allowed | `✓*` = Allowed but warn (rework) | `-` = Blocked
+
+### Key Rules
+
+1. **Forward flow is primary**: Roadmap/Backlog → Todo → In Progress → To Be Tested → Done
+2. **One backward transition**: To Be Tested → In Progress (rework when testing reveals issues)
+3. **Canceled reachable from anywhere** except Done (once Done, create new issue for regressions)
+4. **Done and Canceled are terminal**: No transitions out. Reopen creates new issue.
+5. **No skipping**: Cannot jump Backlog → In Progress (must pass through Todo first)
+
+### CI Automation
+
+The `project-board-automation.yml` workflow (in `cicd/workflows/`) handles:
+- PR opened with `Closes #N` → issue moves to In Progress (from Todo only)
+- PR merged → issue moves to Done
+- Issue assigned (from Backlog/Roadmap) → moves to Todo
+- New issue opened → added to board in Backlog
+- Issue reopened → moves to In Progress
+- Issue closed → moves to Done
 
 ### Area (Row Grouping)
 
@@ -143,8 +184,33 @@ gh issue close <number> --repo {{CC_GITHUB_REPO}} --comment "<comment>"
 
 2. Update board status to Done:
 ```bash
-ITEM_ID=$(gh api graphql -f query='query { user(login: "{{CC_GITHUB_OWNER}}") { projectV2(number: {{CC_PROJECT_NUMBER}}) { items(first: 100) { nodes { id content { ... on Issue { number } } } } } } }' --jq '.data.user.projectV2.items.nodes[] | select(.content.number == <N>) | .id')
+ITEMS=$(gh project item-list {{CC_PROJECT_NUMBER}} --owner {{CC_GITHUB_OWNER}} --format json --limit 500)
+ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n <N> '.items[] | select(.content.number == $n) | .id')
 gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "{{CC_PROJECT_ID}}" itemId: "'$ITEM_ID'" fieldId: "{{CC_STATUS_FIELD_ID}}" value: { singleSelectOptionId: "{{STATUS_DONE_ID}}" } }) { projectV2Item { id } } }'
+```
+
+### `cancel`
+
+Cancel one or more issues. Moves to Canceled on the board. Requires a reason.
+
+**Syntax**: `/project-board cancel <number> [number2 ...] --reason "why"`
+
+1. Check current status — block if already Done (create new issue instead)
+2. Add comment with cancellation reason
+3. Close the issue
+4. Move to Canceled on the board
+
+```bash
+# Check current status first
+ITEMS=$(gh project item-list {{CC_PROJECT_NUMBER}} --owner {{CC_GITHUB_OWNER}} --format json --limit 500)
+CURRENT=$(echo "$ITEMS" | jq -r --argjson n <N> '.items[] | select(.content.number == $n) | .status')
+# Block if Done
+if [ "$CURRENT" = "Done" ]; then echo "Cannot cancel a Done issue. Create a new issue instead."; exit 1; fi
+# Close with reason
+gh issue close <number> --repo {{CC_GITHUB_REPO}} --comment "Canceled: <reason>"
+# Set board status to Canceled
+ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n <N> '.items[] | select(.content.number == $n) | .id')
+gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "{{CC_PROJECT_ID}}" itemId: "'$ITEM_ID'" fieldId: "{{CC_STATUS_FIELD_ID}}" value: { singleSelectOptionId: "{{STATUS_CANCELED_ID}}" } }) { projectV2Item { id } } }'
 ```
 
 ### `assign`
@@ -259,18 +325,42 @@ URL: https://github.com/users/{{CC_GITHUB_OWNER}}/projects/{{CC_PROJECT_NUMBER}}
 | In Progress    | N     |
 | To Be Tested   | N     |
 | Done           | N     |
+| Canceled       | N     |
 ```
 
 ### `move`
 
-Move an issue to a different board column.
+Move an issue to a different board column. **Enforces transition rules.**
 
-**Syntax**: `/project-board move <number> <roadmap|backlog|todo|progress|testing|done>`
+**Syntax**: `/project-board move <number> <roadmap|backlog|todo|progress|testing|done|canceled>`
 
-Map column names to Status Option IDs and execute:
+Map column names to Status Option IDs and execute.
+
+**Before moving, check the transition is allowed:**
 
 ```bash
-ITEM_ID=$(gh api graphql -f query='query { user(login: "{{CC_GITHUB_OWNER}}") { projectV2(number: {{CC_PROJECT_NUMBER}}) { items(first: 100) { nodes { id content { ... on Issue { number } } } } } } }' --jq '.data.user.projectV2.items.nodes[] | select(.content.number == <N>) | .id')
+# 1. Get current status
+ITEMS=$(gh project item-list {{CC_PROJECT_NUMBER}} --owner {{CC_GITHUB_OWNER}} --format json --limit 500)
+CURRENT=$(echo "$ITEMS" | jq -r --argjson n <N> '.items[] | select(.content.number == $n) | .status')
+TARGET="<target_status>"
+
+# 2. Validate transition against allowed matrix
+# Allowed transitions (from → to):
+#   Roadmap    → Backlog, Todo, Canceled
+#   Backlog    → Roadmap, Todo, Canceled
+#   Todo       → Backlog, In Progress, Canceled
+#   In Progress → To Be Tested, Canceled
+#   To Be Tested → In Progress (rework), Done, Canceled
+#   Done       → (none — terminal)
+#   Canceled   → (none — terminal)
+
+# 3. If transition is blocked, show error with allowed targets
+# Example: "Cannot move from Backlog to In Progress. Allowed: Roadmap, Todo, Canceled"
+
+# 4. If To Be Tested → In Progress, warn: "Rework: moving back to In Progress"
+
+# 5. Execute the move
+ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n <N> '.items[] | select(.content.number == $n) | .id')
 gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "{{CC_PROJECT_ID}}" itemId: "'$ITEM_ID'" fieldId: "{{CC_STATUS_FIELD_ID}}" value: { singleSelectOptionId: "<STATUS_OPTION_ID>" } }) { projectV2Item { id } } }'
 ```
 
@@ -288,7 +378,12 @@ See the `acceptance-verification` skill for full workflow details.
 
 - If `gh` commands fail with auth errors, suggest: `gh auth refresh -h github.com -s project`
 - If an issue number doesn't exist, report it clearly
-- Confirm destructive actions (close) when closing more than 2 issues at once
+- Confirm destructive actions (close, cancel) when affecting more than 2 issues at once
+- If a move is blocked by transition rules, explain WHY and show allowed targets
+
+## CI Automation
+
+The `project-board-automation.yml` workflow requires a `PROJECT_PAT` repository secret (classic PAT with `repo` + `project` scopes). Without it, the automation jobs will fail silently.
 
 ## Integration with Agents
 

@@ -1,0 +1,286 @@
+# =============================================================================
+# Project Board Automation — cognitive-core framework
+# =============================================================================
+# Automates board status transitions based on GitHub events:
+#   - PR opened → linked issues move to In Progress (from Todo only)
+#   - PR merged → linked issues move to Done
+#   - Issue assigned → moves to Todo (from Backlog/Roadmap)
+#   - Issue opened → added to board in Backlog
+#   - Issue reopened → moves to In Progress
+#   - Issue closed → moves to Done
+#
+# Prerequisites:
+#   - Repository secret PROJECT_PAT (classic PAT with repo + project scopes)
+#   - GitHub Project V2 with Status field configured via setup.sh
+#
+# Replace these placeholders with your project's actual values:
+#   PROJECT_ID       → GraphQL Project ID (PVT_xxx)
+#   STATUS_FIELD_ID  → Status field ID (PVTSSF_xxx)
+#   PROJECT_NUMBER   → GitHub Project number
+#   PROJECT_OWNER    → GitHub username/org that owns the project
+# =============================================================================
+name: Project Board Automation
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, closed]
+  issues:
+    types: [assigned, opened, closed, reopened]
+
+permissions:
+  issues: write
+  pull-requests: read
+
+env:
+  PROJECT_ID: "PVT_xxx"            # Replace with your Project ID
+  STATUS_FIELD_ID: "PVTSSF_xxx"    # Replace with your Status field ID
+  PROJECT_NUMBER: "3"              # Replace with your Project number
+  PROJECT_OWNER: "owner"           # Replace with your GitHub username/org
+  # Status option IDs — replace after running setup.sh
+  ROADMAP_ID: "replace_me"
+  BACKLOG_ID: "replace_me"
+  TODO_ID: "replace_me"
+  IN_PROGRESS_ID: "replace_me"
+  TO_BE_TESTED_ID: "replace_me"
+  DONE_ID: "replace_me"
+  CANCELED_ID: "replace_me"
+
+jobs:
+  # ── PR opened → linked issues move to In Progress ──
+  pr-opened:
+    if: >
+      github.event_name == 'pull_request' &&
+      (github.event.action == 'opened' || github.event.action == 'ready_for_review')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move linked issues to In Progress
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+        run: |
+          PR_BODY=$(cat <<'PREOF'
+          ${{ github.event.pull_request.body }}
+          PREOF
+          )
+          ISSUES=$(echo "$PR_BODY" | \
+            grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?)\s+#[0-9]+' | \
+            grep -oE '[0-9]+' | sort -u)
+
+          if [ -z "$ISSUES" ]; then
+            echo "No linked issues found in PR body"
+            exit 0
+          fi
+
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500)
+
+          for ISSUE_NUM in $ISSUES; do
+            ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
+              '.items[] | select(.content.number == $n) | .id')
+            CURRENT=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
+              '.items[] | select(.content.number == $n) | .status')
+
+            if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
+              echo "Issue #$ISSUE_NUM not on board, skipping"
+              continue
+            fi
+
+            # Only move forward: Todo → In Progress
+            if [ "$CURRENT" = "Todo" ]; then
+              gh api graphql -f query='mutation {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: "'"$PROJECT_ID"'"
+                  itemId: "'"$ITEM_ID"'"
+                  fieldId: "'"$STATUS_FIELD_ID"'"
+                  value: { singleSelectOptionId: "'"$IN_PROGRESS_ID"'" }
+                }) { projectV2Item { id } }
+              }'
+              echo "Moved #$ISSUE_NUM: Todo → In Progress"
+            else
+              echo "Issue #$ISSUE_NUM in '$CURRENT', not moving (only Todo → In Progress)"
+            fi
+          done
+
+  # ── PR merged → linked issues move to Done ──
+  pr-merged:
+    if: >
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move linked issues to Done
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+        run: |
+          PR_BODY=$(cat <<'PREOF'
+          ${{ github.event.pull_request.body }}
+          PREOF
+          )
+          ISSUES=$(echo "$PR_BODY" | \
+            grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?)\s+#[0-9]+' | \
+            grep -oE '[0-9]+' | sort -u)
+
+          if [ -z "$ISSUES" ]; then
+            echo "No linked issues found in PR body"
+            exit 0
+          fi
+
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500)
+
+          for ISSUE_NUM in $ISSUES; do
+            ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
+              '.items[] | select(.content.number == $n) | .id')
+
+            if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
+              echo "Issue #$ISSUE_NUM not on board, skipping"
+              continue
+            fi
+
+            gh api graphql -f query='mutation {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: "'"$PROJECT_ID"'"
+                itemId: "'"$ITEM_ID"'"
+                fieldId: "'"$STATUS_FIELD_ID"'"
+                value: { singleSelectOptionId: "'"$DONE_ID"'" }
+              }) { projectV2Item { id } }
+            }'
+            echo "Moved #$ISSUE_NUM → Done (PR merged)"
+          done
+
+  # ── Issue assigned (from Backlog/Roadmap) → Todo ──
+  issue-assigned:
+    if: >
+      github.event_name == 'issues' &&
+      github.event.action == 'assigned'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move assigned issue to Todo if in Backlog/Roadmap
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+        run: |
+          ISSUE_NUM=${{ github.event.issue.number }}
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500)
+
+          ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
+            '.items[] | select(.content.number == $n) | .id')
+          CURRENT=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
+            '.items[] | select(.content.number == $n) | .status')
+
+          if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
+            echo "Issue #$ISSUE_NUM not on board"
+            exit 0
+          fi
+
+          if [ "$CURRENT" = "Backlog" ] || [ "$CURRENT" = "Roadmap" ]; then
+            gh api graphql -f query='mutation {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: "'"$PROJECT_ID"'"
+                itemId: "'"$ITEM_ID"'"
+                fieldId: "'"$STATUS_FIELD_ID"'"
+                value: { singleSelectOptionId: "'"$TODO_ID"'" }
+              }) { projectV2Item { id } }
+            }'
+            echo "Moved #$ISSUE_NUM: $CURRENT → Todo (assigned)"
+          else
+            echo "Issue #$ISSUE_NUM in '$CURRENT', not moving"
+          fi
+
+  # ── New issue → add to board in Backlog ──
+  issue-opened:
+    if: >
+      github.event_name == 'issues' &&
+      github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add new issue to board in Backlog
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+        run: |
+          ISSUE_NUM=${{ github.event.issue.number }}
+          ISSUE_NODE_ID="${{ github.event.issue.node_id }}"
+
+          ITEM_ID=$(gh api graphql -f query='mutation {
+            addProjectV2ItemById(input: {
+              projectId: "'"$PROJECT_ID"'"
+              contentId: "'"$ISSUE_NODE_ID"'"
+            }) { item { id } }
+          }' --jq '.data.addProjectV2ItemById.item.id')
+
+          if [ -n "$ITEM_ID" ] && [ "$ITEM_ID" != "null" ]; then
+            gh api graphql -f query='mutation {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: "'"$PROJECT_ID"'"
+                itemId: "'"$ITEM_ID"'"
+                fieldId: "'"$STATUS_FIELD_ID"'"
+                value: { singleSelectOptionId: "'"$BACKLOG_ID"'" }
+              }) { projectV2Item { id } }
+            }'
+            echo "Added #$ISSUE_NUM to board → Backlog"
+          fi
+
+  # ── Issue reopened → move back to In Progress ──
+  issue-reopened:
+    if: >
+      github.event_name == 'issues' &&
+      github.event.action == 'reopened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move reopened issue to In Progress
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+        run: |
+          ISSUE_NUM=${{ github.event.issue.number }}
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500)
+
+          ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
+            '.items[] | select(.content.number == $n) | .id')
+          CURRENT=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
+            '.items[] | select(.content.number == $n) | .status')
+
+          if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
+            echo "Issue #$ISSUE_NUM not on board"
+            exit 0
+          fi
+
+          if [ "$CURRENT" = "Done" ] || [ "$CURRENT" = "Canceled" ]; then
+            gh api graphql -f query='mutation {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: "'"$PROJECT_ID"'"
+                itemId: "'"$ITEM_ID"'"
+                fieldId: "'"$STATUS_FIELD_ID"'"
+                value: { singleSelectOptionId: "'"$IN_PROGRESS_ID"'" }
+              }) { projectV2Item { id } }
+            }'
+            echo "Moved #$ISSUE_NUM: $CURRENT → In Progress (reopened)"
+          fi
+
+  # ── Issue closed → move to Done ──
+  issue-closed:
+    if: >
+      github.event_name == 'issues' &&
+      github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move closed issue to Done
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+        run: |
+          ISSUE_NUM=${{ github.event.issue.number }}
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500)
+
+          ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
+            '.items[] | select(.content.number == $n) | .id')
+
+          if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
+            echo "Issue #$ISSUE_NUM not on board"
+            exit 0
+          fi
+
+          gh api graphql -f query='mutation {
+            updateProjectV2ItemFieldValue(input: {
+              projectId: "'"$PROJECT_ID"'"
+              itemId: "'"$ITEM_ID"'"
+              fieldId: "'"$STATUS_FIELD_ID"'"
+              value: { singleSelectOptionId: "'"$DONE_ID"'" }
+            }) { projectV2Item { id } }
+          }'
+          echo "Moved #$ISSUE_NUM → Done (closed)"

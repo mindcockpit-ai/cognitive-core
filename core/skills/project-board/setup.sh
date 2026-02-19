@@ -99,6 +99,7 @@ mutation {
       { name: "In Progress", color: YELLOW, description: "Actively being developed" }
       { name: "To Be Tested", color: ORANGE, description: "Code complete, needs verification" }
       { name: "Done", color: GREEN, description: "Verified and closed" }
+      { name: "Canceled", color: RED, description: "Abandoned or deferred" }
     ]
   }) {
     projectV2Field {
@@ -212,7 +213,7 @@ mutation {
   updateProjectV2(input: {
     projectId: "'"$PROJECT_ID"'"
     shortDescription: "Sprint board, issue tracking, and release management"
-    readme: "# '"$PROJECT_NAME"' Board\n\n## Board Structure\n\n### Status (Columns)\n| Column | Meaning |\n|--------|---------|\n| **Roadmap** | Feature ideas, not committed |\n| **Backlog** | Accepted work, no sprint |\n| **Todo** | Committed to sprint |\n| **In Progress** | Actively developed |\n| **To Be Tested** | Code complete, verify |\n| **Done** | Verified and closed |\n\n### Area (Group By)\nCI/CD, Monitoring, Testing, Security, Infrastructure\n\n### Sprint\n14-day iterations. Filter by Sprint to focus."
+    readme: "# '"$PROJECT_NAME"' Board\n\n## Board Structure\n\n### Status (Columns)\n| Column | Meaning |\n|--------|---------|\n| **Roadmap** | Feature ideas, not committed |\n| **Backlog** | Accepted work, no sprint |\n| **Todo** | Committed to sprint |\n| **In Progress** | Actively developed |\n| **To Be Tested** | Code complete, verify |\n| **Done** | Verified and closed |\n| **Canceled** | Abandoned or deferred |\n\n### Area (Group By)\nCI/CD, Monitoring, Testing, Security, Infrastructure\n\n### Sprint\n14-day iterations. Filter by Sprint to focus."
   }) { projectV2 { title } }
 }' >/dev/null
 
