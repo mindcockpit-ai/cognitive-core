@@ -333,6 +333,16 @@ info "Updated version manifest."
 # ---- Make scripts executable ----
 find "${CLAUDE_DIR}/hooks" -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
 
+# ---- Ensure .gitignore covers runtime files ----
+GITIGNORE="${PROJECT_DIR}/.gitignore"
+SECURITY_LOG_PATTERN=".claude/cognitive-core/security.log"
+if [ -f "$GITIGNORE" ]; then
+    if ! grep -qE "^\*\.log$|${SECURITY_LOG_PATTERN//./\\.}" "$GITIGNORE" 2>/dev/null; then
+        printf "\n# cognitive-core runtime logs\n%s\n" "$SECURITY_LOG_PATTERN" >> "$GITIGNORE"
+        info "Added ${SECURITY_LOG_PATTERN} to .gitignore"
+    fi
+fi
+
 # ---- Summary ----
 header "Update complete"
 

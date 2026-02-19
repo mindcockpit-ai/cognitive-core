@@ -809,6 +809,20 @@ if [ "${CC_ENABLE_CICD:-false}" = "true" ]; then
 fi
 info "Made all shell scripts executable."
 
+# ---- Ensure .gitignore covers runtime files ----
+GITIGNORE="${PROJECT_DIR}/.gitignore"
+SECURITY_LOG_PATTERN=".claude/cognitive-core/security.log"
+if [ -f "$GITIGNORE" ]; then
+    # Check if security.log is already covered (exact entry or *.log glob)
+    if ! grep -qE "^\*\.log$|${SECURITY_LOG_PATTERN//./\\.}" "$GITIGNORE" 2>/dev/null; then
+        printf "\n# cognitive-core runtime logs\n%s\n" "$SECURITY_LOG_PATTERN" >> "$GITIGNORE"
+        info "Added ${SECURITY_LOG_PATTERN} to .gitignore"
+    fi
+else
+    printf "# cognitive-core runtime logs\n%s\n" "$SECURITY_LOG_PATTERN" > "$GITIGNORE"
+    info "Created .gitignore with ${SECURITY_LOG_PATTERN}"
+fi
+
 # ---- Summary ----
 header "Installation complete"
 
