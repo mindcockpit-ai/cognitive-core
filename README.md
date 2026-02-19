@@ -105,6 +105,7 @@ cognitive-core/                         Your project after install:
 | pre-commit | manual | Pre-commit validation checks |
 | fitness | manual | Codebase fitness scoring |
 | project-status | manual | Project status dashboard |
+| workspace-monitor | manual | Proactive log, test, and build monitoring |
 | workflow-analysis | manual | Workflow and process analysis |
 | test-scaffold | manual | Test file generation from source |
 | tech-intel | yes | Technology intelligence and research |
