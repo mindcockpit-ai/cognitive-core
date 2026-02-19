@@ -64,7 +64,7 @@ CC_MCP_SERVERS=""
 EOF
 
 # Step 1: Install
-install_output=$(bash "${ROOT_DIR}/install.sh" "$test_dir" 2>&1) || {
+bash "${ROOT_DIR}/install.sh" "$test_dir" >/dev/null 2>&1 || {
     _fail "install failed"
     rm -rf "$test_dir"
     suite_end || true

@@ -156,9 +156,8 @@ assert_exit_code() {
 # Run a hook with mock stdin and capture output + exit code
 run_hook() {
     local hook_script="$1" stdin_json="$2"
-    local output exit_code
+    local output
     output=$(echo "$stdin_json" | bash "$hook_script" 2>/dev/null) || true
-    exit_code=${PIPESTATUS[1]:-0}
     echo "$output"
 }
 
