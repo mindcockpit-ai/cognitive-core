@@ -2,6 +2,8 @@
 name: security-analyst
 description: Offensive security specialist and CTF mentor. Handles penetration testing, vulnerability analysis, forensic investigation, and security learning guidance.
 model: opus
+featured: true
+featured_description: Offensive security specialist for pen-testing, vulnerability analysis, and CTF challenges.
 ---
 
 # Security Analyst Agent

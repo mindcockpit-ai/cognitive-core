@@ -6,6 +6,7 @@
 .env
 .env.*
 !.env.template
+!.env.tpl
 *.pem
 *.key
 *.crt

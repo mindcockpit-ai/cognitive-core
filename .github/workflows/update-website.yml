@@ -1,0 +1,56 @@
+name: Update Website Health Data
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  update-health-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout cognitive-core
+        uses: actions/checkout@v4
+
+      # 1Password secrets injection (preferred)
+      # Requires: OP_SERVICE_ACCOUNT_TOKEN GitHub secret
+      # Falls back to individual GitHub secrets if not configured
+      - name: Load secrets from 1Password
+        if: ${{ env.OP_SERVICE_ACCOUNT_TOKEN != '' }}
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          MULTIVAC_PAT: op://Development/GitHub-PAT/multivac-pat
+
+      - name: Run test suite (JSON output)
+        run: bash tests/run-all.sh --json > framework-health.json
+
+      - name: Validate JSON
+        run: python3 -c "import json; json.load(open('framework-health.json'))"
+
+      - name: Checkout multivac42.ai
+        uses: actions/checkout@v4
+        with:
+          repository: mindcockpit-ai/multivac42.ai
+          token: ${{ env.MULTIVAC_PAT || secrets.MULTIVAC_PAT }}
+          path: website
+
+      - name: Update health data
+        run: cp framework-health.json website/src/data/framework-health.json
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          path: website
+          token: ${{ env.MULTIVAC_PAT || secrets.MULTIVAC_PAT }}
+          commit-message: "chore: update framework health data"
+          title: "chore: update framework health data from cognitive-core"
+          body: |
+            Automated update from cognitive-core test suite.
+
+            - Commit: ${{ github.sha }}
+            - Tests: see `src/data/framework-health.json`
+          branch: auto/framework-health-update
+          labels: automated
+          delete-branch: true

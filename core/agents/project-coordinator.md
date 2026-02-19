@@ -3,6 +3,8 @@ name: project-coordinator
 description: Use this agent when you need to coordinate technical project activities, create project plans, manage cross-functional team dependencies, assess technical risks, or generate structured TODO lists for development teams. This agent excels at translating between technical and business domains while maintaining project visibility and accountability.
 tools: Task, Bash, Glob, Grep, LS, Read, Edit, Write, WebFetch, TodoWrite, WebSearch, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 model: opus
+featured: true
+featured_description: Hub orchestrator that delegates to specialist agents and manages cross-project workflows.
 ---
 
 **THINKING MODE: ALWAYS ENABLED**

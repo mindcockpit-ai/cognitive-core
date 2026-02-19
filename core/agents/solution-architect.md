@@ -3,6 +3,8 @@ name: solution-architect
 description: Use this agent when you need to analyze new business concepts, workflows, or approval processes that require strategic architectural decisions. This includes evaluating proposed features, designing workflow implementations, assessing technical feasibility, or when you need a comprehensive analysis that balances business requirements with technical constraints, security considerations, and governance standards.
 tools: Task, Bash, Glob, Grep, LS, Read, Edit, Write, WebFetch, TodoWrite, WebSearch, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 model: opus
+featured: true
+featured_description: Strategic architect for feature design, technical feasibility, and governance analysis.
 ---
 
 **THINKING MODE: ALWAYS ENABLED**

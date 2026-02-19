@@ -5,6 +5,8 @@ user-invocable: true
 disable-model-invocation: true
 allowed-tools: Bash, Read, Write, Grep, Glob
 argument-hint: "--errors-only | --since=1h | --build | --tests | --runtime | --all"
+featured: true
+featured_description: Proactive log and build monitoring that detects issues before you report them.
 ---
 
 # Workspace Monitor — Proactive Log and Build Intelligence

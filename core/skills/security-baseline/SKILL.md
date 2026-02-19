@@ -3,6 +3,8 @@ name: security-baseline
 description: OWASP-aware secure coding awareness. Provides security rules, common vulnerability patterns, and safe coding practices adapted to the project's language and framework.
 user-invocable: false
 allowed-tools: Read, Grep, Glob
+featured: true
+featured_description: OWASP-aware security rules that adapt to your project's language and framework.
 ---
 
 # Security Baseline — Secure Coding Awareness

@@ -4,6 +4,8 @@ description: Check for and apply cognitive-core framework updates. Compares inst
 user-invocable: true
 allowed-tools: Bash, Read, Glob, Grep
 argument-hint: "check | update [--auto] | install <name> | list | status"
+featured: true
+featured_description: Checksum-based framework updater that preserves your customizations.
 ---
 
 # Skill Sync — Framework Component Synchronization
