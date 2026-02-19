@@ -4,6 +4,7 @@ description: Run configured lint and syntax checks on staged or specified files 
 user-invocable: true
 disable-model-invocation: true
 allowed-tools: Bash, Read, Grep, Glob
+catalog_description: Lint and syntax checks on staged files before committing.
 ---
 
 # Pre-Commit — Lint and Syntax Checks

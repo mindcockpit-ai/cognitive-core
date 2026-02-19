@@ -3,6 +3,7 @@ name: code-review
 description: Language-agnostic code review skill. Reads project conventions from CLAUDE.md and applies parameterized quality checks.
 user-invocable: true
 allowed-tools: Read, Grep, Glob
+catalog_description: Language-agnostic code review with project-aware convention checks.
 ---
 
 # Code Review — Project-Aware Quality Checks

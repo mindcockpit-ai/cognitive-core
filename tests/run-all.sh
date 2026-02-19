@@ -121,6 +121,71 @@ collect_featured() {
     echo "[${json}]"
 }
 
+# ---- Full catalog extraction ----
+# Reads ALL agents/skills (not just featured) with descriptions for the website catalog
+collect_catalog() {
+    local type="$1" dir="$2" filename="$3"
+    local json=""
+
+    if [ ! -d "$dir" ]; then
+        echo "[]"
+        return
+    fi
+
+    while IFS= read -r file; do
+        [ -f "$file" ] || continue
+
+        local in_frontmatter=false
+        local item_name="" item_desc="" catalog_desc="" featured_desc=""
+        local is_featured=false
+
+        while IFS= read -r line; do
+            if [ "$line" = "---" ]; then
+                if [ "$in_frontmatter" = true ]; then
+                    break
+                fi
+                in_frontmatter=true
+                continue
+            fi
+            if [ "$in_frontmatter" = true ]; then
+                case "$line" in
+                    name:*)                 item_name=$(echo "$line" | sed 's/^name: *//') ;;
+                    featured:*true*)        is_featured=true ;;
+                    featured_description:*) featured_desc=$(echo "$line" | sed 's/^featured_description: *//') ;;
+                    catalog_description:*)  catalog_desc=$(echo "$line" | sed 's/^catalog_description: *//') ;;
+                    description:*)          item_desc=$(echo "$line" | sed 's/^description: *//') ;;
+                esac
+            fi
+        done < "$file"
+
+        if [ -n "$item_name" ]; then
+            # Priority: catalog_description > featured_description > description (truncated)
+            local desc="$catalog_desc"
+            if [ -z "$desc" ]; then
+                desc="$featured_desc"
+            fi
+            if [ -z "$desc" ]; then
+                desc=$(printf '%.120s' "$item_desc")
+            fi
+            # Escape quotes in description
+            desc=$(printf '%s' "$desc" | sed 's/"/\\"/g')
+            local featured_val="false"
+            if [ "$is_featured" = true ]; then
+                featured_val="true"
+            fi
+            local entry
+            entry=$(printf '{"type":"%s","name":"%s","description":"%s","featured":%s}' "$type" "$item_name" "$desc" "$featured_val")
+            if [ -n "$json" ]; then
+                json="${json},${entry}"
+            else
+                json="${entry}"
+            fi
+        fi
+    done < <(find "$dir" -name "$filename" -type f | sort)
+
+    echo "[${json}]"
+}
+
 # ---- Normal (ANSI) mode ----
 if [ "$JSON_MODE" = false ]; then
     printf "\n${BOLD}${CYAN}╔══════════════════════════════════════╗${RESET}\n"
@@ -223,6 +288,10 @@ COMPONENTS=$(count_components)
 FEATURED_AGENTS=$(collect_featured "agent" "${ROOT_DIR}/core/agents" "*.md")
 FEATURED_SKILLS=$(collect_featured "skill" "${ROOT_DIR}/core/skills" "SKILL.md")
 
+# Collect full catalog (all agents + skills with descriptions)
+CATALOG_AGENTS=$(collect_catalog "agent" "${ROOT_DIR}/core/agents" "*.md")
+CATALOG_SKILLS=$(collect_catalog "skill" "${ROOT_DIR}/core/skills" "SKILL.md")
+
 # Merge featured lists
 if [ "$FEATURED_AGENTS" = "[]" ] && [ "$FEATURED_SKILLS" = "[]" ]; then
     FEATURED="[]"
@@ -235,6 +304,19 @@ else
     fa_inner=$(echo "$FEATURED_AGENTS" | sed 's/^\[//;s/\]$//')
     fs_inner=$(echo "$FEATURED_SKILLS" | sed 's/^\[//;s/\]$//')
     FEATURED="[${fa_inner},${fs_inner}]"
+fi
+
+# Merge catalog lists
+if [ "$CATALOG_AGENTS" = "[]" ] && [ "$CATALOG_SKILLS" = "[]" ]; then
+    CATALOG="[]"
+elif [ "$CATALOG_AGENTS" = "[]" ]; then
+    CATALOG="$CATALOG_SKILLS"
+elif [ "$CATALOG_SKILLS" = "[]" ]; then
+    CATALOG="$CATALOG_AGENTS"
+else
+    ca_inner=$(echo "$CATALOG_AGENTS" | sed 's/^\[//;s/\]$//')
+    cs_inner=$(echo "$CATALOG_SKILLS" | sed 's/^\[//;s/\]$//')
+    CATALOG="[${ca_inner},${cs_inner}]"
 fi
 
 # Output final JSON
@@ -251,12 +333,13 @@ printf '{
   "all_passed": %s,
   "suites": [%s],
   "components": %s,
-  "featured": %s
+  "featured": %s,
+  "catalog": %s
 }\n' \
     "$TIMESTAMP" "$COMMIT" "$VERSION" \
     "$SUITES_TOTAL" "$SUITES_PASSED" \
     "$TESTS_TOTAL" "$TESTS_PASSED" "$TESTS_FAILED" "$TESTS_SKIPPED" \
-    "$ALL_PASSED" "$SUITES_JSON" "$COMPONENTS" "$FEATURED"
+    "$ALL_PASSED" "$SUITES_JSON" "$COMPONENTS" "$FEATURED" "$CATALOG"
 
 if [ "$TESTS_FAILED" -gt 0 ]; then
     exit 1

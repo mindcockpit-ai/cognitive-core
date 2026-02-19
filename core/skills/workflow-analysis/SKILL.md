@@ -4,6 +4,7 @@ description: Structured business workflow and feature analysis framework. Produc
 user-invocable: true
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, WebSearch
+catalog_description: Business workflow analysis — stakeholder maps, flows, and risk assessments.
 ---
 
 # Workflow Analysis — Business Analysis Framework

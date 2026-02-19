@@ -4,6 +4,7 @@ description: Run quality fitness checks using configured thresholds and gates. S
 user-invocable: true
 disable-model-invocation: true
 allowed-tools: Bash, Read, Grep, Glob
+catalog_description: Quality fitness checks with configurable thresholds and gates.
 ---
 
 # Fitness — Quality Gate Evaluation

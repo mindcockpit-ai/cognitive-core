@@ -3,6 +3,7 @@ name: test-specialist
 description: Use this agent when you need to create, review, maintain, or manage any type of tests (unit, integration, or UI). This includes writing new test files, updating existing tests, reviewing test coverage, ensuring tests follow project testing standards, or implementing test strategies.
 tools: Task, Bash, Glob, Grep, LS, ExitPlanMode, Read, Edit, MultiEdit, Write, NotebookEdit, WebFetch, TodoWrite, WebSearch, BashOutput, KillBash, mcp__ide__getDiagnostics, mcp__ide__executeCode, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 model: sonnet
+catalog_description: Unit and integration testing, coverage analysis, and QA.
 ---
 
 **THINKING MODE: ALWAYS ENABLED**

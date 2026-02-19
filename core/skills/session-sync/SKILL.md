@@ -4,6 +4,7 @@ description: Cross-machine sync verification. Checks that agents, skills, MCP co
 user-invocable: true
 disable-model-invocation: true
 allowed-tools: Bash, Read, Grep, Glob
+catalog_description: Cross-machine sync — verifies agents, skills, and config match remote.
 ---
 
 # Session Sync — Cross-Machine Development Synchronization

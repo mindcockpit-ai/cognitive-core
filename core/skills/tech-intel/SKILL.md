@@ -4,6 +4,7 @@ description: Technology intelligence gathering. Web research for dependency upda
 user-invocable: true
 disable-model-invocation: true
 allowed-tools: Bash, Read, Write, WebSearch, WebFetch, Glob
+catalog_description: Dependency updates, security advisories, and ecosystem intelligence.
 ---
 
 # Tech Intel — Technology Intelligence Digest

@@ -4,6 +4,7 @@ description: Generate project status report from git history, session docs, and 
 user-invocable: true
 disable-model-invocation: true
 allowed-tools: Bash, Read, Grep, Glob
+catalog_description: Project status reports from git history, sessions, and WIP state.
 ---
 
 # Project Status — Development Progress Report

@@ -3,6 +3,7 @@ name: database-specialist
 description: Use this agent for database performance optimization, query tuning, index analysis, bulk operation strategies, and database architecture decisions. Essential for projects with large data imports and complex database operations.
 tools: Task, Bash, Glob, Grep, LS, Read, Edit, Write, WebFetch, TodoWrite, WebSearch, mcp__ide__getDiagnostics, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 model: opus
+catalog_description: Oracle/PostgreSQL optimization, query tuning, and bulk operations.
 ---
 
 **THINKING MODE: ALWAYS ENABLED**

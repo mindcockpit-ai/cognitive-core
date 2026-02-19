@@ -3,6 +3,7 @@ name: session-resume
 description: Auto-loads session context at conversation start. Shows latest session doc, recent git activity, and WIP state for development continuity.
 user-invocable: true
 allowed-tools: Bash, Read, Grep, Glob
+catalog_description: Auto-loads session context — git activity, WIP state, and continuity.
 ---
 
 # Session Resume — Automatic Context Recovery

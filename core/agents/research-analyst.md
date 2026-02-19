@@ -2,6 +2,7 @@
 name: research-analyst
 description: Senior IT consultant and web research specialist for external research, best practices, library evaluation, and technology assessment. Use this agent when you need to research external information, investigate errors, evaluate technologies, or gather industry best practices.
 model: opus
+catalog_description: External research — libraries, best practices, and API documentation.
 disallowedTools:
   - Write
   - Edit

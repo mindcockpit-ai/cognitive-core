@@ -2,6 +2,7 @@
 name: code-standards-reviewer
 description: Use this agent when you need to review recently written code against the project's established best practices and standards. Invoke after implementing new features, refactoring existing code, or making significant changes to ensure compliance with CLAUDE.md guidelines.
 model: sonnet
+catalog_description: Reviews code against project conventions and CLAUDE.md guidelines.
 disallowedTools:
   - WebFetch
   - WebSearch

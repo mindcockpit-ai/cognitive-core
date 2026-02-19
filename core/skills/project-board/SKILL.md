@@ -4,6 +4,7 @@ description: Manage GitHub Project board — issues, sprints, status tracking, a
 user-invocable: true
 allowed-tools: Bash, Read, Grep, Glob
 argument-hint: "[list|create|close|cancel|assign|sprint|sprint-plan|triage|board|move|verify] [options]"
+catalog_description: GitHub Project board — issues, sprints, releases, and triage.
 ---
 
 # Project Board — GitHub Issue & Sprint Management

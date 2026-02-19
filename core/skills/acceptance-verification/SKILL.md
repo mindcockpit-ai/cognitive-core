@@ -4,6 +4,7 @@ description: Verify GitHub issue acceptance criteria against codebase evidence. 
 user-invocable: true
 allowed-tools: Bash, Read, Grep, Glob
 argument-hint: "<issue-number> [--strict] [--dry-run]"
+catalog_description: Verify GitHub issue acceptance criteria against codebase evidence.
 ---
 
 # Acceptance Verification — Issue Criteria Checker

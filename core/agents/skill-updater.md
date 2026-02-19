@@ -3,6 +3,7 @@ name: skill-updater
 description: Use this agent to automatically check for and apply skill, agent, and hook updates from the cognitive-core framework source. It compares installed component checksums against the framework, safely updates unmodified files, preserves user-customized files, and installs newly available components. Invoke at session start for automatic checks or manually for on-demand synchronization.
 tools: Bash, Read, Write, Glob, Grep
 model: sonnet
+catalog_description: Framework sync via /skill-sync — keeps components up to date.
 ---
 
 **THINKING MODE: ALWAYS ENABLED**
