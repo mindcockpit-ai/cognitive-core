@@ -1,10 +1,12 @@
-# cognitive-core — 1Password secret references
-# Usage: op run --env-file=.env.tpl -- <command>
+# cognitive-core — secret references (op:// format)
+# Works with both macOS Keychain (free) and 1Password (auto-detected)
 #
-# Store these in 1Password vault "Development" (or your preferred vault):
-#   - Item: "GitHub-PAT"     → field: multivac-pat
+# Usage:
+#   secrets-run -- bash tests/run-all.sh --json
 #
-# Example:
-#   op run --env-file=.env.tpl -- bash tests/run-all.sh --json
+# First time — store your secrets:
+#   secrets-store Development/GitHub-PAT multivac-pat
+#
+# Upgrade to 1Password later — same file, zero changes needed.
 
 MULTIVAC_PAT=op://Development/GitHub-PAT/multivac-pat

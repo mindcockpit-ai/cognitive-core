@@ -213,47 +213,98 @@ CI/CD:       2 workflows with 1Password support
 Last scan:   2026-02-19 (0 issues)
 ```
 
-## 1Password Setup Guide
+## Secrets Backend
 
-### New Machine Setup
+`secrets-run` auto-detects the best available backend:
+
+| Priority | Backend | Requirement | Cost |
+|----------|---------|-------------|------|
+| 1 | **1Password** (`op` CLI) | Account + `op signin` | $2.99/mo |
+| 2 | **macOS Keychain** (`security` cmd) | macOS, iCloud for sync | Free |
+
+Both use the same `op://Vault/Item/field` reference format in `.env.tpl`.
+Upgrading from Keychain to 1Password requires zero file changes.
+
+### CI/CD: GitHub Secrets (free, always works)
+GitHub Actions use `${{ secrets.* }}` directly. Optionally add
+`1password/load-secrets-action` later for centralized management.
+
+## Setup Guide
+
+### macOS Keychain (free, default)
+
 ```bash
-# 1. Install op CLI
-brew install 1password-cli          # macOS
-# OR: sudo apt install 1password-cli   # Debian/Ubuntu
-# OR: winget install 1Password.CLI      # Windows
+# 1. Store secrets (one-time per machine, syncs via iCloud Keychain)
+secrets-store Development/Cloudflare api-token
+secrets-store Development/Cloudflare account-id
+secrets-store Development/GitHub-PAT multivac-pat
 
-# 2. Sign in
-op signin
+# 2. Run commands with injected secrets
+secrets-run -- npm run deploy
+secrets-run --env-file=.env.tpl -- bash script.sh
 
-# 3. Verify
-op vault list
+# 3. List stored secrets
+secrets-store --list
+
+# 4. Delete a secret
+secrets-store --delete Development/Cloudflare api-token
 ```
 
-### CI/CD Setup (one-time, per GitHub org)
-1. Create a 1Password **Service Account** at https://my.1password.com
-2. Grant read access to the "Development" vault
-3. Add `OP_SERVICE_ACCOUNT_TOKEN` as a GitHub **organization-level** secret
-4. All repos with `load-secrets-action` automatically resolve secrets
+### Upgrade to 1Password (optional, future)
+
+```bash
+# 1. Install op CLI
+brew install 1password-cli
+
+# 2. Sign in
+eval $(op signin)
+
+# 3. Same commands — secrets-run auto-detects 1Password
+secrets-run -- npm run deploy
+```
+
+No changes to `.env.tpl` files. `secrets-run` sees `op` is authenticated
+and switches backend automatically.
+
+### CI/CD Setup: GitHub Secrets
+
+```bash
+# Option A: interactive prompt (not echoed)
+gh secret set CLOUDFLARE_API_TOKEN --repo owner/repo
+
+# Option B: pipe from Keychain — zero console exposure
+security find-generic-password -s "Development/Cloudflare" -a "api-token" -w \
+  | gh secret set CLOUDFLARE_API_TOKEN --repo owner/repo
+security find-generic-password -s "Development/Cloudflare" -a "account-id" -w \
+  | gh secret set CLOUDFLARE_ACCOUNT_ID --repo owner/repo
+```
+
+The piped approach is preferred: secrets flow directly from Keychain to GitHub
+without ever appearing on screen, in terminal output, or in shell history.
+
+Optional upgrade: add `OP_SERVICE_ACCOUNT_TOKEN` org-level secret
+to centralize via 1Password Service Accounts.
 
 ### Adding a New Secret
-1. Add the secret to 1Password (vault → item → field)
-2. Add the `op://` reference to `.env.tpl`
-3. If used in CI/CD, add the reference to the workflow's `Load secrets` step
+1. Store in Keychain: `secrets-store Vault/Item field`
+2. Add `op://` reference to `.env.tpl`
+3. For CI/CD: `gh secret set SECRET_NAME --repo owner/repo`
 4. Run `/secrets-setup verify` to confirm
 
 ## Error Handling
 
 | Error | Recovery |
 |-------|----------|
-| `op` not installed | `brew install 1password-cli` (or platform equivalent) |
-| Not signed in | `op signin` — uses biometric if available |
-| Vault not found | Create vault or update references in `.env.tpl` |
-| Item not found | Create item in 1Password matching the `op://` reference |
-| CI/CD token expired | Rotate the Service Account token, update GitHub secret |
-| Plaintext secret found | Move to 1Password, replace with `op://` reference, rotate the exposed secret |
+| `secrets-run` can't resolve | Run `secrets-store Vault/Item field` to add it |
+| Keychain access denied | Allow in System Settings → Privacy → Keychain |
+| `op` not authenticated | `eval $(op signin)` or fall back to Keychain |
+| CI/CD secret missing | `gh secret set NAME --repo owner/repo` |
+| Plaintext secret found | Move to Keychain/1Password, rotate the exposed secret |
 
 ## See Also
 
+- `secrets-run` — Secret injection wrapper (auto-detects Keychain or 1Password)
+- `secrets-store` — Store/list/delete secrets in macOS Keychain
 - `validate-write.sh` — PostToolUse hook that scans for plaintext secrets
 - `security-baseline` skill — OWASP-aware coding rules including secret handling
 - `/skill-sync install secrets-setup` — Install this skill in a project
