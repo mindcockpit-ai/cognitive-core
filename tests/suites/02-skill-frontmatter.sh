@@ -17,12 +17,10 @@ while IFS= read -r skill_md; do
     rel="${skill_md#${ROOT_DIR}/}"
     skill_name="$(basename "$(dirname "$skill_md")")"
 
-    # Check YAML frontmatter delimiters exist
+    # Check YAML frontmatter delimiters exist (avoid sed|grep pipe — SIGPIPE under pipefail)
     has_frontmatter=false
-    if head -1 "$skill_md" | grep -q '^---'; then
-        if sed -n '2,$p' "$skill_md" | grep -qm1 '^---'; then
-            has_frontmatter=true
-        fi
+    if [ "$(grep -c '^---' "$skill_md")" -ge 2 ]; then
+        has_frontmatter=true
     fi
 
     missing=""
@@ -49,10 +47,8 @@ while IFS= read -r skill_md; do
     skill_name="$(basename "$(dirname "$skill_md")")"
 
     has_frontmatter=false
-    if head -1 "$skill_md" | grep -q '^---'; then
-        if sed -n '2,$p' "$skill_md" | grep -qm1 '^---'; then
-            has_frontmatter=true
-        fi
+    if [ "$(grep -c '^---' "$skill_md")" -ge 2 ]; then
+        has_frontmatter=true
     fi
 
     missing=""
