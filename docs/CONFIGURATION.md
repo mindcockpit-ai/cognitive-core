@@ -77,7 +77,7 @@ DATABASE_URL=sqlite:///dev.db
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `CC_AGENTS` | string | `"coordinator reviewer architect tester researcher"` | Space-separated agent names to install. Options: `coordinator`, `reviewer`, `architect`, `tester`, `researcher`, `database` |
+| `CC_AGENTS` | string | `"coordinator reviewer architect tester researcher"` | Space-separated agent names to install. Options: `coordinator`, `reviewer`, `architect`, `tester`, `researcher`, `database`, `security`, `updater` |
 | `CC_COORDINATOR_MODEL` | enum | `"opus"` | Model for the coordinator agent. Options: `opus`, `sonnet` |
 | `CC_SPECIALIST_MODEL` | enum | `"sonnet"` | Model for specialist agents. Options: `opus`, `sonnet` |
 
@@ -87,7 +87,7 @@ DATABASE_URL=sqlite:///dev.db
 |----------|------|---------|-------------|
 | `CC_SKILLS` | string | `"session-resume code-review pre-commit fitness project-status"` | Space-separated skill names to install |
 
-Available skills: `session-resume`, `session-sync`, `code-review`, `pre-commit`, `fitness`, `project-status`, `workflow-analysis`, `test-scaffold`, `tech-intel`
+Available skills: `session-resume`, `session-sync`, `code-review`, `pre-commit`, `fitness`, `project-status`, `workflow-analysis`, `test-scaffold`, `tech-intel`, `security-baseline`, `secrets-setup`, `skill-sync`, `project-board`, `workspace-monitor`, `acceptance-verification`, `ctf-pentesting`
 
 ### Hooks
 
@@ -95,7 +95,7 @@ Available skills: `session-resume`, `session-sync`, `code-review`, `pre-commit`,
 |----------|------|---------|-------------|
 | `CC_HOOKS` | string | `"setup-env compact-reminder validate-bash post-edit-lint"` | Space-separated hook names to enable |
 
-Available hooks: `setup-env`, `compact-reminder`, `validate-bash`, `post-edit-lint`
+Available hooks: `setup-env`, `compact-reminder`, `validate-bash`, `validate-read`, `validate-write`, `validate-fetch`, `post-edit-lint`
 
 ### Compact Rules
 

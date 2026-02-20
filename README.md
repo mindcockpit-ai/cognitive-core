@@ -8,12 +8,14 @@ A portable framework that installs production-grade hooks, agents, skills, CI/CD
 
 ## Feature Highlights
 
-- **Hooks** -- Session startup, bash validation, post-edit linting, compaction reminders with shared library
-- **Agents** -- Hub-and-spoke team of 6 specialists (coordinator, architect, reviewer, tester, researcher, database)
-- **Skills** -- 9 reusable skills from session-resume to tech-intel, with language and database packs
+- **Hooks** -- 8 event hooks: session startup, bash/read/write/fetch validation, post-edit linting, compaction reminders
+- **Agents** -- Hub-and-spoke team of 8 specialists (coordinator, architect, reviewer, tester, researcher, database, security, updater)
+- **Skills** -- 16 reusable skills from session-resume to secrets-setup, with language and database packs
+- **Secrets** -- 1Password / macOS Keychain backends with `secrets-run` injection, `secrets-store` CLI, and `secrets-setup` skill
 - **CI/CD** -- Evolutionary pipeline with fitness gates, self-hosted runner setup, GitHub Actions workflows
 - **Monitoring** -- Prometheus, Grafana dashboards, Alertmanager with Slack/email/PagerDuty
 - **Kubernetes** -- Base manifests, Kustomize overlays, monitoring stack for horizontal scaling
+- **Marketplace** -- Community component marketplace ([cognitive-core-marketplace](https://github.com/mindcockpit-ai/cognitive-core-marketplace)) for sharing agents, skills, hooks, and packs
 - **Checksum updater** -- Safe framework updates that preserve your customizations
 
 ## Quick Start
@@ -84,8 +86,11 @@ Live test results and component inventory from the latest build, visible at [mul
 
 | Hook | Event | Purpose |
 |------|-------|---------|
-| `setup-env.sh` | SessionStart | Sets environment variables, prints branch status |
-| `validate-bash.sh` | PreToolUse (Bash) | Blocks dangerous commands (rm -rf /, force push to main) |
+| `setup-env.sh` | SessionStart | Sets environment variables, verifies hook integrity, prints branch status |
+| `validate-bash.sh` | PreToolUse (Bash) | Blocks dangerous commands (rm -rf /, force push to main, exfiltration) |
+| `validate-read.sh` | PreToolUse (Read) | Prevents reading sensitive system files (SSH keys, /etc/shadow) |
+| `validate-fetch.sh` | PreToolUse (WebFetch/WebSearch) | Audits URLs, domain filtering, security logging |
+| `validate-write.sh` | PostToolUse (Write/Edit) | Scans for hardcoded secrets (AWS keys, PEM, API tokens) |
 | `post-edit-lint.sh` | PostToolUse (Edit/Write) | Runs lint on every file edit automatically |
 | `compact-reminder.sh` | Notification (compact) | Re-injects critical rules after context compaction |
 | `_lib.sh` | (shared) | Config loading, JSON output helpers for all hooks |
@@ -100,21 +105,29 @@ Live test results and component inventory from the latest build, visible at [mul
 | test-specialist | sonnet | Unit/integration tests, coverage, QA |
 | research-analyst | opus | External research, library evaluation |
 | database-specialist | opus | Query optimization, bulk operations, schema design |
+| security-analyst | opus | Vulnerability analysis, CTF methodology, forensics |
+| skill-updater | sonnet | Framework synchronization, component updates |
 
 ### Skills
 
 | Skill | Auto-load | Purpose |
 |-------|-----------|---------|
 | session-resume | yes | Recovers context at session start |
-| session-sync | manual | Cross-machine session synchronization |
 | code-review | yes | Structured code review checklist |
+| tech-intel | yes | Technology intelligence and research |
+| security-baseline | yes | OWASP-aware secure coding rules |
+| session-sync | manual | Cross-machine session synchronization |
+| skill-sync | manual | Framework skill synchronization and updates |
 | pre-commit | manual | Pre-commit validation checks |
 | fitness | manual | Codebase fitness scoring |
 | project-status | manual | Project status dashboard |
+| project-board | manual | GitHub Project board and issue management |
 | workspace-monitor | manual | Proactive log, test, and build monitoring |
 | workflow-analysis | manual | Workflow and process analysis |
 | test-scaffold | manual | Test file generation from source |
-| tech-intel | yes | Technology intelligence and research |
+| secrets-setup | manual | 1Password / Keychain secrets management setup |
+| acceptance-verification | manual | GitHub issue acceptance criteria checker |
+| ctf-pentesting | manual | CTF challenge methodology and kill chain |
 
 ## Configuration
 
@@ -143,19 +156,19 @@ Language packs add language-specific skills and patterns.
 |----------|------|-----------------|
 | Perl | `language-packs/perl/` | perl-patterns |
 | Python | `language-packs/python/` | python-patterns |
-| Node.js | `language-packs/node/` | (planned) |
-| Java | `language-packs/java/` | (planned) |
-| Go | `language-packs/go/` | (planned) |
-| Rust | `language-packs/rust/` | (planned) |
-| C# | `language-packs/csharp/` | (planned) |
+| Node.js | `language-packs/node/` | node-messaging |
+| Java | `language-packs/java/` | java-messaging |
+| Go | `language-packs/go/` | go-messaging |
+| Rust | `language-packs/rust/` | rust-messaging |
+| C# | `language-packs/csharp/` | csharp-messaging |
 
 ### Database Packs
 
 | Database | Pack | Skills Included |
 |----------|------|-----------------|
 | Oracle | `database-packs/oracle/` | oracle-patterns |
-| PostgreSQL | `database-packs/postgresql/` | (planned) |
-| MySQL | `database-packs/mysql/` | (planned) |
+| PostgreSQL | `database-packs/postgresql/` | pack.conf only (skills planned) |
+| MySQL | `database-packs/mysql/` | pack.conf only (skills planned) |
 
 ## CI/CD Pipeline
 
@@ -237,7 +250,7 @@ This framework was built from 21 findings identified during a comprehensive CI/C
 | 4 | Skill bloat | Progressive disclosure: SKILL.md + references/ subdirectory |
 | 5 | Context budget | Auto-load estimation, size warnings in health checks |
 | 6 | Docker socket security | Externalized `DOCKER_GID` in .env, not hardcoded |
-| 7 | Credential management | `.env.template` pattern, nothing committed to git |
+| 7 | Credential management | `secrets-run` + `secrets-store` with 1Password / macOS Keychain backends, `.env.tpl` with `op://` references |
 | 8 | Cross-platform | macOS + Linux support in all scripts |
 | 9 | Update safety | Checksum-based updater preserves user modifications |
 | 10 | Fitness scoring | Configurable per-gate thresholds |
@@ -245,13 +258,22 @@ This framework was built from 21 findings identified during a comprehensive CI/C
 | 12 | Monitoring | Prometheus + Grafana + Alertmanager with multi-channel alerts |
 | 13 | Language agnostic | Language packs with per-language skills and patterns |
 | 14 | Database agnostic | Database packs with per-database skills and patterns |
-| 15 | Secrets in config | All credentials externalized to .env files |
+| 15 | Secrets in config | Credentials managed via `secrets-setup` skill (scan, init, patch-ci), injected at runtime via `secrets-run` |
 | 16 | Pushgateway exposure | Localhost-only binding by default |
 | 17 | Interactive install | Guided setup with sane defaults for every option |
 | 18 | Bash validation | PreToolUse hook blocks dangerous commands |
 | 19 | Compaction survival | Critical rules re-injected after context compaction |
 | 20 | Session continuity | session-resume skill with live context injection |
 | 21 | Version tracking | Manifest with file checksums for safe updates |
+
+## Marketplace
+
+The [cognitive-core-marketplace](https://github.com/mindcockpit-ai/cognitive-core-marketplace) is a community platform for sharing and discovering agents, skills, hooks, and packs built with cognitive-core.
+
+- **Stack**: FastAPI + SQLAlchemy 2.0 async + PostgreSQL (DDD architecture)
+- **API**: REST at `marketplace.mindcockpit.ai/api/v1/`
+- **Features**: Component publishing, search, ratings, author profiles, semantic versioning
+- **Deployment**: 3-stage K8s pipeline (dev/staging/production) on the same VPS infrastructure
 
 ## Contributing
 

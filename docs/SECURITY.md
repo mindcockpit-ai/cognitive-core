@@ -136,18 +136,91 @@ Agents use `disallowedTools` in their frontmatter for least-privilege:
 | code-standards-reviewer | WebFetch, WebSearch | Code review doesn't need external access |
 | research-analyst | Write, Edit | Research shouldn't modify project files |
 
-## Credential Management
+## Secrets Management
 
-### The .env Pattern
+cognitive-core provides a layered secrets management system with three components: a setup skill for detection and configuration, a storage CLI for persisting secrets, and a runtime injector that resolves secrets at execution time.
 
-All credentials are externalized to `.env` files that are never committed to version control.
+### Architecture
 
 ```
-cicd/monitoring/.env.template    <-- Committed (placeholder values)
-cicd/monitoring/.env             <-- NOT committed (real credentials)
+secrets-setup (skill)     Scans code, generates .env.tpl, patches CI
+        |
+secrets-store (CLI)       Persists secrets in macOS Keychain (or 1Password)
+        |
+secrets-run (wrapper)     Resolves op:// references at runtime, injects into env
+        |
+    application           Reads secrets from environment variables
 ```
 
-### Credentials in .env
+### Backend Detection
+
+The tools auto-detect the available backend in priority order:
+
+1. **1Password** (`op` CLI) -- enterprise-grade, cross-platform, team sharing
+2. **macOS Keychain** (`security` CLI) -- free, zero-config, single-machine
+
+Both backends use the same `op://Vault/Item/field` reference format in `.env.tpl` files.
+
+### secrets-setup Skill
+
+The `secrets-setup` skill provides guided secrets management setup:
+
+| Command | Purpose |
+|---------|---------|
+| `scan` | Detect plaintext secrets in codebase using universal + language-specific patterns |
+| `init` | Generate `.env.tpl` with `op://` references from detected secrets |
+| `patch-ci` | Patch GitHub Actions workflows to inject secrets at build time |
+| `verify` | Validate all referenced secrets exist in the backend |
+| `status` | Show backend, stored secrets count, and health |
+
+### secrets-store CLI
+
+Persists secrets in macOS Keychain:
+
+```bash
+# Store a secret
+core/utilities/secrets-store Development/MyApp database-url
+# (prompts for value, input not echoed)
+
+# List stored secrets
+core/utilities/secrets-store --list
+
+# Delete a secret
+core/utilities/secrets-store --delete Development/MyApp database-url
+```
+
+### secrets-run Wrapper
+
+Resolves `op://` references and injects them as environment variables:
+
+```bash
+# Run a command with secrets injected
+core/utilities/secrets-run -- uvicorn app:main
+
+# Use a custom template
+core/utilities/secrets-run --env-file=.env.tpl -- python manage.py migrate
+```
+
+### .env.tpl Format
+
+Template files use `op://Vault/Item/field` references (compatible with both 1Password and Keychain backends):
+
+```bash
+APP_DATABASE_URL=op://Development/MyApp/database-url
+APP_SECRET_KEY=op://Development/MyApp/secret-key
+GITHUB_CLIENT_SECRET=op://Development/GitHub/client-secret
+```
+
+### Feeding Secrets to GitHub Actions
+
+Use piped Keychain-to-GitHub feeding for zero console exposure:
+
+```bash
+security find-generic-password -s "Development/MyApp" -a "database-url" -w \
+  | gh secret set APP_DATABASE_URL --repo owner/repo
+```
+
+### CI/CD Credentials
 
 | Credential | Variable | Where Used |
 |------------|----------|------------|
@@ -204,7 +277,9 @@ Before deploying to production:
 
 - [ ] `CC_SECURITY_LEVEL` set appropriately for your threat model
 - [ ] `GRAFANA_ADMIN_PASSWORD` is set to a strong, unique value
-- [ ] `.env` file is in `.gitignore` and not committed
+- [ ] `.env` and `.env.tpl` files are in `.gitignore` and not committed
+- [ ] Secrets stored via `secrets-store` or 1Password (not in plaintext files)
+- [ ] `secrets-setup scan` reports zero plaintext secrets
 - [ ] Pushgateway is not exposed on public network
 - [ ] Docker socket access is limited to the Docker group
 - [ ] TLS is enabled for any externally accessible service

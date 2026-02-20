@@ -8,19 +8,19 @@ Language packs extend cognitive-core with language-specific configuration, skill
 |----------|---------------|--------|--------|
 | Perl | `language-packs/perl/` | Active | perl-patterns |
 | Python | `language-packs/python/` | Active | python-patterns |
-| Node.js | `language-packs/node/` | Active | (planned) |
-| Java | `language-packs/java/` | Planned | (planned) |
-| Go | `language-packs/go/` | Planned | (planned) |
-| Rust | `language-packs/rust/` | Planned | (planned) |
-| C# | `language-packs/csharp/` | Planned | (planned) |
+| Node.js | `language-packs/node/` | Active | node-messaging |
+| Java | `language-packs/java/` | Active | java-messaging |
+| Go | `language-packs/go/` | Active | go-messaging |
+| Rust | `language-packs/rust/` | Active | rust-messaging |
+| C# | `language-packs/csharp/` | Active | csharp-messaging |
 
 Database packs follow the same structure under `database-packs/`:
 
 | Database | Pack Directory | Status | Skills |
 |----------|---------------|--------|--------|
 | Oracle | `database-packs/oracle/` | Active | oracle-patterns |
-| PostgreSQL | `database-packs/postgresql/` | Planned | (planned) |
-| MySQL | `database-packs/mysql/` | Planned | (planned) |
+| PostgreSQL | `database-packs/postgresql/` | Partial | pack.conf only (skills planned) |
+| MySQL | `database-packs/mysql/` | Partial | pack.conf only (skills planned) |
 
 ## Pack Structure
 
@@ -34,6 +34,7 @@ language-packs/<language>/
 +-- scripts/
 |   +-- fitness-check.sh         # Language-specific fitness checks (optional)
 +-- compact-rules.md             # Rules re-injected after compaction (optional)
++-- monitor-patterns.conf        # Language-specific error patterns for workspace-monitor (optional)
 +-- lint-config/                 # Lint tool configuration files (optional)
 ```
 
