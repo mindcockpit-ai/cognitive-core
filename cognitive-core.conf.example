@@ -22,6 +22,14 @@ CC_TEST_COMMAND="pytest"
 # Test file glob pattern
 CC_TEST_PATTERN="tests/**/*.py"
 
+# ===== LINT DEBT TRACKING =====
+# Pattern matching lint suppression comments (ERE syntax, auto-set by language pack)
+CC_LINT_SUPPRESS_PATTERN=""
+# Enable automatic issue reminders when new suppressions are added
+CC_LINT_DEBT_AUTO_ISSUE="true"
+# GitHub label for lint debt tracking issues
+CC_LINT_DEBT_LABEL="technical-debt"
+
 # ===== DATABASE (optional) =====
 # Database type: oracle|postgresql|mysql|sqlite|none
 CC_DATABASE="none"
@@ -55,6 +63,7 @@ CC_SPECIALIST_MODEL="sonnet"
 # Options: session-resume session-sync skill-sync code-review pre-commit fitness
 #          project-status project-board acceptance-verification workflow-analysis
 #          test-scaffold tech-intel workspace-monitor ctf-pentesting security-baseline
+#          lint-debt
 CC_SKILLS="session-resume skill-sync code-review pre-commit fitness project-status"
 
 # ===== HOOKS =====
