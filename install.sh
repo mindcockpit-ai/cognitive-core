@@ -158,7 +158,7 @@ else
     echo ""
     info "Available skills: session-resume session-sync skill-sync code-review pre-commit fitness"
     info "                  project-status project-board acceptance-verification workflow-analysis test-scaffold"
-    info "                  tech-intel workspace-monitor ctf-pentesting security-baseline lint-debt"
+    info "                  tech-intel workspace-monitor ctf-pentesting security-baseline lint-debt smoke-test"
     prompt_default CC_SKILLS "Skills to install" "session-resume skill-sync code-review pre-commit fitness project-status project-board acceptance-verification security-baseline"
 
     # Hooks

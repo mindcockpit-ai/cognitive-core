@@ -63,7 +63,7 @@ CC_SPECIALIST_MODEL="sonnet"
 # Options: session-resume session-sync skill-sync code-review pre-commit fitness
 #          project-status project-board acceptance-verification workflow-analysis
 #          test-scaffold tech-intel workspace-monitor ctf-pentesting security-baseline
-#          lint-debt
+#          lint-debt smoke-test
 CC_SKILLS="session-resume skill-sync code-review pre-commit fitness project-status"
 
 # ===== HOOKS =====
@@ -159,6 +159,16 @@ CC_MONITOR_MAX_LOG_SIZE="104857600"
 # Workspace mode: additional project directories to scan (absolute paths, space-separated)
 # Leave empty for single-project mode (default)
 CC_WORKSPACE_PROJECTS=""
+
+# ===== SMOKE TESTING =====
+# Command that runs the smoke test and outputs JSON results (project-specific)
+CC_SMOKE_TEST_COMMAND=""
+# Base URL of the running server (e.g., http://localhost:3002)
+CC_SMOKE_TEST_URL=""
+# Log file path pattern (auto-set by language pack, e.g., /tmp/app_{PORT}_{ENV}.log)
+CC_SMOKE_TEST_LOG_PATTERN=""
+# GitHub label for auto-created smoke-test issues
+CC_SMOKE_TEST_LABEL="smoke-test"
 
 # ===== CONTEXT MANAGEMENT =====
 # Enable weekly cleanup cron: true|false
