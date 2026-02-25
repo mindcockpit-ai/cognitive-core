@@ -10,7 +10,7 @@ A portable framework that installs production-grade hooks, agents, skills, CI/CD
 
 - **Hooks** -- 8 event hooks: session startup, bash/read/write/fetch validation, post-edit linting, compaction reminders
 - **Agents** -- Hub-and-spoke team of 8 specialists (coordinator, architect, reviewer, tester, researcher, database, security, updater)
-- **Skills** -- 16 reusable skills from session-resume to secrets-setup, with language and database packs
+- **Skills** -- 18 reusable skills from session-resume to secrets-setup, with language and database packs
 - **Secrets** -- 1Password / macOS Keychain backends with `secrets-run` injection, `secrets-store` CLI, and `secrets-setup` skill
 - **CI/CD** -- Evolutionary pipeline with fitness gates, self-hosted runner setup, GitHub Actions workflows
 - **Monitoring** -- Prometheus, Grafana dashboards, Alertmanager with Slack/email/PagerDuty
@@ -121,12 +121,14 @@ Live test results and component inventory from the latest build, visible at [mul
 | pre-commit | manual | Pre-commit validation checks |
 | fitness | manual | Codebase fitness scoring |
 | project-status | manual | Project status dashboard |
-| project-board | manual | GitHub Project board and issue management |
+| project-board | manual | GitHub Project board management with closure guard, auto-branch, auto-sprint |
 | workspace-monitor | manual | Proactive log, test, and build monitoring |
 | workflow-analysis | manual | Workflow and process analysis |
 | test-scaffold | manual | Test file generation from source |
 | secrets-setup | manual | 1Password / Keychain secrets management setup |
-| acceptance-verification | manual | GitHub issue acceptance criteria checker |
+| acceptance-verification | manual | GitHub issue acceptance criteria checker with auto-tick on PASS |
+| smoke-test | manual | Playwright endpoint smoke tests after deployment |
+| lint-debt | manual | Track and reduce lint debt across the codebase |
 | ctf-pentesting | manual | CTF challenge methodology and kill chain |
 
 ## Configuration
