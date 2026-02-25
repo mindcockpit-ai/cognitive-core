@@ -127,14 +127,22 @@ gh issue edit <number> --repo {{CC_GITHUB_OWNER}}/{{CC_GITHUB_REPO}} --body "$UP
 - If the issue body has no checkboxes, skip this step
 - In `--dry-run` mode, show which boxes would be ticked but don't update
 
-### Step 6: Update Board Status (if all pass)
+### Step 6: Closure Guard — CRITICAL
 
-If `--strict` is NOT set and all criteria pass:
-- Suggest moving the issue to "Done" on the project board
-- Ask user for confirmation before executing
+**NEVER close or suggest closing an issue unless ALL acceptance criteria are PASS.**
 
-If `--strict` IS set:
-- Report only, no board changes
+This is a hard rule with no exceptions:
+- If ANY criterion is **PARTIAL** or **FAIL**, the issue MUST remain open
+- The verification comment MUST explicitly list what remains to be done
+- Do NOT tick checkboxes for PARTIAL or FAIL criteria
+- Do NOT suggest moving to "Done" if any gaps exist
+- When called by other skills/agents (e.g., `/issues close`, project coordinator), BLOCK the close operation and return the gap list
+
+**Only when ALL criteria are PASS**:
+- If `--strict` is NOT set: suggest moving the issue to "Done" on the project board, ask user for confirmation before executing
+- If `--strict` IS set: report only, no board changes
+
+**Rationale**: Premature closure hides unfinished work. It is always better to leave an issue open with clear gap documentation than to close it optimistically.
 
 ## Options
 

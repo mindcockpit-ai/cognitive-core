@@ -219,12 +219,15 @@ If no `--plan` flag but `CC_ISSUE_ATTACH_PLAN=true`, check for an active plan fi
 
 **Syntax**: `/project-board close <number> [number2 ...] [--comment "reason"]`
 
-1. Close the GitHub issue:
+**Closure Guard**: If the issue has acceptance criteria (checkbox list in body), run verification FIRST. **NEVER close an issue that has PARTIAL or FAIL criteria.** If any criteria are not PASS, block the close and report the gaps. This prevents premature closure that hides unfinished work.
+
+1. Check for acceptance criteria — if present, verify all are PASS before proceeding
+2. Close the GitHub issue:
 ```bash
 gh issue close <number> --repo {{CC_GITHUB_REPO}} --comment "<comment>"
 ```
 
-2. Update board status to Done:
+3. Update board status to Done:
 ```bash
 ITEMS=$(gh project item-list {{CC_PROJECT_NUMBER}} --owner {{CC_GITHUB_OWNER}} --format json --limit 500)
 ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n <N> '.items[] | select(.content.number == $n) | .id')
