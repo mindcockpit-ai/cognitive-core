@@ -23,6 +23,15 @@ CC_PROJECT_ID="PVT_xxx"                     # GraphQL Project ID
 CC_STATUS_FIELD_ID="PVTSSF_xxx"             # Status field ID
 CC_AREA_FIELD_ID="PVTSSF_xxx"               # Area field ID (optional)
 CC_SPRINT_FIELD_ID="PVTIF_xxx"              # Sprint iteration field ID (optional)
+
+# Branching strategy (optional — set CC_BRANCH_AUTO_CREATE="true" to enable)
+CC_BRANCH_AUTO_CREATE="false"              # Auto-create branch on move to In Progress
+CC_BRANCH_AUTO_CHECKOUT="true"             # Auto-checkout the created branch locally
+CC_BRANCH_BASE="main"                      # Base branch for feature/fix branches
+CC_BRANCH_HOTFIX_BASE="main"               # Base branch for hotfix branches
+CC_BRANCH_DEFAULT_TYPE="feature"           # Default type when no label matches
+CC_BRANCH_SLUG_MAX_LENGTH="40"             # Max slug length in branch names
+CC_BRANCH_LABEL_MAP="bug=fix|enhancement=feature|documentation=docs"
 ```
 
 ## Project Guard — Cross-Project Contamination Prevention
@@ -434,7 +443,87 @@ if echo "todo progress testing" | grep -qw "$TARGET_KEY"; then
         echo "Auto-assigned to $CURRENT_USER"
     fi
 fi
+
+# 9. Auto-create feature branch when moving to In Progress
+#    Only runs when CC_BRANCH_AUTO_CREATE is "true" in cognitive-core.conf
+if [ "$TARGET_KEY" = "progress" ] && [ "{{CC_BRANCH_AUTO_CREATE}}" = "true" ]; then
+    # Get issue details for branch naming
+    ISSUE_JSON=$(gh issue view <N> --repo {{CC_GITHUB_REPO}} --json title,labels)
+    ISSUE_TITLE=$(echo "$ISSUE_JSON" | jq -r '.title')
+    ISSUE_LABELS=$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | join(",")')
+
+    # Determine branch type from labels using CC_BRANCH_LABEL_MAP
+    # Format: "bug=fix|enhancement=feature|documentation=docs"
+    # Falls back to CC_BRANCH_DEFAULT_TYPE (default: "feature")
+    BRANCH_TYPE="{{CC_BRANCH_DEFAULT_TYPE}}"
+    IFS='|' read -ra LABEL_PAIRS <<< "{{CC_BRANCH_LABEL_MAP}}"
+    for pair in "${LABEL_PAIRS[@]}"; do
+        LABEL="${pair%%=*}"
+        TYPE="${pair##*=}"
+        if echo "$ISSUE_LABELS" | grep -q "$LABEL"; then
+            BRANCH_TYPE="$TYPE"
+            break
+        fi
+    done
+
+    # Hotfix override: P0 critical bugs branch from hotfix base
+    BASE_BRANCH="{{CC_BRANCH_BASE}}"
+    if echo "$ISSUE_LABELS" | grep -q "priority:p0-critical" && [ "$BRANCH_TYPE" = "fix" ]; then
+        BRANCH_TYPE="hotfix"
+        BASE_BRANCH="{{CC_BRANCH_HOTFIX_BASE}}"
+        echo "P0 Critical — creating hotfix branch from $BASE_BRANCH"
+    fi
+
+    # Generate slug: lowercase, non-alphanum to hyphen, collapse, trim
+    SLUG=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | \
+           sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//; s/-$//' | \
+           cut -c1-{{CC_BRANCH_SLUG_MAX_LENGTH}})
+    BRANCH_NAME="${BRANCH_TYPE}/<N>-${SLUG}"
+
+    # Check if a branch already exists for this issue
+    EXISTING=$(gh issue develop <N> --repo {{CC_GITHUB_REPO}} --list 2>/dev/null | head -1)
+    if [ -n "$EXISTING" ]; then
+        echo "Branch already exists: $EXISTING"
+        if [ "{{CC_BRANCH_AUTO_CHECKOUT}}" = "true" ]; then
+            git fetch origin && git checkout "$EXISTING"
+            echo "Checked out existing branch: $EXISTING"
+        fi
+    else
+        # Create linked branch via gh issue develop (links branch to issue in GitHub UI)
+        CHECKOUT_FLAG=""
+        if [ "{{CC_BRANCH_AUTO_CHECKOUT}}" = "true" ]; then
+            CHECKOUT_FLAG="--checkout"
+        fi
+        gh issue develop <N> \
+            --repo {{CC_GITHUB_REPO}} \
+            --base "$BASE_BRANCH" \
+            --name "$BRANCH_NAME" \
+            $CHECKOUT_FLAG
+        echo "Created branch: $BRANCH_NAME (from $BASE_BRANCH)"
+    fi
+fi
 ```
+
+### Branch Naming Convention
+
+When `CC_BRANCH_AUTO_CREATE="true"`, moving to In Progress auto-creates branches using `gh issue develop`:
+
+```
+<type>/<issue-number>-<kebab-case-slug>
+```
+
+| Type | When | Base Branch |
+|------|------|-------------|
+| `feature/` | `enhancement` label or default | `CC_BRANCH_BASE` |
+| `fix/` | `bug` label | `CC_BRANCH_BASE` |
+| `hotfix/` | `bug` + `priority:p0-critical` | `CC_BRANCH_HOTFIX_BASE` |
+| `docs/` | `documentation` label | `CC_BRANCH_BASE` |
+
+**Label mapping** is configurable via `CC_BRANCH_LABEL_MAP` (pipe-separated `label=type` pairs).
+
+**Hotfix workflow**: After merging hotfix to production branch, also merge to development branch to keep branches in sync.
+
+**Disabling**: Set `CC_BRANCH_AUTO_CREATE="false"` (default) to skip branch creation entirely.
 
 ### `verify`
 
