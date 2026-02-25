@@ -84,21 +84,22 @@ Backlog              ✓       -       ✓        -             -          -    
 Todo                 -       ✓       -        ✓             -          -      ✓
 In Progress          -       -       -        -             ✓          -      ✓
 To Be Tested         -       -       -        ✓*            -          ✓      ✓
-Done                 -       -       -        -             -          -      -
-Canceled             -       -       -        -             -          -      -
+Done                 -       -       -        ✓*            ✓*         -      -
+Canceled             -       ✓*     ✓*        -             -          -      -
 ```
 
-`✓` = Allowed | `✓*` = Allowed but warn (rework) | `-` = Blocked
+`✓` = Allowed | `✓*` = Allowed but warn (reopen/rework) | `-` = Blocked
 
 ### Key Rules
 
 1. **Forward flow is primary**: Roadmap/Backlog → Todo → In Progress → To Be Tested → Done
-2. **One backward transition**: To Be Tested → In Progress (rework when testing reveals issues)
-3. **Canceled reachable from anywhere** except Done (once Done, create new issue for regressions)
-4. **Done and Canceled are terminal**: No transitions out. Reopen creates new issue.
+2. **Backward transitions with warning**: To Be Tested → In Progress (rework), Done → In Progress/To Be Tested (reopen), Canceled → Backlog/Todo (reopen)
+3. **Canceled reachable from anywhere** except Done
+4. **Reopen from Done/Canceled**: Allowed with warning. The `move` command automatically reopens the GitHub issue when moving out of Done or Canceled.
 5. **No skipping**: Cannot jump Backlog → In Progress (must pass through Todo first)
-6. **Auto-sprint assignment**: When moving to Todo, In Progress, or To Be Tested, the `move` command automatically assigns the issue to the current sprint if it has no sprint set. Requires `CC_SPRINT_FIELD_ID` to be configured.
-7. **Auto-assignee**: Sprint items must have an owner. When moving to a sprint-required column and the issue has no assignee, auto-assign to the current user (initiator of the change).
+6. **Reopen syncs GitHub state**: When moving from Done or Canceled to an active column, the `move` command automatically runs `gh issue reopen` to sync the GitHub issue state with the board status.
+7. **Auto-sprint assignment**: When moving to Todo, In Progress, or To Be Tested, the `move` command automatically assigns the issue to the current sprint if it has no sprint set. Requires `CC_SPRINT_FIELD_ID` to be configured.
+8. **Auto-assignee**: Sprint items must have an owner. When moving to a sprint-required column and the issue has no assignee, auto-assign to the current user (initiator of the change).
 
 ### CI Automation
 
@@ -378,24 +379,29 @@ TARGET="<target_status>"
 
 # 2. Validate transition against allowed matrix
 # Allowed transitions (from → to):
-#   Roadmap    → Backlog, Todo, Canceled
-#   Backlog    → Roadmap, Todo, Canceled
-#   Todo       → Backlog, In Progress, Canceled
-#   In Progress → To Be Tested, Canceled
+#   Roadmap      → Backlog, Todo, Canceled
+#   Backlog      → Roadmap, Todo, Canceled
+#   Todo         → Backlog, In Progress, Canceled
+#   In Progress  → To Be Tested, Canceled
 #   To Be Tested → In Progress (rework), Done, Canceled
-#   Done       → (none — terminal)
-#   Canceled   → (none — terminal)
+#   Done         → In Progress (reopen), To Be Tested (reopen)
+#   Canceled     → Backlog (reopen), Todo (reopen)
 
 # 3. If transition is blocked, show error with allowed targets
 # Example: "Cannot move from Backlog to In Progress. Allowed: Roadmap, Todo, Canceled"
 
 # 4. If To Be Tested → In Progress, warn: "Rework: moving back to In Progress"
+#    If Done → *, warn: "Reopening: moving from Done back to active"
+#    If Canceled → *, warn: "Reopening: moving from Canceled back to active"
 
-# 5. Execute the move
+# 5. If moving FROM Done or Canceled, reopen the GitHub issue first:
+#    gh issue reopen <N> --repo {{CC_GITHUB_REPO}}
+
+# 6. Execute the move
 ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n <N> '.items[] | select(.content.number == $n) | .id')
 gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "{{CC_PROJECT_ID}}" itemId: "'$ITEM_ID'" fieldId: "{{CC_STATUS_FIELD_ID}}" value: { singleSelectOptionId: "<STATUS_OPTION_ID>" } }) { projectV2Item { id } } }'
 
-# 6. Auto-assign to current sprint if target is sprint-required (Todo, In Progress, To Be Tested)
+# 7. Auto-assign to current sprint if target is sprint-required (Todo, In Progress, To Be Tested)
 #    and the issue is NOT already in a sprint. Only applies when CC_SPRINT_FIELD_ID is configured.
 if echo "todo progress testing" | grep -qw "$TARGET_KEY"; then
     CURRENT_SPRINT=$(echo "$ITEMS" | jq -r --argjson n <N> '.items[] | select(.content.number == $n) | .sprint // empty')
@@ -419,7 +425,7 @@ if echo "todo progress testing" | grep -qw "$TARGET_KEY"; then
         fi
     fi
 
-    # 7. Auto-assign to current user if issue has no assignee
+    # 8. Auto-assign to current user if issue has no assignee
     #    Sprint items must have an owner — default to the initiator of the change
     ASSIGNEES=$(gh issue view <N> --repo {{CC_GITHUB_REPO}} --json assignees --jq '.assignees | length')
     if [ "$ASSIGNEES" = "0" ]; then
