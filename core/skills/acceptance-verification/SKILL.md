@@ -105,7 +105,29 @@ COMMENT
 )"
 ```
 
-### Step 5: Update Board Status (if all pass)
+### Step 5: Auto-tick Checkboxes in Issue Body
+
+For each criterion that received **PASS** status, update the issue body to check its checkbox (`- [ ]` → `- [x]`). Criteria with PARTIAL, FAIL, or N/A remain unchecked.
+
+1. Fetch the current issue body:
+```bash
+BODY=$(gh issue view <number> --repo {{CC_GITHUB_OWNER}}/{{CC_GITHUB_REPO}} --json body --jq '.body')
+```
+
+2. For each PASS criterion, find its matching checkbox line and replace `- [ ]` with `- [x]`. Match by searching for a unique substring of the criterion text (first 30+ chars).
+
+3. Update the issue body:
+```bash
+gh issue edit <number> --repo {{CC_GITHUB_OWNER}}/{{CC_GITHUB_REPO}} --body "$UPDATED_BODY"
+```
+
+**Rules**:
+- Only tick boxes for criteria that are **PASS** — never auto-tick PARTIAL or FAIL
+- If a checkbox is already ticked (`- [x]`), leave it unchanged
+- If the issue body has no checkboxes, skip this step
+- In `--dry-run` mode, show which boxes would be ticked but don't update
+
+### Step 6: Update Board Status (if all pass)
 
 If `--strict` is NOT set and all criteria pass:
 - Suggest moving the issue to "Done" on the project board
