@@ -25,6 +25,18 @@ CC_AREA_FIELD_ID="PVTSSF_xxx"               # Area field ID (optional)
 CC_SPRINT_FIELD_ID="PVTIF_xxx"              # Sprint iteration field ID (optional)
 ```
 
+## Project Guard — Cross-Project Contamination Prevention
+
+**CRITICAL**: Before ANY GraphQL mutation that references a `projectId`, verify it matches the configured `CC_PROJECT_ID` exactly. Users often have multiple GitHub projects and field IDs from the wrong project will silently add/move items to unrelated boards.
+
+**Validation rules**:
+1. All `projectId` values in mutations MUST equal `CC_PROJECT_ID`
+2. All field IDs (`fieldId`) MUST belong to the configured project — they typically contain a substring of the project ID
+3. When discovering field IDs via `gh project field-list`, ALWAYS specify `--owner CC_GITHUB_OWNER` and the correct `CC_PROJECT_NUMBER`
+4. If a `gh project field-list` response returns IDs that don't match the expected project ID substring, ABORT and report the mismatch
+
+**If wrong project is detected**: Stop immediately and report: "Wrong project detected — field IDs do not match configured project. Aborting to prevent cross-project contamination."
+
 ## Board Structure
 
 ### Status (Columns) — Issue Lifecycle
@@ -381,6 +393,7 @@ See the `acceptance-verification` skill for full workflow details.
 - If an issue number doesn't exist, report it clearly
 - Confirm destructive actions (close, cancel) when affecting more than 2 issues at once
 - If a move is blocked by transition rules, explain WHY and show allowed targets
+- **CRITICAL: Wrong project guard** — Before every GraphQL mutation, verify `projectId` matches `CC_PROJECT_ID`. If field IDs don't match the configured project, ABORT immediately. See "Project Guard" section above.
 
 ## CI Automation
 
