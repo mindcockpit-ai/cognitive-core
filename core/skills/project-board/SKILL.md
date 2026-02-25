@@ -97,6 +97,8 @@ Canceled             -       -       -        -             -          -      -
 3. **Canceled reachable from anywhere** except Done (once Done, create new issue for regressions)
 4. **Done and Canceled are terminal**: No transitions out. Reopen creates new issue.
 5. **No skipping**: Cannot jump Backlog → In Progress (must pass through Todo first)
+6. **Auto-sprint assignment**: When moving to Todo, In Progress, or To Be Tested, the `move` command automatically assigns the issue to the current sprint if it has no sprint set. Requires `CC_SPRINT_FIELD_ID` to be configured.
+7. **Auto-assignee**: Sprint items must have an owner. When moving to a sprint-required column and the issue has no assignee, auto-assign to the current user (initiator of the change).
 
 ### CI Automation
 
@@ -166,7 +168,7 @@ Support `--area=<area>` filter (adds `--label "area:<area>"`) and `--state=close
 
 ### `create`
 
-**Syntax**: `/project-board create "title" [--priority p0|p1|p2|p3] [--area cicd|monitoring|testing|security|infrastructure] [--body "description"]`
+**Syntax**: `/project-board create "title" [--priority p0|p1|p2|p3] [--area cicd|monitoring|testing|security|infrastructure] [--body "description"] [--plan <path>]`
 
 Map `--priority pN` to labels: p0→`priority:p0-critical`, p1→`priority:p1-high`, p2→`priority:p2-medium`, p3→`priority:p3-low`.
 Map `--area` to label `area:<value>`.
@@ -185,6 +187,23 @@ gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { proje
 ```
 
 3. Default status: Backlog (unless `--status` specified)
+
+4. Attach implementation plan (if `--plan` provided or `CC_ISSUE_ATTACH_PLAN=true`):
+
+If `--plan <path>` is provided, read the file and post it as a comment on the newly created issue:
+```bash
+gh issue comment <number> --repo {{CC_GITHUB_REPO}} --body "$(cat <<'PLAN'
+## Implementation Plan
+
+$(cat <plan-path>)
+
+---
+*Attached by `/project-board create`. Source: `<plan-path>`*
+PLAN
+)"
+```
+
+If no `--plan` flag but `CC_ISSUE_ATTACH_PLAN=true`, check for an active plan file in `~/.claude/plans/`. If exactly one `.md` file exists, attach it automatically. If multiple exist, skip (ambiguous).
 
 ### `close`
 
@@ -375,6 +394,40 @@ TARGET="<target_status>"
 # 5. Execute the move
 ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n <N> '.items[] | select(.content.number == $n) | .id')
 gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "{{CC_PROJECT_ID}}" itemId: "'$ITEM_ID'" fieldId: "{{CC_STATUS_FIELD_ID}}" value: { singleSelectOptionId: "<STATUS_OPTION_ID>" } }) { projectV2Item { id } } }'
+
+# 6. Auto-assign to current sprint if target is sprint-required (Todo, In Progress, To Be Tested)
+#    and the issue is NOT already in a sprint. Only applies when CC_SPRINT_FIELD_ID is configured.
+if echo "todo progress testing" | grep -qw "$TARGET_KEY"; then
+    CURRENT_SPRINT=$(echo "$ITEMS" | jq -r --argjson n <N> '.items[] | select(.content.number == $n) | .sprint // empty')
+    if [ -z "$CURRENT_SPRINT" ] && [ -n "{{CC_SPRINT_FIELD_ID}}" ]; then
+        # Get current sprint iteration ID (the one whose date range includes today)
+        ITERATION_ID=$(gh api graphql -f query='query {
+          user(login: "{{CC_GITHUB_OWNER}}") {
+            projectV2(number: {{CC_PROJECT_NUMBER}}) {
+              field(name: "Sprint") {
+                ... on ProjectV2IterationField {
+                  configuration { iterations { id title startDate duration } }
+                }
+              }
+            }
+          }
+        }' --jq '[.data.user.projectV2.field.configuration.iterations[] | select((.startDate | strptime("%Y-%m-%d") | mktime) <= now and ((.startDate | strptime("%Y-%m-%d") | mktime) + (.duration * 86400)) > now)] | .[0].id')
+
+        if [ -n "$ITERATION_ID" ]; then
+            gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "{{CC_PROJECT_ID}}" itemId: "'$ITEM_ID'" fieldId: "{{CC_SPRINT_FIELD_ID}}" value: { iterationId: "'$ITERATION_ID'" } }) { projectV2Item { id } } }'
+            echo "Auto-assigned to current sprint"
+        fi
+    fi
+
+    # 7. Auto-assign to current user if issue has no assignee
+    #    Sprint items must have an owner — default to the initiator of the change
+    ASSIGNEES=$(gh issue view <N> --repo {{CC_GITHUB_REPO}} --json assignees --jq '.assignees | length')
+    if [ "$ASSIGNEES" = "0" ]; then
+        CURRENT_USER=$(gh api user --jq '.login')
+        gh issue edit <N> --repo {{CC_GITHUB_REPO}} --add-assignee "$CURRENT_USER"
+        echo "Auto-assigned to $CURRENT_USER"
+    fi
+fi
 ```
 
 ### `verify`

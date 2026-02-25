@@ -101,6 +101,12 @@ CC_ALLOWED_DOMAINS=""
 # Used in standard mode to skip human escalation for trusted domains
 CC_KNOWN_SAFE_DOMAINS=""
 
+# ===== PROJECT BOARD =====
+# Auto-attach active plan file to newly created issues: true|false
+# When true, /project-board create checks ~/.claude/plans/ for an active plan
+# and posts it as a comment. Can also use --plan <path> flag explicitly.
+CC_ISSUE_ATTACH_PLAN="false"
+
 # ===== GIT =====
 # Main branch name
 CC_MAIN_BRANCH="main"
