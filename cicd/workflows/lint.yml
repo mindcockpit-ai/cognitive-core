@@ -18,13 +18,19 @@ on:
       - main
       - master
       - develop
-      - 'release/**'
+      - development
       - 'feature/**'
+      - 'fix/**'
+      - 'bugfix/**'
+      - 'hotfix/**'
+      - 'docs/**'
+      - 'release/**'
   pull_request:
     branches:
       - main
       - master
       - develop
+      - development
 
 # Cancel in-progress runs for the same ref (saves runner minutes)
 concurrency:

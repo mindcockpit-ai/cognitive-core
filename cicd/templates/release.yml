@@ -1,0 +1,40 @@
+# =============================================================================
+# GitHub Release Notes Configuration — cognitive-core framework
+# =============================================================================
+# Categorizes PRs by label on the GitHub Release page.
+# Place in .github/release.yml in your project repository.
+#
+# Labels used:
+#   - breaking-change: Breaking changes (major version bump)
+#   - enhancement: New features
+#   - bug: Bug fixes
+#   - performance: Performance improvements
+#   - ignore-for-release: Exclude from release notes
+#
+# Customize:
+#   - Add/remove categories and labels as needed
+#   - Add bot accounts to exclude list
+# =============================================================================
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+    authors:
+      - dependabot[bot]
+      - release-please[bot]
+  categories:
+    - title: "Breaking Changes"
+      labels:
+        - breaking-change
+    - title: "Features"
+      labels:
+        - enhancement
+    - title: "Bug Fixes"
+      labels:
+        - bug
+    - title: "Performance"
+      labels:
+        - performance
+    - title: "Other Changes"
+      labels:
+        - "*"

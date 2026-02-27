@@ -47,6 +47,29 @@ These rules survive context compaction and are always enforced:
 **Format:** `type(scope): subject` (feat/fix/docs/style/refactor/test/chore)
 **Example:** `feat({{CC_DEFAULT_SCOPE}}): add validation for import workflow`
 
+**Issue linking**: When a commit resolves a GitHub issue, add `Closes #N` as the
+last line of the commit body. This links the issue in the generated CHANGELOG.
+Multiple issues: `Closes #61, Closes #62, Closes #63`
+
+## Branching Workflow
+
+**REQUIRED**: All changes go through feature branches and PRs.
+
+1. Move issue to In Progress: `/issues move <N> progress` (auto-creates branch)
+2. Work on feature branch: `feature/<N>-<slug>` or `fix/<N>-<slug>`
+3. Commit with conventional format: `type(scope): subject`
+4. Push branch and create PR: `gh pr create --base {{CC_MAIN_BRANCH}}`
+5. CI runs, PR merged → issue auto-moves to Done
+
+**Branch naming**: `<type>/<issue>-<kebab-slug>`
+- `feature/` — enhancements (from {{CC_MAIN_BRANCH}})
+- `fix/` — bugs (from {{CC_MAIN_BRANCH}})
+- `hotfix/` — P0 critical (from master/main)
+- `docs/` — documentation (from {{CC_MAIN_BRANCH}})
+
+**PRs require review** before merging (human or `code-standards-reviewer` agent).
+**NEVER push directly to `{{CC_MAIN_BRANCH}}`** unless emergency (admin bypass).
+
 ## Claude Code Hooks
 
 All hooks are installed in `.claude/hooks/` and registered in `.claude/settings.json`.
