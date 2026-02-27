@@ -33,6 +33,8 @@ suite_pretty_name() {
         06-security-hooks.sh)    echo "Security Hooks" ;;
         07-agent-permissions.sh) echo "Agent Permissions" ;;
         08-workspace-monitor.sh) echo "Workspace Monitor" ;;
+        09-adapter-interface.sh) echo "Adapter Interface" ;;
+        10-aider-adapter.sh) echo "Aider Adapter" ;;
         *) echo "$1" ;;
     esac
 }

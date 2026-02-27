@@ -1,0 +1,125 @@
+# cognitive-core tool mapping: Aider + Ollama
+# =============================================
+# Maps cognitive-core capabilities to Aider equivalents.
+# Aider has a different paradigm: convention-based safety, read-only context
+# for agents/skills, and .aider.conf.yml for settings.
+
+adapter: aider
+platform: "Aider CLI + Ollama"
+install_dir: ".cognitive-core"
+project_readme: "CONVENTIONS.md"
+
+capabilities:
+  file_read:
+    tool: "/read-only, /read"
+    native: false
+    translation: "Files added via read: in .aider.conf.yml or /read-only command"
+    description: "Aider sees files via read-only context or active chat files"
+
+  file_write:
+    tool: "architect/editor mode"
+    native: true
+    description: "Aider edits files directly via architect+editor model pair"
+
+  file_edit:
+    tool: "architect/editor mode"
+    native: true
+    description: "Aider uses diff-based editing (whole, diff, udiff edit formats)"
+
+  shell_execute:
+    tool: "/run"
+    native: true
+    description: "Aider /run command executes shell commands"
+
+  web_search:
+    tool: null
+    native: false
+    description: "Not natively supported — user must provide web content"
+
+  web_fetch:
+    tool: "/web"
+    native: true
+    description: "Aider /web command fetches and adds URL content to chat"
+
+  file_glob:
+    tool: "/add"
+    native: false
+    translation: "Use shell glob with /add command"
+
+  file_grep:
+    tool: "/run grep"
+    native: false
+    translation: "Use /run with grep command"
+
+  agent_delegation:
+    tool: null
+    native: false
+    translation: "Agent .md files loaded as read-only context for reference"
+    description: "Aider has no sub-agent delegation; agent docs serve as guidelines"
+
+  mcp_servers:
+    native: false
+    description: "Not supported by Aider"
+
+hooks:
+  pre_tool_use:
+    native: false
+    mechanism: "CONVENTIONS.md safety rules"
+    translation: >
+      Safety patterns from validate-bash.sh are converted to CONVENTIONS.md rules.
+      The LLM reads these as instructions, not enforced hooks.
+    limitations:
+      - "Convention-based only — LLM may not always follow"
+      - "No programmatic deny/allow decisions"
+
+  post_tool_use:
+    native: false
+    mechanism: "auto-lint in .aider.conf.yml"
+    translation: >
+      post-edit-lint translated to lint-cmd in .aider.conf.yml.
+      Aider runs lint after every edit automatically.
+
+  session_start:
+    native: false
+    mechanism: "cc-aider-start.sh launcher script"
+    translation: >
+      setup-env translated to environment setup in launcher script.
+      User runs cc-aider-start.sh instead of bare aider.
+
+  notification:
+    native: false
+    description: "Aider has no notification/compaction system"
+
+skills:
+  invocation: null
+  native: false
+  translation: "Skill docs loaded as read-only context for manual reference"
+
+agents:
+  definition: ".cognitive-core/agents/<name>.md"
+  delegation: null
+  native: false
+  translation: "Agent docs loaded via read: in .aider.conf.yml for context"
+
+# Aider-specific configuration
+aider_config:
+  edit_format:
+    description: "How Aider applies edits"
+    options: ["whole", "diff", "udiff", "editor-diff"]
+    default: "diff"
+
+  model_config:
+    description: "Ollama model configuration"
+    settings:
+      - "model: ollama_chat/<model-name>"
+      - "editor-model: ollama_chat/<model-name>"
+      - "weak-model: ollama_chat/<small-model>"
+
+  safety_approach:
+    description: "How safety is implemented without hooks"
+    strategy: "convention_based"
+    details: >
+      All safety rules from validate-bash.sh are extracted and written
+      into CONVENTIONS.md as explicit instructions. The LLM reads
+      CONVENTIONS.md on every interaction (always in context).
+      Additionally, .aiderignore prevents access to sensitive paths.

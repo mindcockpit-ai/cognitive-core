@@ -8,6 +8,11 @@ CC_PROJECT_NAME="my-project"
 CC_PROJECT_DESCRIPTION="Brief project description"
 CC_ORG="my-org"
 
+# ===== PLATFORM =====
+# Target platform adapter: claude|aider
+# Determines how hooks, agents, skills, and settings are installed
+CC_PLATFORM="claude"
+
 # ===== LANGUAGE & STACK =====
 # Primary language: perl|python|node|java|go|rust|csharp
 CC_LANGUAGE="python"
@@ -192,6 +197,14 @@ CC_SMOKE_TEST_URL=""
 CC_SMOKE_TEST_LOG_PATTERN=""
 # GitHub label for auto-created smoke-test issues
 CC_SMOKE_TEST_LABEL="smoke-test"
+
+# ===== AIDER SETTINGS (only used when CC_PLATFORM=aider) =====
+# Ollama model name for Aider
+CC_AIDER_MODEL="qwen2.5-coder:32b"
+# Ollama API base URL
+CC_AIDER_OLLAMA_BASE="http://localhost:11434"
+# Aider edit format: whole|diff|udiff|editor-diff
+CC_AIDER_EDIT_FORMAT="diff"
 
 # ===== CONTEXT MANAGEMENT =====
 # Enable weekly cleanup cron: true|false

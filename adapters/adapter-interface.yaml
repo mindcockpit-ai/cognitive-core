@@ -1,0 +1,163 @@
+# cognitive-core Adapter Interface Specification
+# =============================================
+# Every platform adapter MUST implement these functions in its adapter.sh.
+# The _adapter-lib.sh library validates compliance at install time.
+#
+# See adapters/claude/ for the reference (identity) implementation.
+
+version: "1.0"
+description: >
+  Abstract contract defining what platform adapters must implement
+  to integrate cognitive-core with different AI coding assistants.
+
+# Required shell functions each adapter.sh must define
+required_functions:
+  - name: _adapter_install_hook
+    description: >
+      Install a single hook file into the project.
+      For Claude Code: copy .sh to .claude/hooks/.
+      For Aider: queue for convention extraction.
+    signature: "_adapter_install_hook <source_path> <hook_name>"
+    args:
+      - name: source_path
+        description: Absolute path to the hook .sh source file
+      - name: hook_name
+        description: Hook basename (e.g., "validate-bash")
+
+  - name: _adapter_install_agent
+    description: >
+      Install a single agent definition into the project.
+      For Claude Code: copy .md to .claude/agents/.
+      For Aider: copy to .cognitive-core/agents/ as read-only context.
+    signature: "_adapter_install_agent <source_path> <agent_name>"
+    args:
+      - name: source_path
+        description: Absolute path to the agent .md source file
+      - name: agent_name
+        description: Agent basename (e.g., "project-coordinator.md")
+
+  - name: _adapter_install_skill
+    description: >
+      Install a skill directory into the project.
+      For Claude Code: copy to .claude/skills/<name>/.
+      For Aider: copy to .cognitive-core/skills/<name>/ as read-only context.
+    signature: "_adapter_install_skill <source_dir> <skill_name>"
+    args:
+      - name: source_dir
+        description: Absolute path to the skill source directory
+      - name: skill_name
+        description: Skill name (e.g., "code-review")
+
+  - name: _adapter_generate_settings
+    description: >
+      Generate platform-specific settings/configuration file.
+      For Claude Code: generate .claude/settings.json with hooks + permissions.
+      For Aider: generate .aider.conf.yml with lint-cmd, read files, model config.
+    signature: "_adapter_generate_settings <project_dir>"
+    args:
+      - name: project_dir
+        description: Absolute path to the target project root
+
+  - name: _adapter_generate_project_readme
+    description: >
+      Generate the platform-specific project instruction file.
+      For Claude Code: generate CLAUDE.md scaffold.
+      For Aider: generate CONVENTIONS.md from template.
+    signature: "_adapter_generate_project_readme <project_dir>"
+    args:
+      - name: project_dir
+        description: Absolute path to the target project root
+
+# Optional functions (default no-op provided by _adapter-lib.sh)
+optional_functions:
+  - name: _adapter_post_install
+    description: >
+      Post-installation hook for adapter-specific finalization.
+      For Aider: runs generate.py --mode all to create launcher, .aiderignore, etc.
+    signature: "_adapter_post_install <project_dir>"
+    args:
+      - name: project_dir
+        description: Absolute path to the target project root
+
+  - name: _adapter_install_dir_structure
+    description: >
+      Create the platform-specific directory structure.
+      For Claude Code: .claude/hooks, .claude/agents, .claude/skills, .claude/cognitive-core.
+      For Aider: .cognitive-core/agents, .cognitive-core/skills.
+    signature: "_adapter_install_dir_structure <project_dir>"
+    args:
+      - name: project_dir
+        description: Absolute path to the target project root
+
+# Required variables each adapter.sh must set
+required_variables:
+  - name: _ADAPTER_NAME
+    description: "Human-readable adapter name (e.g., 'claude-code', 'aider')"
+  - name: _ADAPTER_INSTALL_DIR
+    description: >
+      Subdirectory name relative to project root where components are installed.
+      For Claude Code: '.claude'
+      For Aider: '.cognitive-core'
+
+# Platform feature matrix
+# Each adapter's tool-map.yaml should declare support for these capabilities
+capability_matrix:
+  pre_tool_hooks:
+    description: "Run validation before tool execution (e.g., block dangerous commands)"
+    claude_code: native
+    aider: convention_based
+
+  post_tool_hooks:
+    description: "Run actions after tool execution (e.g., auto-lint)"
+    claude_code: native
+    aider: auto_lint_config
+
+  session_start_hooks:
+    description: "Run setup when a session starts"
+    claude_code: native
+    aider: launcher_script
+
+  agent_delegation:
+    description: "Delegate tasks to specialized sub-agents"
+    claude_code: native
+    aider: read_only_context
+
+  skill_invocation:
+    description: "Invoke skills via slash commands"
+    claude_code: native
+    aider: not_supported
+
+  settings_file:
+    description: "Platform-specific settings/configuration"
+    claude_code: ".claude/settings.json"
+    aider: ".aider.conf.yml"
+
+  project_readme:
+    description: "Project instructions always loaded into context"
+    claude_code: "CLAUDE.md"
+    aider: "CONVENTIONS.md"
+
+  file_read:
+    description: "Read files from the filesystem"
+    claude_code: "Read tool"
+    aider: "read-only context / /read"
+
+  file_write:
+    description: "Write/edit files"
+    claude_code: "Write/Edit tools"
+    aider: "architect/editor modes"
+
+  shell_execute:
+    description: "Execute shell commands"
+    claude_code: "Bash tool"
+    aider: "/run command"
+
+  web_search:
+    description: "Search the web"
+    claude_code: "WebSearch tool"
+    aider: "not_supported"
+
+  mcp_servers:
+    description: "Model Context Protocol servers"
+    claude_code: native
+    aider: not_supported

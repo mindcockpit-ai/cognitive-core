@@ -1,0 +1,90 @@
+# cognitive-core tool mapping: Claude Code
+# ==========================================
+# Maps cognitive-core capabilities to Claude Code native tools.
+# This is the identity mapping — Claude Code is the reference platform.
+
+adapter: claude-code
+platform: "Claude Code CLI"
+install_dir: ".claude"
+project_readme: "CLAUDE.md"
+
+capabilities:
+  file_read:
+    tool: Read
+    native: true
+    description: "Read tool — reads files with line numbers"
+
+  file_write:
+    tool: Write
+    native: true
+    description: "Write tool — creates or overwrites files"
+
+  file_edit:
+    tool: Edit
+    native: true
+    description: "Edit tool — exact string replacement in files"
+
+  shell_execute:
+    tool: Bash
+    native: true
+    description: "Bash tool — execute shell commands"
+
+  web_search:
+    tool: WebSearch
+    native: true
+    description: "WebSearch tool — search the web"
+
+  web_fetch:
+    tool: WebFetch
+    native: true
+    description: "WebFetch tool — fetch and process web content"
+
+  file_glob:
+    tool: Glob
+    native: true
+    description: "Glob tool — find files by pattern"
+
+  file_grep:
+    tool: Grep
+    native: true
+    description: "Grep tool — search file contents"
+
+  agent_delegation:
+    tool: Task
+    native: true
+    description: "Task tool — delegate to specialized sub-agents"
+
+  mcp_servers:
+    native: true
+    description: "MCP servers configured in settings.json"
+
+hooks:
+  pre_tool_use:
+    native: true
+    mechanism: "PreToolUse hooks in settings.json"
+    description: "Bash commands run before tool execution, can deny/allow/ask"
+
+  post_tool_use:
+    native: true
+    mechanism: "PostToolUse hooks in settings.json"
+    description: "Bash commands run after tool execution (e.g., auto-lint)"
+
+  session_start:
+    native: true
+    mechanism: "SessionStart hooks in settings.json"
+    description: "Bash commands run on session start/resume"
+
+  notification:
+    native: true
+    mechanism: "Notification hooks in settings.json"
+    description: "Bash commands run on compaction/notifications"
+
+skills:
+  invocation: "slash commands (e.g., /code-review)"
+  native: true
+  description: "Skills defined in .claude/skills/<name>/SKILL.md with YAML frontmatter"
+
+agents:
+  definition: ".claude/agents/<name>.md"
+  delegation: "Task tool with subagent_type parameter"
+  native: true

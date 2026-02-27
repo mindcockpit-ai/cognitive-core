@@ -81,6 +81,16 @@ if ! git -C "$PROJECT_DIR" rev-parse --is-inside-work-tree &>/dev/null; then
 fi
 info "Git repository verified."
 
+# ---- Early platform detection (peek at config for CC_PLATFORM) ----
+_early_conf="${PROJECT_DIR}/cognitive-core.conf"
+if [ ! -f "$_early_conf" ]; then
+    _early_conf="${PROJECT_DIR}/.claude/cognitive-core.conf"
+fi
+if [ -f "$_early_conf" ]; then
+    CC_PLATFORM=$(grep -E '^CC_PLATFORM=' "$_early_conf" 2>/dev/null | head -1 | sed 's/CC_PLATFORM=//' | tr -d '"' || echo "")
+fi
+CC_PLATFORM="${CC_PLATFORM:-claude}"
+
 # ---- Supply chain integrity check (framework source) ----
 if git -C "$SCRIPT_DIR" rev-parse --is-inside-work-tree &>/dev/null; then
     _fw_dirty=$(git -C "$SCRIPT_DIR" status --porcelain 2>/dev/null | grep -c '.' || echo "0")
@@ -92,7 +102,13 @@ if git -C "$SCRIPT_DIR" rev-parse --is-inside-work-tree &>/dev/null; then
 fi
 
 # ---- Check existing installation ----
-VERSION_FILE="${PROJECT_DIR}/.claude/cognitive-core/version.json"
+# Derive install dir from platform for early check (adapter not loaded yet)
+case "$CC_PLATFORM" in
+    claude) _EARLY_INSTALL_DIR=".claude" ;;
+    aider)  _EARLY_INSTALL_DIR=".cognitive-core" ;;
+    *)      _EARLY_INSTALL_DIR=".claude" ;;
+esac
+VERSION_FILE="${PROJECT_DIR}/${_EARLY_INSTALL_DIR}/cognitive-core/version.json"
 if [ -f "$VERSION_FILE" ] && [ "$FORCE" = false ]; then
     INSTALLED_VER=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$VERSION_FILE" | head -1 | sed 's/.*"version"[[:space:]]*:[[:space:]]*"//;s/"//')
     warn "cognitive-core v${INSTALLED_VER} is already installed."
@@ -286,15 +302,29 @@ fi
 # shellcheck disable=SC1090
 source "$CONF_FILE"
 
+# ---- Load platform adapter ----
+CC_PLATFORM="${CC_PLATFORM:-claude}"
+ADAPTER_DIR="${SCRIPT_DIR}/adapters/${CC_PLATFORM}"
+if [ ! -f "${SCRIPT_DIR}/adapters/_adapter-lib.sh" ]; then
+    err "Adapter library not found: adapters/_adapter-lib.sh"
+    exit 1
+fi
+if [ ! -f "${ADAPTER_DIR}/adapter.sh" ]; then
+    err "Adapter not found for platform '${CC_PLATFORM}': ${ADAPTER_DIR}/adapter.sh"
+    err "Available adapters: $(ls -1 "${SCRIPT_DIR}/adapters/" | grep -v '^_' | grep -v '\.yaml$' | grep -v '\.sh$' | tr '\n' ' ')"
+    exit 1
+fi
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/adapters/_adapter-lib.sh"
+# shellcheck disable=SC1090
+source "${ADAPTER_DIR}/adapter.sh"
+_adapter_validate || exit 1
+
 # ---- Create directory structure ----
 header "Creating directory structure"
 
-CLAUDE_DIR="${PROJECT_DIR}/.claude"
-mkdir -p "${CLAUDE_DIR}/hooks"
-mkdir -p "${CLAUDE_DIR}/agents"
-mkdir -p "${CLAUDE_DIR}/skills"
-mkdir -p "${CLAUDE_DIR}/cognitive-core"
-info "Created .claude/ directory tree."
+_adapter_resolve_install_dir "$PROJECT_DIR"
+_adapter_install_dir_structure "$PROJECT_DIR"
 
 # ---- Agent name mapping ----
 agent_file_for() {
@@ -314,14 +344,14 @@ agent_file_for() {
 # ---- Install hooks ----
 header "Installing hooks"
 
-# Always copy the shared library first
-cp "${SCRIPT_DIR}/core/hooks/_lib.sh" "${CLAUDE_DIR}/hooks/_lib.sh"
+# Always install the shared library first
+_adapter_install_hook "${SCRIPT_DIR}/core/hooks/_lib.sh" "_lib.sh"
 info "Installed _lib.sh (shared hook library)"
 
 for hook in ${CC_HOOKS:-}; do
     src="${SCRIPT_DIR}/core/hooks/${hook}.sh"
     if [ -f "$src" ]; then
-        cp "$src" "${CLAUDE_DIR}/hooks/${hook}.sh"
+        _adapter_install_hook "$src" "${hook}.sh"
         info "Installed hook: ${hook}"
     else
         warn "Hook not found: ${hook} (skipped)"
@@ -334,8 +364,8 @@ header "Installing utilities"
 for util in check-update.sh context-cleanup.sh health-check.sh; do
     UTIL_SRC="${SCRIPT_DIR}/core/utilities/${util}"
     if [ -f "$UTIL_SRC" ]; then
-        cp "$UTIL_SRC" "${CLAUDE_DIR}/cognitive-core/${util}"
-        chmod +x "${CLAUDE_DIR}/cognitive-core/${util}"
+        cp "$UTIL_SRC" "${CC_INSTALL_DIR}/cognitive-core/${util}"
+        chmod +x "${CC_INSTALL_DIR}/cognitive-core/${util}"
         info "Installed utility: ${util}"
     fi
 done
@@ -352,7 +382,7 @@ for agent in ${CC_AGENTS:-}; do
     fi
     src="${SCRIPT_DIR}/core/agents/${filename}"
     if [ -f "$src" ]; then
-        cp "$src" "${CLAUDE_DIR}/agents/${filename}"
+        _adapter_install_agent "$src" "$filename"
         INSTALLED_AGENTS="${INSTALLED_AGENTS} ${agent}"
         info "Installed agent: ${agent} (${filename})"
     else
@@ -367,8 +397,7 @@ header "Installing skills"
 for skill in ${CC_SKILLS:-}; do
     src="${SCRIPT_DIR}/core/skills/${skill}"
     if [ -d "$src" ]; then
-        mkdir -p "${CLAUDE_DIR}/skills/${skill}"
-        cp -R "${src}/"* "${CLAUDE_DIR}/skills/${skill}/" 2>/dev/null || true
+        _adapter_install_skill "$src" "$skill"
         info "Installed skill: ${skill}"
     else
         warn "Skill not found: ${skill} (skipped)"
@@ -385,8 +414,7 @@ if [ -n "${CC_LANGUAGE:-}" ] && [ "$CC_LANGUAGE" != "none" ]; then
             for skill_dir in "${LANG_DIR}/skills/"*/; do
                 if [ -d "$skill_dir" ]; then
                     skill_name=$(basename "$skill_dir")
-                    mkdir -p "${CLAUDE_DIR}/skills/${skill_name}"
-                    cp -R "${skill_dir}"* "${CLAUDE_DIR}/skills/${skill_name}/" 2>/dev/null || true
+                    _adapter_install_skill "$skill_dir" "$skill_name"
                     info "Installed language skill: ${skill_name}"
                 fi
             done
@@ -395,7 +423,7 @@ if [ -n "${CC_LANGUAGE:-}" ] && [ "$CC_LANGUAGE" != "none" ]; then
         for item in "${LANG_DIR}/"*; do
             base=$(basename "$item")
             if [ "$base" != "skills" ] && [ -f "$item" ]; then
-                cp "$item" "${CLAUDE_DIR}/${base}"
+                cp "$item" "${CC_INSTALL_DIR}/${base}"
                 info "Installed language file: ${base}"
             fi
         done
@@ -414,8 +442,7 @@ if [ -n "${CC_DATABASE:-}" ] && [ "$CC_DATABASE" != "none" ]; then
             for skill_dir in "${DB_DIR}/skills/"*/; do
                 if [ -d "$skill_dir" ]; then
                     skill_name=$(basename "$skill_dir")
-                    mkdir -p "${CLAUDE_DIR}/skills/${skill_name}"
-                    cp -R "${skill_dir}"* "${CLAUDE_DIR}/skills/${skill_name}/" 2>/dev/null || true
+                    _adapter_install_skill "$skill_dir" "$skill_name"
                     info "Installed database skill: ${skill_name}"
                 fi
             done
@@ -424,7 +451,7 @@ if [ -n "${CC_DATABASE:-}" ] && [ "$CC_DATABASE" != "none" ]; then
         for item in "${DB_DIR}/"*; do
             base=$(basename "$item")
             if [ "$base" != "skills" ] && [ -f "$item" ]; then
-                cp "$item" "${CLAUDE_DIR}/${base}"
+                cp "$item" "${CC_INSTALL_DIR}/${base}"
                 info "Installed database file: ${base}"
             fi
         done
@@ -433,140 +460,18 @@ if [ -n "${CC_DATABASE:-}" ] && [ "$CC_DATABASE" != "none" ]; then
     fi
 fi
 
-# ---- Generate settings.json ----
-header "Generating settings.json"
+# ---- Generate platform settings ----
+header "Generating platform settings"
+_adapter_generate_settings "$PROJECT_DIR"
 
-SETTINGS_FILE="${CLAUDE_DIR}/settings.json"
-if [ -f "${SCRIPT_DIR}/core/templates/settings.json.tmpl" ]; then
-    sed \
-        -e "s|{{CC_PROJECT_NAME}}|${CC_PROJECT_NAME:-project}|g" \
-        -e "s|{{CC_LANGUAGE}}|${CC_LANGUAGE:-none}|g" \
-        -e "s|{{CC_ARCHITECTURE}}|${CC_ARCHITECTURE:-none}|g" \
-        -e "s|{{CC_MAIN_BRANCH}}|${CC_MAIN_BRANCH:-main}|g" \
-        -e "s|{{CC_LINT_COMMAND}}|${CC_LINT_COMMAND:-echo no-lint}|g" \
-        -e "s|{{CC_TEST_COMMAND}}|${CC_TEST_COMMAND:-echo no-tests}|g" \
-        -e "s|{{CC_AGENT_TEAMS}}|${CC_AGENT_TEAMS:-false}|g" \
-        "${SCRIPT_DIR}/core/templates/settings.json.tmpl" > "$SETTINGS_FILE"
-    info "Generated settings.json from template."
-else
-    # Generate a minimal settings.json directly
-    cat > "$SETTINGS_FILE" << SETEOF
-{
-  "permissions": {
-    "allow": [
-      "Bash(git *)",
-      "Bash(${CC_LINT_COMMAND:-echo no-lint})",
-      "Bash(${CC_TEST_COMMAND:-echo no-tests})"
-    ],
-    "deny": []
-  },
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "startup|resume",
-        "hooks": [
-          ".claude/hooks/setup-env.sh"
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          ".claude/hooks/validate-bash.sh"
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          ".claude/hooks/post-edit-lint.sh"
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "matcher": "compact",
-        "hooks": [
-          ".claude/hooks/compact-reminder.sh"
-        ]
-      }
-    ]
-  }
-}
-SETEOF
-    info "Generated settings.json (no template found, used defaults)."
-fi
-
-# ---- Generate CLAUDE.md scaffold ----
-CLAUDEMD="${PROJECT_DIR}/CLAUDE.md"
-if [ ! -f "$CLAUDEMD" ] || [ "$FORCE" = true ]; then
-    header "Generating CLAUDE.md scaffold"
-    cat > "$CLAUDEMD" << 'CLAUDEEOF'
-# Project Development Guide
-
-## Quick Reference
-
-| Item | Value |
-|------|-------|
-CLAUDEEOF
-
-    cat >> "$CLAUDEMD" << CLAUDEEOF
-| **Project** | ${CC_PROJECT_NAME} |
-| **Language** | ${CC_LANGUAGE} |
-| **Architecture** | ${CC_ARCHITECTURE} |
-| **Database** | ${CC_DATABASE} |
-| **Main Branch** | ${CC_MAIN_BRANCH} |
-| **Test Command** | \`${CC_TEST_COMMAND}\` |
-| **Lint Command** | \`${CC_LINT_COMMAND}\` |
-
-## Architecture
-
-Pattern: **${CC_ARCHITECTURE}**
-Source root: \`${CC_SRC_ROOT}\`
-Test root: \`${CC_TEST_ROOT}\`
-
-<!-- TODO: Document your architecture layers and patterns here -->
-
-## Code Standards
-
-- Follow ${CC_LANGUAGE} community best practices
-- Run lint before every commit
-- All new code must have tests
-- Git commits: \`type(scope): subject\` (${CC_COMMIT_FORMAT} format)
-- NO AI/tool references in commit messages
-
-## Key Rules
-
-<!-- TODO: Add your project's critical rules here -->
-<!-- These survive context compaction and are always visible -->
-
-1. Follow the architecture pattern defined above
-2. Use parameterized queries for all database operations
-3. Run lint before every commit
-
-## Agents
-
-See \`.claude/AGENTS_README.md\` for the agent team documentation.
-
-## Development Workflow
-
-1. Check current branch and status
-2. Implement changes following architecture pattern
-3. Run tests: \`${CC_TEST_COMMAND}\`
-4. Run lint: \`${CC_LINT_COMMAND}\`
-5. Commit with conventional format
-CLAUDEEOF
-    info "Generated CLAUDE.md scaffold."
-else
-    info "CLAUDE.md already exists (preserved)."
-fi
+# ---- Generate project readme ----
+header "Generating project instructions"
+_adapter_generate_project_readme "$PROJECT_DIR"
 
 # ---- Generate AGENTS_README.md ----
 header "Generating AGENTS_README.md"
 
-AGENTS_README="${CLAUDE_DIR}/AGENTS_README.md"
+AGENTS_README="${CC_INSTALL_DIR}/AGENTS_README.md"
 cat > "$AGENTS_README" << 'AGENTSEOF'
 # Agent Team Architecture
 
@@ -755,14 +660,14 @@ fi
 # ---- Write version manifest ----
 header "Writing version manifest"
 
-MANIFEST_DIR="${CLAUDE_DIR}/cognitive-core"
+MANIFEST_DIR="${CC_INSTALL_DIR}/cognitive-core"
 mkdir -p "$MANIFEST_DIR"
 
 # Build installed files list for checksum tracking
 INSTALLED_FILES="[]"
 if command -v python3 &>/dev/null; then
     # Use python for proper JSON array construction
-    INSTALLED_FILES=$(find "${CLAUDE_DIR}" -type f -not -path "*/cognitive-core/*" | sort | python3 -c "
+    INSTALLED_FILES=$(find "${CC_INSTALL_DIR}" -type f -not -path "*/cognitive-core/*" | sort | python3 -c "
 import sys, json, hashlib, os
 files = []
 project = '${PROJECT_DIR}'
@@ -785,6 +690,7 @@ cat > "$VERSION_FILE" << VEOF
 {
     "version": "${CC_VERSION}",
     "installed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+    "platform": "${CC_PLATFORM}",
     "project": "${CC_PROJECT_NAME}",
     "language": "${CC_LANGUAGE}",
     "database": "${CC_DATABASE:-none}",
@@ -803,7 +709,7 @@ info "Wrote version manifest: ${VERSION_FILE}"
 # ---- Make all scripts executable ----
 header "Setting permissions"
 
-find "${CLAUDE_DIR}/hooks" -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
+find "${CC_INSTALL_DIR}/hooks" -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
 if [ "${CC_ENABLE_CICD:-false}" = "true" ]; then
     find "${PROJECT_DIR}/cicd/scripts" -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
 fi
@@ -811,7 +717,7 @@ info "Made all shell scripts executable."
 
 # ---- Ensure .gitignore covers runtime files ----
 GITIGNORE="${PROJECT_DIR}/.gitignore"
-SECURITY_LOG_PATTERN=".claude/cognitive-core/security.log"
+SECURITY_LOG_PATTERN="${_ADAPTER_INSTALL_DIR}/cognitive-core/security.log"
 if [ -f "$GITIGNORE" ]; then
     # Check if security.log is already covered (exact entry or *.log glob)
     if ! grep -qE "^\*\.log$|${SECURITY_LOG_PATTERN//./\\.}" "$GITIGNORE" 2>/dev/null; then
@@ -823,11 +729,15 @@ else
     info "Created .gitignore with ${SECURITY_LOG_PATTERN}"
 fi
 
+# ---- Adapter post-install ----
+_adapter_post_install "$PROJECT_DIR"
+
 # ---- Summary ----
 header "Installation complete"
 
 echo ""
 printf "${BOLD}Installed components:${RESET}\n"
+printf "  Platform:  %s\n" "${CC_PLATFORM}"
 printf "  Hooks:    %s\n" "${CC_HOOKS:-none}"
 printf "  Agents:   %s\n" "${CC_AGENTS:-none}"
 printf "  Skills:   %s\n" "${CC_SKILLS:-none}"
@@ -839,18 +749,22 @@ echo ""
 
 header "Next steps"
 echo ""
-echo "  1. Review and customize CLAUDE.md for your project"
-echo "  2. Review .claude/settings.json hook configuration"
-echo "  3. Review .claude/AGENTS_README.md for agent team documentation"
+if [ "$CC_PLATFORM" = "aider" ]; then
+    echo "  1. Review and customize CONVENTIONS.md for your project"
+else
+    echo "  1. Review and customize CLAUDE.md for your project"
+fi
+echo "  2. Review ${_ADAPTER_INSTALL_DIR}/settings hook configuration"
+echo "  3. Review ${_ADAPTER_INSTALL_DIR}/AGENTS_README.md for agent team documentation"
 echo "  4. Run context health check:"
-printf "     ${CYAN}bash .claude/cognitive-core/health-check.sh${RESET}\n"
-echo "  5. Commit the .claude/ directory and CLAUDE.md to git:"
+printf "     ${CYAN}bash ${_ADAPTER_INSTALL_DIR}/cognitive-core/health-check.sh${RESET}\n"
+echo "  5. Commit the ${_ADAPTER_INSTALL_DIR}/ directory to git:"
 echo ""
-printf "     ${CYAN}git add .claude/ CLAUDE.md cognitive-core.conf${RESET}\n"
+printf "     ${CYAN}git add ${_ADAPTER_INSTALL_DIR}/ cognitive-core.conf${RESET}\n"
 printf "     ${CYAN}git commit -m \"chore: install cognitive-core v${CC_VERSION}\"${RESET}\n"
 echo ""
 echo "  6. (Optional) Set up weekly context cleanup cron:"
-printf "     ${CYAN}bash .claude/cognitive-core/context-cleanup.sh --setup-cron${RESET}\n"
+printf "     ${CYAN}bash ${_ADAPTER_INSTALL_DIR}/cognitive-core/context-cleanup.sh --setup-cron${RESET}\n"
 echo ""
 if [ "${CC_ENABLE_CICD:-false}" = "true" ]; then
     echo "  4. Copy and configure cicd/monitoring/.env.template:"
