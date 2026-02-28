@@ -1,0 +1,16 @@
+{
+    "version": "1.0.0",
+    "installed_at": "2026-02-28T21:23:40Z",
+    "platform": "claude",
+    "project": "cognitive-core",
+    "language": "python",
+    "database": "none",
+    "architecture": "layered",
+    "agents": "coordinator reviewer architect tester researcher security-analyst skill-updater",
+    "skills": "session-resume skill-sync code-review pre-commit fitness project-status project-board acceptance-verification security-baseline lint-debt tech-intel workspace-monitor",
+    "hooks": "setup-env compact-reminder validate-bash validate-read validate-fetch validate-write post-edit-lint",
+    "cicd": false,
+    "monitoring": false,
+    "source": "/Users/pewo/workspace/cognitive-core",
+    "files": []
+}
