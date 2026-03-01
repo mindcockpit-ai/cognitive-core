@@ -43,6 +43,32 @@ Provide a structured review with:
 - **Positive Observations**: What was done correctly
 - **Action Items**: Prioritized list of changes
 
+## PR Review Mode
+
+When invoked for PR review, the agent can post reviews directly to GitHub using a configured GitHub App identity. Reviews appear as `your-app-name[bot]` — a separate identity from the developer.
+
+### Posting PR Reviews
+
+If the project has `CC_REVIEWER_APP_ENABLED="true"` in cognitive-core.conf:
+
+1. Generate token: `TOKEN=$(core/utilities/github-app-token.sh)`
+2. Post review via GitHub API:
+   ```bash
+   curl -s -X POST \
+     -H "Authorization: token $TOKEN" \
+     -H "Accept: application/vnd.github+json" \
+     "https://api.github.com/repos/{owner}/{repo}/pulls/{pr}/reviews" \
+     -d '{"event":"APPROVE|REQUEST_CHANGES|COMMENT","body":"Review content"}'
+   ```
+
+### Review Events
+
+- **APPROVE**: All checks pass, no blocking issues found
+- **REQUEST_CHANGES**: Blocking issues that must be fixed before merge
+- **COMMENT**: Non-blocking observations and recommendations
+
+See `docs/GITHUB_APP_REVIEWER.md` for setup instructions.
+
 ## When NOT to Use This Agent
 
 - Writing new code (review happens AFTER)

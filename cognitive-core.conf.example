@@ -137,6 +137,15 @@ CC_BRANCH_SLUG_MAX_LENGTH="40"
 # Matching is first-wins. Default type used if no match.
 CC_BRANCH_LABEL_MAP="bug=fix|enhancement=feature|documentation=docs"
 
+# ===== PR REVIEW APP (optional) =====
+# GitHub App for automated PR reviews (separate identity from developer)
+# App setup guide: docs/GITHUB_APP_REVIEWER.md
+CC_REVIEWER_APP_ENABLED="false"
+# Path to reviewer app config JSON (contains app_id, installation IDs)
+CC_REVIEWER_APP_CONFIG="${HOME}/.config/github/reviewer-app.json"
+# Path to private key PEM file
+CC_REVIEWER_APP_PEM="${HOME}/.config/github/reviewer-app.pem"
+
 # ===== CI/CD =====
 # Install CI/CD pipeline: true|false
 CC_ENABLE_CICD="true"

@@ -223,3 +223,9 @@ bash cicd/scripts/push-metrics.sh push_test_results --project myapp --total 150 
 ```
 
 All metrics use gauge semantics (absolute values, not counters) and are pushed via HTTP PUT to replace the previous value for each grouping key.
+
+## Automated PR Reviews
+
+For projects using branch protection with required reviews, a GitHub App can be configured to let the `code-standards-reviewer` agent post reviews as a separate identity. This enables automated approvals that satisfy branch protection requirements.
+
+See [GitHub App Reviewer Guide](GITHUB_APP_REVIEWER.md) for setup instructions.

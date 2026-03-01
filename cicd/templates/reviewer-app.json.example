@@ -1,0 +1,10 @@
+{
+    "app_id": "YOUR_APP_ID",
+    "client_id": "YOUR_CLIENT_ID",
+    "app_name": "your-reviewer-app",
+    "default_installation_id": "YOUR_INSTALLATION_ID",
+    "installations": {
+        "your-org": "INSTALLATION_ID_FOR_ORG",
+        "your-user": "INSTALLATION_ID_FOR_USER"
+    }
+}
