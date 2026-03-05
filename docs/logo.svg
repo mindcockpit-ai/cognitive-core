@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#020617" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#c084fc"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="64" fill="#020617"/>
+
+  <!-- Glow effect -->
+  <circle cx="256" cy="256" r="200" fill="url(#glow)"/>
+
+  <!-- Outer ring -->
+  <circle cx="256" cy="256" r="180" fill="none" stroke="url(#accent)" stroke-width="3" opacity="0.3"/>
+
+  <!-- Middle ring -->
+  <circle cx="256" cy="256" r="120" fill="none" stroke="url(#accent)" stroke-width="4" opacity="0.6"/>
+
+  <!-- Inner ring -->
+  <circle cx="256" cy="256" r="60" fill="none" stroke="#38bdf8" stroke-width="5"/>
+
+  <!-- Center dot -->
+  <circle cx="256" cy="256" r="18" fill="#38bdf8"/>
+
+  <!-- Cardinal lines (core to outer) -->
+  <line x1="256" y1="76" x2="256" y2="196" stroke="#38bdf8" stroke-width="2.5" opacity="0.5"/>
+  <line x1="256" y1="316" x2="256" y2="436" stroke="#38bdf8" stroke-width="2.5" opacity="0.5"/>
+  <line x1="76" y1="256" x2="196" y2="256" stroke="#38bdf8" stroke-width="2.5" opacity="0.5"/>
+  <line x1="316" y1="256" x2="436" y2="256" stroke="#38bdf8" stroke-width="2.5" opacity="0.5"/>
+
+  <!-- Diagonal lines (subtle) -->
+  <line x1="131" y1="131" x2="213" y2="213" stroke="#818cf8" stroke-width="1.5" opacity="0.25"/>
+  <line x1="299" y1="299" x2="381" y2="381" stroke="#818cf8" stroke-width="1.5" opacity="0.25"/>
+  <line x1="381" y1="131" x2="299" y2="213" stroke="#818cf8" stroke-width="1.5" opacity="0.25"/>
+  <line x1="213" y1="299" x2="131" y2="381" stroke="#818cf8" stroke-width="1.5" opacity="0.25"/>
+
+  <!-- Node dots on outer ring -->
+  <circle cx="256" cy="76" r="5" fill="#38bdf8" opacity="0.7"/>
+  <circle cx="256" cy="436" r="5" fill="#38bdf8" opacity="0.7"/>
+  <circle cx="76" cy="256" r="5" fill="#38bdf8" opacity="0.7"/>
+  <circle cx="436" cy="256" r="5" fill="#38bdf8" opacity="0.7"/>
+
+  <!-- Node dots on diagonal intersections -->
+  <circle cx="131" cy="131" r="4" fill="#818cf8" opacity="0.4"/>
+  <circle cx="381" cy="131" r="4" fill="#818cf8" opacity="0.4"/>
+  <circle cx="131" cy="381" r="4" fill="#818cf8" opacity="0.4"/>
+  <circle cx="381" cy="381" r="4" fill="#818cf8" opacity="0.4"/>
+</svg>

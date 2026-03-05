@@ -1,10 +1,16 @@
-# cognitive-core
+<p align="center">
+  <img src="docs/logo-256.png" alt="cognitive-core logo" width="128"/>
+</p>
 
-[![Website](https://img.shields.io/badge/website-multivac42.ai-38bdf8?style=flat-square)](https://multivac42.ai)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
-[![GitHub](https://img.shields.io/github/stars/mindcockpit-ai/cognitive-core?style=flat-square)](https://github.com/mindcockpit-ai/cognitive-core)
+<h1 align="center">cognitive-core</h1>
 
-A portable framework that installs production-grade hooks, agents, skills, CI/CD pipelines, and monitoring into any Claude Code project in under 60 seconds.
+<p align="center">
+  <a href="https://multivac42.ai"><img src="https://img.shields.io/badge/website-multivac42.ai-38bdf8?style=flat-square" alt="Website"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License: MIT"/></a>
+  <a href="https://github.com/mindcockpit-ai/cognitive-core"><img src="https://img.shields.io/github/stars/mindcockpit-ai/cognitive-core?style=flat-square" alt="GitHub Stars"/></a>
+</p>
+
+<p align="center">A portable framework that installs production-grade hooks, agents, skills, CI/CD pipelines, and monitoring into any Claude Code project in under 60 seconds.</p>
 
 ## Feature Highlights
 
