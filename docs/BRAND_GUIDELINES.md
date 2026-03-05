@@ -112,22 +112,122 @@ Tailwind class: `font-mono`
 
 ## Brand Assets
 
+### Visual Assets
+
 | Asset | Path | Format | Dimensions |
 |-------|------|--------|------------|
-| Favicon | `public/favicon.svg` | SVG | Square |
-| OG Image | `public/og-image.svg` | SVG | 1200x630 |
+| Logo (SVG) | `docs/logo.svg` | SVG | 512×512 |
+| Logo (PNG) | `docs/logo-256.png` | PNG | 256×256 |
+| Favicon | multivac42.ai `public/favicon.svg` | SVG | 32×32 |
+| Logo PNGs | multivac42.ai `public/logo-{128,256,512}.png` | PNG | Various |
+| OG Image | multivac42.ai `public/og-image.svg` | SVG | 1200×630 |
+
+### Logo Design
+
+Nested concentric squares with a center dot and cardinal direction lines. Represents a cognitive framework — layered structure radiating outward from a core intelligence point.
+
+- Background: `#020617` (slate-950) with rounded corners
+- Outer square: sky→indigo→purple gradient stroke, 0.3 opacity
+- Middle square: same gradient stroke, 0.6 opacity
+- Inner square: `#38bdf8` (sky-400) solid stroke
+- Center dot: `#38bdf8` (sky-400) solid fill
+- Cardinal lines: sky-400, 50% opacity
+- Diagonal lines: `#818cf8` (indigo), 25% opacity
+- Node dots: sky-400 on edges, indigo on corners
 
 ### Favicon Design
 
-Concentric circles with a center dot and cardinal direction lines. Represents a network node — cognitive-core as the center point with directional vectors.
-
-- Background circle: `#0f172a` (slate-900)
-- Strokes: `#38bdf8` (sky-400)
-- Lines at 50% opacity for depth
+Simplified version of the logo at 32×32. Same nested squares design with gradient strokes, center dot, cardinal lines, and corner nodes.
 
 ### OG Image Design
 
 Dark background with subtle grid pattern, central radial glow, gradient text title, and stat boxes (agents, skills, languages, hooks).
+
+## Terminal Branding (ASCII Art)
+
+All terminal output uses the branded ASCII art from `core/brand.sh`. Source this file in any script, hook, skill, or agent for consistent branding.
+
+### Full Banner (`_cc_banner`)
+
+Used in: `install.sh`, `update.sh`, first-run experience.
+
+```
+    ┌─────────────────────────┐
+    │   ┌─────────────────┐   │
+    │   │   ┌─────────┐   │   │
+    │   │   │   ┌─┐   │   │   │
+    │───│───│───│•│───│───│───│
+    │   │   │   └─┘   │   │   │
+    │   │   └─────────┘   │   │
+    │   └─────────────────┘   │
+    └─────────────────────────┘
+    c o g n i t i v e - c o r e  v1.0.0
+    AI-native development framework
+```
+
+Box-drawing characters form nested squares mirroring the SVG logo. The center `•` represents the core node. Cardinal lines (`───`) extend through all layers representing cross-cutting framework capabilities.
+
+### Compact Banner (`_cc_banner_compact`)
+
+Used in: skill headers, agent startup, hook output, log prefixes.
+
+```
+◻ ◻ ◻ • cognitive-core v1.0.0
+```
+
+Three unicode squares (outer→inner) plus the center dot glyph. Minimal footprint, instant brand recognition.
+
+### Section Divider (`_cc_divider`)
+
+```
+──── Section Name ────
+```
+
+### Status Symbols
+
+| Symbol | Function | Meaning |
+|--------|----------|---------|
+| `[+]` | `_cc_info` | Success / progress (green) |
+| `[!]` | `_cc_warn` | Warning (yellow) |
+| `[x]` | `_cc_err` | Error (red, to stderr) |
+| `===` | `_cc_header` | Section header (bold cyan) |
+
+### Usage in Scripts
+
+```bash
+#!/bin/bash
+source "$(dirname "$0")/core/brand.sh"
+
+_cc_banner                         # full logo on startup
+_cc_header "Installing hooks"
+_cc_info "validate-bash.sh installed"
+_cc_info "validate-read.sh installed"
+_cc_divider "Summary"
+_cc_info "Done. 8 hooks installed."
+```
+
+### Usage in Skills / Hooks
+
+```bash
+source "${CC_FRAMEWORK_DIR}/core/brand.sh"
+
+_cc_banner_compact                 # one-liner for lighter output
+_cc_divider "Workspace Scan"
+_cc_info "Scanning 12 projects..."
+```
+
+### Color Mapping (ANSI)
+
+| Brand Color | ANSI Code | Terminal | Used for |
+|-------------|-----------|---------|----------|
+| Sky-400 | `\033[0;36m` | Cyan | Logo, headers, dividers |
+| Indigo | `\033[0;34m` | Blue | Compact banner squares |
+| Purple | `\033[0;35m` | Purple | Version string, compact squares |
+| Green | `\033[0;32m` | Green | `[+]` success |
+| Yellow | `\033[0;33m` | Yellow | `[!]` warning |
+| Red | `\033[0;31m` | Red | `[x]` error |
+
+All colors are tty-aware — when output is piped or redirected, plain text is emitted for clean log files.
 
 ## Buttons
 
