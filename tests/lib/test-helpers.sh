@@ -8,6 +8,8 @@ _TEST_PASS=0
 _TEST_FAIL=0
 _TEST_SKIP=0
 _TEST_SUITE=""
+_JUNIT_CASES=""
+_JUNIT_DIR="${JUNIT_REPORT_DIR:-}"
 
 # ---- Colors ----
 _GREEN='\033[0;32m'
@@ -29,16 +31,56 @@ suite_end() {
     local total=$((_TEST_PASS + _TEST_FAIL + _TEST_SKIP))
     printf "\n${_BOLD}Results:${_RESET} %d passed, %d failed, %d skipped (of %d)\n" \
         "$_TEST_PASS" "$_TEST_FAIL" "$_TEST_SKIP" "$total"
+
+    # Write JUnit XML if JUNIT_REPORT_DIR is set
+    if [ -n "$_JUNIT_DIR" ]; then
+        mkdir -p "$_JUNIT_DIR"
+        local safe_name
+        safe_name=$(echo "$_TEST_SUITE" | sed 's/[^a-zA-Z0-9_-]/_/g')
+        local xml_file="${_JUNIT_DIR}/${safe_name}.xml"
+        cat > "$xml_file" <<XMLEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="${_TEST_SUITE}" tests="${total}" failures="${_TEST_FAIL}" skipped="${_TEST_SKIP}">
+${_JUNIT_CASES}
+</testsuite>
+XMLEOF
+    fi
+
     if [ "$_TEST_FAIL" -gt 0 ]; then
         return 1
     fi
     return 0
 }
 
+# ---- JUnit XML helper ----
+_xml_escape() {
+    printf '%s' "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g'
+}
+
+_junit_case() {
+    local name="$1" result="$2" message="$3"
+    local esc_name
+    esc_name=$(_xml_escape "$name")
+    case "$result" in
+        pass)
+            _JUNIT_CASES="${_JUNIT_CASES}  <testcase name=\"${esc_name}\" classname=\"${_TEST_SUITE}\"/>"$'\n'
+            ;;
+        fail)
+            local esc_msg
+            esc_msg=$(_xml_escape "$message")
+            _JUNIT_CASES="${_JUNIT_CASES}  <testcase name=\"${esc_name}\" classname=\"${_TEST_SUITE}\"><failure message=\"${esc_msg}\"/></testcase>"$'\n'
+            ;;
+        skip)
+            _JUNIT_CASES="${_JUNIT_CASES}  <testcase name=\"${esc_name}\" classname=\"${_TEST_SUITE}\"><skipped/></testcase>"$'\n'
+            ;;
+    esac
+}
+
 # ---- Assertions ----
 _pass() {
     _TEST_PASS=$((_TEST_PASS + 1))
     printf "  ${_GREEN}PASS${_RESET} %s\n" "$1"
+    _junit_case "$1" "pass" ""
 }
 
 _fail() {
@@ -47,11 +89,13 @@ _fail() {
     if [ -n "${2:-}" ]; then
         printf "       %s\n" "$2"
     fi
+    _junit_case "$1" "fail" "${2:-}"
 }
 
 _skip() {
     _TEST_SKIP=$((_TEST_SKIP + 1))
     printf "  ${_YELLOW}SKIP${_RESET} %s\n" "$1"
+    _junit_case "$1" "skip" ""
 }
 
 assert_eq() {
