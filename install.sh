@@ -14,18 +14,18 @@ set -euo pipefail
 # ---- Constants ----
 CC_VERSION="1.0.0"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BOLD='\033[1m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-RED='\033[0;31m'
-CYAN='\033[0;36m'
-RESET='\033[0m'
 
-# ---- Helpers ----
-info()  { printf "${GREEN}[+]${RESET} %s\n" "$*"; }
-warn()  { printf "${YELLOW}[!]${RESET} %s\n" "$*"; }
-err()   { printf "${RED}[x]${RESET} %s\n" "$*" >&2; }
-header(){ printf "\n${BOLD}${CYAN}=== %s ===${RESET}\n" "$*"; }
+# ---- Branding (colors, banners, status helpers) ----
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/core/brand.sh"
+
+# Legacy aliases — existing code uses short names
+BOLD="${_CC_BOLD}" GREEN="${_CC_GREEN}" YELLOW="${_CC_YELLOW}"
+RED="${_CC_RED}" CYAN="${_CC_CYAN}" RESET="${_CC_RESET}"
+info()  { _cc_info "$@"; }
+warn()  { _cc_warn "$@"; }
+err()   { _cc_err "$@"; }
+header(){ _cc_header "$@"; }
 
 prompt_default() {
     local var_name="$1" prompt_text="$2" default="$3"
@@ -70,7 +70,7 @@ PROJECT_DIR="$(cd "$PROJECT_DIR" 2>/dev/null && pwd)" || {
     exit 1
 }
 
-header "cognitive-core installer v${CC_VERSION}"
+_cc_banner
 info "Project directory: ${PROJECT_DIR}"
 
 # ---- Verify git repo ----

@@ -11,17 +11,17 @@ set -euo pipefail
 
 # ---- Constants ----
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BOLD='\033[1m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-RED='\033[0;31m'
-CYAN='\033[0;36m'
-RESET='\033[0m'
 
-info()  { printf "${GREEN}[+]${RESET} %s\n" "$*"; }
-warn()  { printf "${YELLOW}[!]${RESET} %s\n" "$*"; }
-err()   { printf "${RED}[x]${RESET} %s\n" "$*" >&2; }
-header(){ printf "\n${BOLD}${CYAN}=== %s ===${RESET}\n" "$*"; }
+# ---- Branding (colors, banners, status helpers) ----
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/core/brand.sh"
+
+# Legacy aliases — existing code uses short names and direct color vars
+BOLD="${_CC_BOLD}" CYAN="${_CC_CYAN}" RESET="${_CC_RESET}"
+info()  { _cc_info "$@"; }
+warn()  { _cc_warn "$@"; }
+err()   { _cc_err "$@"; }
+header(){ _cc_header "$@"; }
 
 # ---- Resolve project directory ----
 PROJECT_DIR="${1:-$(pwd)}"
@@ -33,7 +33,7 @@ PROJECT_DIR="$(cd "$PROJECT_DIR" 2>/dev/null && pwd)" || {
 CLAUDE_DIR="${PROJECT_DIR}/.claude"
 VERSION_FILE="${CLAUDE_DIR}/cognitive-core/version.json"
 
-header "cognitive-core updater"
+_cc_banner_compact
 info "Project: ${PROJECT_DIR}"
 
 # ---- Read current version manifest ----
