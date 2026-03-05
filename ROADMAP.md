@@ -51,8 +51,7 @@ A biomimetic, vendor-agnostic skill framework for AI agents that mirrors biologi
 |---------|-------------|----------|
 | Skill Composition | Automatic skill chaining | High |
 | Multi-Agent Orchestration | Coordinate multiple AI agents | High |
-| Learning System | Skills that improve from feedback | Medium |
-| Memory Integration | Long-term context management | Medium |
+| **Agent Learning Framework** | Shared knowledge digest, reflection hook, Letta-inspired skill learning ([#32](https://github.com/mindcockpit-ai/cognitive-core/issues/32)) — [RFC](https://github.com/wolaschka/dev-notes/blob/main/workspace/reports/2026-03-05-cognitive-core-agent-learning-proposal.md) | **High** |
 
 ---
 
@@ -151,4 +150,4 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to contribute to the roadmap.
 
 ---
 
-*Last updated: February 2026*
+*Last updated: March 2026*
