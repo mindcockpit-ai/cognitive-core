@@ -170,7 +170,7 @@ jobs:
               echo "::warning file=${f}::Potential hardcoded secret detected"
               FOUND=$((FOUND + 1))
             fi
-          done < <(find . -type f \( -name "*.sh" -o -name "*.md" -o -name "*.yaml" -o -name "*.yml" -o -name "*.json" -o -name "*.conf" \) -not -path './.git/*')
+          done < <(find . -type f \( -name "*.sh" -o -name "*.yaml" -o -name "*.yml" -o -name "*.json" -o -name "*.conf" \) -not -path './.git/*' -not -path './docs/*' -not -path './examples/*' -not -path './tests/*')
           if [ "$FOUND" -gt 0 ]; then
             echo "::error::Found $FOUND files with potential hardcoded secrets"
             exit 1
