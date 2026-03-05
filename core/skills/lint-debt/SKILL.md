@@ -1,3 +1,8 @@
+---
+name: lint-debt
+description: Track, audit, and create GitHub issues for lint suppression comments across your codebase. Ensures every lint bypass has a corresponding tracking issue.
+---
+
 # Lint Debt Tracker — Suppression Audit & GitHub Issue Sync
 
 Track, audit, and create GitHub issues for lint suppression comments across your codebase.

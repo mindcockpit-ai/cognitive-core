@@ -217,6 +217,7 @@ else
     CC_FITNESS_DEPLOY="${CC_FITNESS_DEPLOY:-95}"
     CC_RUNNER_NODES="${CC_RUNNER_NODES:-1}"
     CC_RUNNER_LABELS="${CC_RUNNER_LABELS:-self-hosted,linux,docker}"
+    # shellcheck disable=SC2034
     CC_AGENT_TEAMS="false"
     # shellcheck disable=SC2034
     CC_MCP_SERVERS="context7"
@@ -311,7 +312,7 @@ if [ ! -f "${SCRIPT_DIR}/adapters/_adapter-lib.sh" ]; then
 fi
 if [ ! -f "${ADAPTER_DIR}/adapter.sh" ]; then
     err "Adapter not found for platform '${CC_PLATFORM}': ${ADAPTER_DIR}/adapter.sh"
-    err "Available adapters: $(ls -1 "${SCRIPT_DIR}/adapters/" | grep -v '^_' | grep -v '\.yaml$' | grep -v '\.sh$' | tr '\n' ' ')"
+    err "Available adapters: $(find "${SCRIPT_DIR}/adapters/" -mindepth 1 -maxdepth 1 -type d -not -name '_*' -exec basename {} \; | tr '\n' ' ')"
     exit 1
 fi
 # shellcheck disable=SC1091
