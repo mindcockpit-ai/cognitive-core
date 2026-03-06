@@ -1,0 +1,140 @@
+# cognitive-core tool mapping: IntelliJ + Local LLM
+# ==================================================
+# Maps cognitive-core capabilities to IntelliJ plugin equivalents.
+# Three-layer integration: convention file, MCP server, future ACP agent.
+
+adapter: intellij
+platform: "IntelliJ IDEA + Local LLM (DevoxxGenie / Continue.dev / Cline)"
+install_dir: ".cognitive-core"
+project_readme: "DEVOXXGENIE.md"
+
+capabilities:
+  file_read:
+    tool: "IDE native / MCP cc_project_info"
+    native: true
+    description: "IntelliJ has full file system access; MCP adds project-aware reads"
+
+  file_write:
+    tool: "IDE native"
+    native: true
+    description: "LLM plugins apply edits via IDE's file system"
+
+  file_edit:
+    tool: "IDE native"
+    native: true
+    description: "Diff-based editing through LLM plugin (DevoxxGenie, Continue)"
+
+  shell_execute:
+    tool: "IDE terminal / MCP cc_lint_check"
+    native: true
+    description: "IntelliJ has integrated terminal; MCP wraps lint/test commands"
+
+  web_search:
+    tool: null
+    native: false
+    description: "Not natively supported — user must provide web content"
+
+  web_fetch:
+    tool: null
+    native: false
+    description: "Not natively supported by most LLM plugins"
+
+  file_glob:
+    tool: "IDE native"
+    native: true
+    description: "IntelliJ has project-wide file search"
+
+  file_grep:
+    tool: "IDE native"
+    native: true
+    description: "IntelliJ has project-wide text search"
+
+  agent_delegation:
+    tool: "MCP cc_agent_context"
+    native: false
+    translation: "Agent .md files loaded as read-only context; MCP provides agent lookup"
+    description: "No sub-agent delegation; agents serve as guidelines via context + MCP"
+
+  mcp_servers:
+    native: true
+    description: "DevoxxGenie 1.0+, Continue.dev, and Cline support MCP via stdio transport"
+
+hooks:
+  pre_tool_use:
+    native: false
+    mechanism: "DEVOXXGENIE.md safety rules + MCP cc_security_validate"
+    translation: >
+      Safety patterns from validate-bash.sh are converted to DEVOXXGENIE.md rules
+      (Layer 1). The MCP server provides programmatic validation via
+      cc_security_validate tool (Layer 2).
+    limitations:
+      - "Layer 1 convention-based only — LLM may not always follow"
+      - "Layer 2 MCP requires plugin that supports tool use before execution"
+
+  post_tool_use:
+    native: false
+    mechanism: "MCP cc_lint_check"
+    translation: >
+      post-edit-lint translated to MCP tool call. Plugins that support
+      auto-tool-invocation can call cc_lint_check after edits.
+
+  session_start:
+    native: false
+    mechanism: "DEVOXXGENIE.md as context file"
+    translation: >
+      DevoxxGenie loads DEVOXXGENIE.md as project context on every chat.
+      No separate launcher script needed — IDE plugin handles session lifecycle.
+
+  notification:
+    native: false
+    description: "IntelliJ plugins have no compaction/notification system"
+
+skills:
+  invocation: null
+  native: false
+  translation: "Skill docs loaded as read-only context for manual reference"
+
+agents:
+  definition: ".cognitive-core/agents/<name>.md"
+  delegation: "MCP cc_agent_context"
+  native: false
+  translation: "Agent docs via context + MCP cc_agent_context tool for retrieval"
+
+# IntelliJ-specific configuration
+intellij_config:
+  supported_plugins:
+    - name: "DevoxxGenie"
+      version: "1.0+"
+      mcp_support: true
+      context_file: "DEVOXXGENIE.md"
+      url: "https://plugins.jetbrains.com/plugin/23436-devoxxgenie"
+
+    - name: "Continue.dev"
+      version: "latest"
+      mcp_support: true
+      context_file: ".continue/config.json"
+      url: "https://continue.dev"
+
+    - name: "Cline"
+      version: "latest"
+      mcp_support: true
+      context_file: ".cline/config.json"
+      url: "https://cline.bot"
+
+  model_config:
+    description: "Local LLM configuration via Ollama"
+    settings:
+      - "provider: ollama"
+      - "model: <model-name>"
+      - "ollama_url: http://localhost:11434"
+
+  safety_approach:
+    description: "Two-layer safety: convention + MCP"
+    strategy: "convention_plus_mcp"
+    details: >
+      Layer 1 (Convention): All safety rules from validate-bash.sh are extracted
+      into DEVOXXGENIE.md as explicit instructions. The LLM reads this file on
+      every interaction.
+      Layer 2 (MCP): The cc_security_validate MCP tool provides programmatic
+      command validation. Plugins supporting MCP tool use can validate commands
+      before execution.

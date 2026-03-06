@@ -1,0 +1,5 @@
+# cognitive-core MCP server dependencies
+# The server uses only Python stdlib — no external dependencies required.
+# If you want to use the official MCP SDK instead of the built-in protocol
+# handler, uncomment the line below:
+# mcp>=1.0.0

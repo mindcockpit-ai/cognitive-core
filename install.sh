@@ -103,9 +103,10 @@ fi
 # ---- Check existing installation ----
 # Derive install dir from platform for early check (adapter not loaded yet)
 case "$CC_PLATFORM" in
-    claude) _EARLY_INSTALL_DIR=".claude" ;;
-    aider)  _EARLY_INSTALL_DIR=".cognitive-core" ;;
-    *)      _EARLY_INSTALL_DIR=".claude" ;;
+    claude)    _EARLY_INSTALL_DIR=".claude" ;;
+    aider)     _EARLY_INSTALL_DIR=".cognitive-core" ;;
+    intellij)  _EARLY_INSTALL_DIR=".cognitive-core" ;;
+    *)         _EARLY_INSTALL_DIR=".claude" ;;
 esac
 VERSION_FILE="${PROJECT_DIR}/${_EARLY_INSTALL_DIR}/cognitive-core/version.json"
 if [ -f "$VERSION_FILE" ] && [ "$FORCE" = false ]; then
@@ -751,6 +752,9 @@ header "Next steps"
 echo ""
 if [ "$CC_PLATFORM" = "aider" ]; then
     echo "  1. Review and customize CONVENTIONS.md for your project"
+elif [ "$CC_PLATFORM" = "intellij" ]; then
+    echo "  1. Review and customize DEVOXXGENIE.md for your project"
+    echo "     Configure your IDE plugin to load DEVOXXGENIE.md as context"
 else
     echo "  1. Review and customize CLAUDE.md for your project"
 fi
