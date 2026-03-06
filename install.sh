@@ -19,9 +19,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/core/brand.sh"
 
-# Legacy aliases — existing code uses short names
-BOLD="${_CC_BOLD}" GREEN="${_CC_GREEN}" YELLOW="${_CC_YELLOW}"
-RED="${_CC_RED}" CYAN="${_CC_CYAN}" RESET="${_CC_RESET}"
+# Legacy aliases — prompt_default/prompt_choice use these directly
+BOLD="${_CC_BOLD}" CYAN="${_CC_CYAN}" RESET="${_CC_RESET}"
 info()  { _cc_info "$@"; }
 warn()  { _cc_warn "$@"; }
 err()   { _cc_err "$@"; }
