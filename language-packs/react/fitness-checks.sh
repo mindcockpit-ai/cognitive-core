@@ -2,7 +2,7 @@
 # cognitive-core language pack: React/TypeScript fitness checks
 # Called by the fitness-check framework. Outputs: SCORE DESCRIPTION
 # Checks React-specific quality patterns and legacy anti-patterns.
-set -euo pipefail
+set -u
 
 PROJECT_DIR="${1:-.}"
 SRC_DIR="$PROJECT_DIR/src"
@@ -76,7 +76,7 @@ CONSOLE_COUNT=$(grep -rn 'console\.\(log\|debug\|info\)' "$SRC_DIR" --include="*
 add_check "No console.log in prod" "$( [ "$CONSOLE_COUNT" -eq 0 ] && echo 1 || echo 0 )" "${CONSOLE_COUNT} console statements"
 
 # --- Check 11: No barrel files (index.ts re-exports) ---
-BARREL_COUNT=$(find "$SRC_DIR" -name "index.ts" -o -name "index.tsx" -o -name "index.js" -o -name "index.jsx" 2>/dev/null | grep -v 'node_modules' | xargs grep -l 'export.*from\|export {' 2>/dev/null | wc -l | tr -d ' ')
+BARREL_COUNT=$(find "$SRC_DIR" \( -name "index.ts" -o -name "index.tsx" -o -name "index.js" -o -name "index.jsx" \) ! -path "*/node_modules/*" -print0 2>/dev/null | xargs -0 grep -l 'export.*from\|export {' 2>/dev/null | wc -l | tr -d ' ')
 add_check "No barrel files" "$( [ "$BARREL_COUNT" -le 1 ] && echo 1 || echo 0 )" "${BARREL_COUNT} barrel index files"
 
 # --- Check 12: No inline styles ---
@@ -96,7 +96,8 @@ fi
 
 # --- Check 14: TypeScript strict mode enabled ---
 if [ -f "$PROJECT_DIR/tsconfig.json" ]; then
-    STRICT=$(grep -c '"strict":\s*true' "$PROJECT_DIR/tsconfig.json" 2>/dev/null || echo 0)
+    STRICT=$(grep -c '"strict":\s*true' "$PROJECT_DIR/tsconfig.json" 2>/dev/null || true)
+    STRICT=${STRICT:-0}
     add_check "TypeScript strict mode" "$( [ "$STRICT" -gt 0 ] && echo 1 || echo 0 )" "$([ "$STRICT" -eq 0 ] && echo 'strict not enabled')"
 else
     add_check "TypeScript strict mode" 0 "no tsconfig.json"
@@ -113,7 +114,8 @@ fi
 add_check "Test coverage >50% files" "$( [ "$TEST_RATIO" -ge 50 ] && echo 1 || echo 0 )" "${TEST_COUNT} tests / ${COMP_COUNT} components (${TEST_RATIO}%)"
 
 # --- Check 16: No Create React App (CRA) ---
-CRA=$(grep -c 'react-scripts' "$PROJECT_DIR/package.json" 2>/dev/null || echo 0)
+CRA=$(grep -c 'react-scripts' "$PROJECT_DIR/package.json" 2>/dev/null || true)
+CRA=${CRA:-0}
 add_check "No CRA (use Vite/Next)" "$( [ "$CRA" -eq 0 ] && echo 1 || echo 0 )" "$([ "$CRA" -gt 0 ] && echo 'react-scripts found in package.json')"
 
 # --- Check 17: No require() in TS/TSX ---
