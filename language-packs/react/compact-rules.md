@@ -10,3 +10,5 @@
 8. **Test Colocation**: Place `*.test.tsx` files next to their source component, not in a separate `__tests__` directory.
 9. **Error Boundaries + Suspense**: Every async data boundary needs both `<ErrorBoundary>` and `<Suspense>`. Never let errors propagate unhandled.
 10. **Accessibility**: All interactive elements must be keyboard-navigable. Use semantic HTML. Run eslint-plugin-jsx-a11y.
+11. **E2E Auth Bypass**: For Keycloak-protected apps, use two-layer bypass (addInitScript for XHR/WS + page.route for redirects). Capture PKCE nonce from localStorage.
+12. **E2E Fixture Completeness**: Apollo InMemoryCache requires `__typename` at every object level. Missing fields cause silent cascade failures across unrelated queries.
