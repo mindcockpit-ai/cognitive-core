@@ -143,12 +143,13 @@ else
     prompt_default CC_ORG "Organization/owner" "$(git -C "$PROJECT_DIR" config user.name 2>/dev/null || echo 'my-org')"
 
     # Language
-    prompt_choice CC_LANGUAGE "Primary language" "perl|python|node|react|java|go|rust|csharp" "python"
+    prompt_choice CC_LANGUAGE "Primary language" "perl|python|node|react|angular|java|go|rust|csharp" "python"
     case "$CC_LANGUAGE" in
         perl)   CC_LINT_EXTENSIONS=".pl .pm .t"; CC_LINT_COMMAND='perlcritic $1'; CC_TEST_COMMAND="prove -l t/"; CC_TEST_PATTERN="t/**/*.t" ;;
         python) CC_LINT_EXTENSIONS=".py .pyi"; CC_LINT_COMMAND='ruff check $1'; CC_TEST_COMMAND="pytest"; CC_TEST_PATTERN="tests/**/*.py" ;;
         node)   CC_LINT_EXTENSIONS=".js .ts .tsx"; CC_LINT_COMMAND='eslint $1'; CC_TEST_COMMAND="npm test"; CC_TEST_PATTERN="test/**/*.test.*" ;;
         react)  CC_LINT_EXTENSIONS=".js .ts .jsx .tsx .css .scss"; CC_LINT_COMMAND='npx eslint $1'; CC_TEST_COMMAND="npx vitest run"; CC_TEST_PATTERN="**/*.test.{ts,tsx,js,jsx}" ;;
+        angular) CC_LINT_EXTENSIONS=".ts .html .scss .css"; CC_LINT_COMMAND='npx ng lint'; CC_TEST_COMMAND="npx ng test --watch=false --browsers=ChromeHeadless"; CC_TEST_PATTERN="**/*.spec.ts" ;;
         java)   CC_LINT_EXTENSIONS=".java"; CC_LINT_COMMAND='checkstyle $1'; CC_TEST_COMMAND="mvn test"; CC_TEST_PATTERN="src/test/**/*.java" ;;
         go)     CC_LINT_EXTENSIONS=".go"; CC_LINT_COMMAND='golangci-lint run $1'; CC_TEST_COMMAND="go test ./..."; CC_TEST_PATTERN="**/*_test.go" ;;
         rust)   CC_LINT_EXTENSIONS=".rs"; CC_LINT_COMMAND='cargo clippy -- -D warnings'; CC_TEST_COMMAND="cargo test"; CC_TEST_PATTERN="tests/**/*.rs" ;;

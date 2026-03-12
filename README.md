@@ -14,9 +14,9 @@
 
 ## Feature Highlights
 
-- **Hooks** -- 8 event hooks: session startup, bash/read/write/fetch validation, post-edit linting, compaction reminders
-- **Agents** -- Hub-and-spoke team of 8 specialists (coordinator, architect, reviewer, tester, researcher, database, security, updater)
-- **Skills** -- 18 reusable skills from session-resume to secrets-setup, with language and database packs
+- **Hooks** -- 9 event hooks: session startup, bash/read/write/fetch validation, post-edit linting, compaction reminders, Angular version guard
+- **Agents** -- Hub-and-spoke team of 9 specialists (coordinator, architect, reviewer, tester, researcher, database, security, updater, Angular specialist)
+- **Skills** -- 19 reusable skills from session-resume to e2e-visual-regression, with language and database packs
 - **Secrets** -- 1Password / macOS Keychain backends with `secrets-run` injection, `secrets-store` CLI, and `secrets-setup` skill
 - **CI/CD** -- Evolutionary pipeline with fitness gates, self-hosted runner setup, GitHub Actions workflows
 - **Monitoring** -- Prometheus, Grafana dashboards, Alertmanager with Slack/email/PagerDuty
@@ -56,6 +56,7 @@ cognitive-core/                         Your project after install:
 |   |   +-- test-specialist.md------->    |   +-- test-specialist.md
 |   |   +-- research-analyst.md------>    |   +-- research-analyst.md
 |   |   +-- database-specialist.md--->    |   +-- database-specialist.md
+|   |   +-- angular-specialist.md---->    |   +-- angular-specialist.md
 |   +-- skills/                           +-- skills/
 |   |   +-- session-resume/ --------->    |   +-- session-resume/
 |   |   +-- code-review/   --------->    |   +-- code-review/
@@ -67,6 +68,7 @@ cognitive-core/                         Your project after install:
 +-- language-packs/                       |   +-- version.json
 |   +-- perl/, python/, node/             +-- AGENTS_README.md
 |   +-- java/, go/, rust/, csharp/    CLAUDE.md
+|   +-- react/, angular/
 +-- database-packs/                   cognitive-core.conf
 |   +-- oracle/, postgresql/, mysql/
 +-- cicd/
@@ -99,6 +101,7 @@ Live test results and component inventory from the latest build, visible at [mul
 | `validate-write.sh` | PostToolUse (Write/Edit) | Scans for hardcoded secrets (AWS keys, PEM, API tokens) |
 | `post-edit-lint.sh` | PostToolUse (Edit/Write) | Runs lint on every file edit automatically |
 | `compact-reminder.sh` | Notification (compact) | Re-injects critical rules after context compaction |
+| `angular-version-guard.sh` | PreToolUse (Bash) | Prevents Angular CLI version mismatches during migration |
 | `_lib.sh` | (shared) | Config loading, JSON output helpers for all hooks |
 
 ### Agents
@@ -113,6 +116,7 @@ Live test results and component inventory from the latest build, visible at [mul
 | database-specialist | opus | Query optimization, bulk operations, schema design |
 | security-analyst | opus | Vulnerability analysis, CTF methodology, forensics |
 | skill-updater | sonnet | Framework synchronization, component updates |
+| angular-specialist | sonnet | Angular migration (v18-21), patterns, and architecture |
 
 ### Skills
 
@@ -136,6 +140,7 @@ Live test results and component inventory from the latest build, visible at [mul
 | smoke-test | manual | Playwright endpoint smoke tests after deployment |
 | lint-debt | manual | Track and reduce lint debt across the codebase |
 | ctf-pentesting | manual | CTF challenge methodology and kill chain |
+| e2e-visual-regression | manual | E2E testing patterns with visual regression and Playwright |
 
 ## Configuration
 
@@ -144,7 +149,7 @@ All configuration lives in a single `cognitive-core.conf` file (shell syntax, so
 ```bash
 # Key configuration sections:
 CC_PROJECT_NAME="my-project"      # Project identity
-CC_LANGUAGE="python"               # perl|python|node|java|go|rust|csharp
+CC_LANGUAGE="python"               # perl|python|node|java|go|rust|csharp|react|angular
 CC_DATABASE="postgresql"           # oracle|postgresql|mysql|sqlite|none
 CC_ARCHITECTURE="ddd"             # ddd|mvc|clean|hexagonal|layered|none
 CC_AGENTS="coordinator reviewer"   # Which agents to install
@@ -162,13 +167,15 @@ Language packs add language-specific skills and patterns.
 
 | Language | Pack | Skills Included |
 |----------|------|-----------------|
-| Perl | `language-packs/perl/` | perl-patterns |
-| Python | `language-packs/python/` | python-patterns |
+| Perl | `language-packs/perl/` | perl-patterns, perl-messaging, perl-oracle |
+| Python | `language-packs/python/` | python-patterns, python-ddd, python-messaging |
 | Node.js | `language-packs/node/` | node-messaging |
 | Java | `language-packs/java/` | java-messaging |
 | Go | `language-packs/go/` | go-messaging |
 | Rust | `language-packs/rust/` | rust-messaging |
 | C# | `language-packs/csharp/` | csharp-messaging |
+| React | `language-packs/react/` | react-patterns, react-testing, react-migration, react-e2e-mocking |
+| Angular | `language-packs/angular/` | angular-patterns, angular-testing, angular-migration, angular-e2e-mocking |
 
 ### Database Packs
 
@@ -296,7 +303,7 @@ The [cognitive-core-marketplace](https://github.com/mindcockpit-ai/cognitive-cor
 
 ```
 core/           Framework core (hooks, agents, skills, templates, utilities)
-language-packs/ Language-specific extensions (perl, python, node, ...)
+language-packs/ Language-specific extensions (perl, python, node, java, go, rust, csharp, react, angular)
 database-packs/ Database-specific extensions (oracle, postgresql, mysql)
 cicd/           CI/CD pipeline (workflows, docker, scripts, monitoring, k8s)
 docs/           Framework documentation

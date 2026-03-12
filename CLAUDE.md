@@ -28,11 +28,12 @@ cognitive-core/
 │   ├── adapter-interface.yaml  # Abstract contract
 │   ├── _adapter-lib.sh      # Shared adapter library
 │   ├── claude/              # Claude Code identity adapter
-│   └── aider/               # Aider + Ollama adapter
-├── language-packs/          # Per-language configurations (7 languages)
+│   ├── aider/               # Aider + Ollama adapter
+│   └── intellij/            # IntelliJ IDEA adapter
+├── language-packs/          # Per-language configurations (9 languages)
 ├── database-packs/          # Per-database configurations (3 databases)
 ├── cicd/                    # CI/CD pipeline templates
-├── tests/                   # Test suites (10 suites, 268+ tests)
+├── tests/                   # Test suites (12 suites, 378+ tests)
 │   ├── suites/              # Individual test scripts
 │   └── lib/                 # Test helpers and assertions
 ├── install.sh               # Main installer (adapter-aware)
@@ -102,7 +103,7 @@ See `.claude/AGENTS_README.md` for the full agent team documentation.
 1. Check current branch and status
 2. Check project board: issues in **In Progress** column
 3. Implement changes following architecture patterns above
-4. Run tests: `bash tests/run-all.sh` (all 10 suites must pass)
+4. Run tests: `bash tests/run-all.sh` (all 12 suites must pass)
 5. Commit with conventional format: `type(scope): subject`
 6. Verify acceptance criteria on related issue
 
