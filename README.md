@@ -444,8 +444,9 @@ update.sh       Checksum-based updater
 1. Create `database-packs/<database>/skills/<skill-name>/SKILL.md`
 2. Test: `./install.sh /tmp/test --force` with `CC_DATABASE=<database>`
 
-## Links
+## Community
 
+- **Discussions**: [GitHub Discussions](https://github.com/mindcockpit-ai/cognitive-core/discussions) — questions, ideas, show & tell
 - **Website**: [multivac42.ai](https://multivac42.ai)
 - **GitHub**: [mindcockpit-ai/cognitive-core](https://github.com/mindcockpit-ai/cognitive-core)
 - **Docs**: [docs/](docs/)
