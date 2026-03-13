@@ -108,6 +108,89 @@ Which agents to install is controlled by `CC_AGENTS` in configuration.
 
 The **skill-updater** agent works with the `/skill-sync` skill to keep installed components synchronized with the framework source using checksum-based three-way merging (see `update.sh`).
 
+### Agent Teams Integration (Experimental)
+
+When `CC_AGENT_TEAMS=true`, the coordinator gains a second execution path: **Agent Teams** for parallel multi-agent work alongside the existing subagent delegation for sequential/isolated tasks.
+
+```
+              PROJECT-COORDINATOR (Hub)
+                       |
+         Routing: parallel? isolated?
+              /                  \
+    SUBAGENT PATH            TEAM PATH
+    (sequential)            (parallel)
+    - Full frontmatter      - /agent-team bridge
+    - Tool isolation        - Prompt-injected defs
+    - Single agent          - Sonnet teammates
+                            - /team-guard (3min)
+```
+
+The routing decision is based on task characteristics:
+
+| Characteristic | Path | Rationale |
+|---------------|------|-----------|
+| Single-domain, needs tool isolation | Subagent | Full frontmatter enforcement |
+| Multi-domain, parallelizable | Agent Team | True parallel saves wall-clock time |
+| Sequential dependency chain | Subagent | Teams add overhead for serial work |
+| Security analysis (read-only) | Subagent | Tool restrictions critical |
+
+### Agent Teams Frontmatter Fields
+
+Agent definitions support optional fields for team behavior. All are backward-compatible — agents without these fields continue to work as subagents.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `teamRole` | string | `null` | Role in team context: `lead`, `specialist`, `reviewer`, `observer` |
+| `teamModel` | string | `sonnet` | Model override when running as a teammate (Sonnet default for Max plan sustainability) |
+| `teamParallelizable` | boolean | `true` | Whether this agent's work can run in parallel with others |
+| `teamDependsOn` | list | `[]` | Agent types that must complete before this agent starts |
+| `teamPriority` | integer | `50` | Task claim priority (1=highest, 100=lowest) |
+| `teamMaxConcurrent` | integer | `1` | Maximum concurrent instances of this agent in a team |
+
+Example with team fields:
+
+```yaml
+---
+name: code-standards-reviewer
+description: Code review, standards compliance
+model: sonnet
+disallowedTools:
+  - WebFetch
+  - WebSearch
+teamRole: reviewer
+teamModel: sonnet
+teamParallelizable: false
+teamDependsOn:
+  - solution-architect
+  - test-specialist
+teamPriority: 90
+teamMaxConcurrent: 1
+---
+```
+
+This tells the bridge skill: run the reviewer last (priority 90), only after architect and tester finish (`teamDependsOn`), with a single instance (`teamMaxConcurrent: 1`).
+
+### Team Guard (`/team-guard`)
+
+A CronCreate-based watchdog skill that runs every `CC_TEAM_GUARD_INTERVAL` (default: 3 minutes) to monitor team health:
+
+- **Task age**: Detects tasks stuck beyond `CC_TEAM_STUCK_THRESHOLD` (default: 300s)
+- **Claim staleness**: Unclaims tasks held too long without progress
+- **Dependency cycles**: Detects and breaks circular dependencies
+- **Teammate responsiveness**: Pings unresponsive teammates
+- **Token budget**: Warns when approaching `CC_TEAM_TOKEN_BUDGET`
+
+Uses a two-strike circuit breaker: first breach warns, second consecutive breach takes corrective action.
+
+### Team Hooks
+
+| Event | Hook | Purpose |
+|-------|------|---------|
+| `TeammateIdle` | `teammate-idle.sh` | Assigns review/cleanup work to idle teammates |
+| `TaskCompleted` | `task-completed.sh` | Enforces quality gate before accepting results |
+
+Both hooks follow the standard JSON stdin/stdout protocol and source `_lib.sh`.
+
 ## Skill Hierarchy
 
 Skills are reusable knowledge modules installed to `.claude/skills/<name>/SKILL.md`.

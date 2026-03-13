@@ -173,10 +173,25 @@ CC_UPDATE_AUTO_CHECK="true"
 CC_UPDATE_CHECK_INTERVAL="7"
 
 # ===== EXPERIMENTAL =====
-# Enable Agent Teams: true|false
-CC_AGENT_TEAMS="false"
 # MCP servers (space-separated): context7
 CC_MCP_SERVERS="context7"
+
+# ===== AGENT TEAMS (EXPERIMENTAL) =====
+# Requires Claude Code v2.1.32+ with CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+# Master switch: true|false
+CC_AGENT_TEAMS="false"
+# Default model for teammates (Sonnet recommended — Opus gives ~10x fewer weekly hours on Max plan)
+CC_TEAM_DEFAULT_MODEL="sonnet"
+# Guard polling interval (CronCreate schedule, minimum 1m)
+CC_TEAM_GUARD_INTERVAL="3m"
+# Seconds before a task is considered stuck (used by /team-guard)
+CC_TEAM_STUCK_THRESHOLD="300"
+# Maximum teammates per team (each teammate is a full Claude session)
+CC_TEAM_MAX_TEAMMATES="5"
+# Token budget ceiling before cost warning (total across all teammates)
+CC_TEAM_TOKEN_BUDGET="1000000"
+# Fallback when Agent Teams unavailable: subagent|abort
+CC_TEAM_FALLBACK="subagent"
 
 # ===== WORKSPACE MONITOR =====
 # Log directories to scan (space-separated, relative to project root)

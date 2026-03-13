@@ -6,22 +6,65 @@
 
 <p align="center">
   <a href="https://multivac42.ai"><img src="https://img.shields.io/badge/website-multivac42.ai-38bdf8?style=flat-square" alt="Website"/></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License: MIT"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-FSL--1.1--ALv2-38bdf8?style=flat-square" alt="License: FSL-1.1-ALv2"/></a>
   <a href="https://github.com/mindcockpit-ai/cognitive-core"><img src="https://img.shields.io/github/stars/mindcockpit-ai/cognitive-core?style=flat-square" alt="GitHub Stars"/></a>
 </p>
 
 <p align="center">A portable framework that installs production-grade hooks, agents, skills, CI/CD pipelines, and monitoring into any Claude Code project in under 60 seconds.</p>
 
+<p align="center"><em>Born abilities from day one. Learned abilities from experience.<br/>Nature's teamwork, applied to AI agents.</em></p>
+
+## Philosophy
+
+> **Why a forest, not a factory**
+>
+> A forest has no CEO — yet it has thrived for 400 million years.
+> Every organism arrives with born abilities: reflexes that protect,
+> senses that monitor, an immune system that defends. No training needed.
+> But with experience, it grows — learning, adapting, cooperating.
+>
+> We build software the old way: one mind, one task, alone.
+> Nature solved this long ago.
+>
+> **cognitive-core** gives every project born abilities from its first
+> install — reflexes that block danger, sensors that monitor actions,
+> an immune system that catches threats. And with experience, it grows:
+> agents learn, skills evolve, code is naturally selected.
+>
+> We didn't invent these patterns. Evolution did.
+> We applied them to how AI agents work together.
+
+### Born Abilities (work from first install)
+
+| Nature | cognitive-core | What it does |
+|--------|---------------|-------------|
+| Pain reflex | `validate-bash.sh` | Blocks `rm -rf /`, force-push to main, DROP TABLE — before execution |
+| Toxin detection | `validate-write.sh` | Catches hardcoded secrets (AWS keys, API tokens) in written files |
+| Boundary defense | `validate-read.sh` | Prevents reading SSH keys, credentials, system files |
+| Environmental sensing | `validate-fetch.sh` | Audits external URLs, filters unknown domains |
+| Sleep memory | `compact-reminder.sh` | Re-injects critical rules after context compaction |
+| Autonomic system | `setup-env.sh` | Sets environment, verifies integrity — every session |
+| Proprioception | `post-edit-lint.sh` | Runs lint immediately after every file edit |
+
+### Learned Abilities (grow with experience)
+
+| Nature | cognitive-core | What it does |
+|--------|---------------|-------------|
+| Skill acquisition | `/skill-sync` | Absorb new capabilities from the framework |
+| Immune memory | Security logging | Remember and respond faster to known threats |
+| Evolution | `update.sh` | Safe mutation propagation — preserves your adaptations |
+| Natural selection | Evolutionary CI/CD | 5 fitness gates ensure only the strongest code survives |
+| Cooperation | Symbiotic Cortex | Specialized agents working together through parallel and focused paths |
+
 ## Feature Highlights
 
-- **Hooks** -- 9 event hooks: session startup, bash/read/write/fetch validation, post-edit linting, compaction reminders, Angular version guard
-- **Agents** -- Hub-and-spoke team of 9 specialists (coordinator, architect, reviewer, tester, researcher, database, security, updater, Angular specialist)
-- **Skills** -- 19 reusable skills from session-resume to e2e-visual-regression, with language and database packs
+- **Hooks** -- 9 event hooks: session startup, bash/read/write/fetch validation, post-edit linting, compaction reminders, Angular and Spring Boot version guards
+- **Agents** -- Hub-and-spoke team of 10 specialists (coordinator, architect, reviewer, tester, researcher, database, security, updater, Angular specialist, Spring Boot specialist)
+- **Skills** -- 23 reusable skills from session-resume to e2e-visual-regression, with language and database packs
 - **Secrets** -- 1Password / macOS Keychain backends with `secrets-run` injection, `secrets-store` CLI, and `secrets-setup` skill
 - **CI/CD** -- Evolutionary pipeline with fitness gates, self-hosted runner setup, GitHub Actions workflows
 - **Monitoring** -- Prometheus, Grafana dashboards, Alertmanager with Slack/email/PagerDuty
 - **Kubernetes** -- Base manifests, Kustomize overlays, monitoring stack for horizontal scaling
-- **Marketplace** -- Community component marketplace ([cognitive-core-marketplace](https://github.com/mindcockpit-ai/cognitive-core-marketplace)) for sharing agents, skills, hooks, and packs
 - **Checksum updater** -- Safe framework updates that preserve your customizations
 
 ## Quick Start
@@ -101,7 +144,8 @@ Live test results and component inventory from the latest build, visible at [mul
 | `validate-write.sh` | PostToolUse (Write/Edit) | Scans for hardcoded secrets (AWS keys, PEM, API tokens) |
 | `post-edit-lint.sh` | PostToolUse (Edit/Write) | Runs lint on every file edit automatically |
 | `compact-reminder.sh` | Notification (compact) | Re-injects critical rules after context compaction |
-| `angular-version-guard.sh` | PreToolUse (Bash) | Prevents Angular CLI version mismatches during migration |
+| `angular-version-guard.sh` | PreToolUse (Write/Edit) | Angular version-aware pattern enforcement (v18-21) |
+| `spring-boot-version-guard.sh` | PreToolUse (Write/Edit) | Spring Boot version-aware pattern enforcement (v2-4) |
 | `_lib.sh` | (shared) | Config loading, JSON output helpers for all hooks |
 
 ### Agents
@@ -117,6 +161,89 @@ Live test results and component inventory from the latest build, visible at [mul
 | security-analyst | opus | Vulnerability analysis, CTF methodology, forensics |
 | skill-updater | sonnet | Framework synchronization, component updates |
 | angular-specialist | sonnet | Angular migration (v18-21), patterns, and architecture |
+| spring-boot-specialist | sonnet | Spring Boot migration (v2-4), patterns, and architecture |
+
+### Symbiotic Cortex
+
+> *Evolution spent millions of years perfecting how living systems cooperate —
+> cells specialize, organs coordinate, ecosystems self-heal. That same evolution
+> produced the minds that built AI. cognitive-core applies these proven patterns
+> to how AI agents work together.*
+
+The **Symbiotic Cortex** is cognitive-core's multi-agent orchestration model.
+Like symbiosis in nature — where different organisms with different strengths
+help each other thrive — specialized agents cooperate through a central
+coordinator that routes each task to the right path: **focused depth**
+or **parallel breadth**.
+
+```
+                      ╔═══════════════════════════════════════╗
+                      ║       S Y M B I O T I C               ║
+                      ║         C O R T E X                   ║
+                      ║                                       ║
+                      ║   Cortical Plexus Architecture        ║
+                      ╚═══════════════════╤═══════════════════╝
+                                          │
+                          ┌───────────────┴───────────────┐
+                          │   PROJECT-COORDINATOR (Hub)    │
+                          │         Model: Opus            │
+                          │                                │
+                          │   Analyzes → Routes → Unifies  │
+                          └───────┬───────────────┬────────┘
+                                  │               │
+                     ┌────────────┘               └────────────┐
+                     │                                         │
+            ╔════════╧════════╗                     ╔══════════╧══════════╗
+            ║  FOCUSED PATH   ║                     ║   PARALLEL PATH     ║
+            ║  (Subagents)    ║                     ║   (Agent Teams)     ║
+            ╠═════════════════╣                     ╠═════════════════════╣
+            ║                 ║                     ║                     ║
+            ║  One specialist ║                     ║  Multiple agents    ║
+            ║  at a time      ║                     ║  working together   ║
+            ║                 ║                     ║                     ║
+            ║  Full tool      ║                     ║  Shared task list   ║
+            ║  isolation      ║                     ║  Peer messaging     ║
+            ║                 ║                     ║  Self-coordination  ║
+            ║  Deep, careful  ║                     ║                     ║
+            ║  analysis       ║                     ║  Fast, distributed  ║
+            ║                 ║                     ║  execution          ║
+            ╚════════╤════════╝                     ╚══════════╤══════════╝
+                     │                                         │
+                ┌────┘                          ┌──────────────┼──────────┐
+                │                               │              │          │
+           ┌────┴────┐                   ┌──────┴──────┐ ┌─────┴─────┐ ┌─┴─────────┐
+           │ Special- │                   │  Teammate   │ │ Teammate  │ │ Teammate  │
+           │   ist    │                   │   Sonnet    │ │  Sonnet   │ │  Sonnet   │
+           │  Agent   │                   │  architect  │ │  tester   │ │ reviewer  │
+           └─────────┘                   └─────────────┘ └───────────┘ └───────────┘
+                                                │              │              │
+                                          ┌─────┴──────────────┴──────────────┴───┐
+                                          │        TEAM GUARD  (Watchdog)          │
+                                          │       ~~~  every 3 minutes  ~~~       │
+                                          │                                       │
+                                          │  Monitors health · Detects stuck      │
+                                          │  tasks · Breaks deadlocks ·           │
+                                          │  Enforces quality gates               │
+                                          │                                       │
+                                          │    Nature's self-healing applied      │
+                                          │      to agent coordination            │
+                                          └───────────────────────────────────────┘
+```
+
+**How the coordinator routes** — like the brain choosing between reflex and deliberation:
+
+| When the task needs... | Path | Like in nature... |
+|------------------------|------|-------------------|
+| Deep analysis, strict isolation | Focused | A surgeon: one specialist, full precision |
+| Parallel research, multi-file work | Parallel | A colony: divide, conquer, reunite |
+| Security review (read-only) | Focused | Trust requires boundaries |
+| Code review + tests + docs | Parallel | Three organs, one organism |
+
+The **Team Guard** is inspired by biological homeostasis — just as every living
+system monitors itself (temperature, blood pressure, immune response), the guard
+detects stuck tasks, breaks deadlocks, and ensures quality gates are met.
+
+> *Technical reference: [Cortical Plexus Architecture](docs/ARCHITECTURE.md#agent-teams-integration-experimental)*
 
 ### Skills
 
@@ -149,7 +276,7 @@ All configuration lives in a single `cognitive-core.conf` file (shell syntax, so
 ```bash
 # Key configuration sections:
 CC_PROJECT_NAME="my-project"      # Project identity
-CC_LANGUAGE="python"               # perl|python|node|java|go|rust|csharp|react|angular
+CC_LANGUAGE="python"               # perl|python|node|java|go|rust|csharp|react|angular|spring-boot
 CC_DATABASE="postgresql"           # oracle|postgresql|mysql|sqlite|none
 CC_ARCHITECTURE="ddd"             # ddd|mvc|clean|hexagonal|layered|none
 CC_AGENTS="coordinator reviewer"   # Which agents to install
@@ -176,6 +303,7 @@ Language packs add language-specific skills and patterns.
 | C# | `language-packs/csharp/` | csharp-messaging |
 | React | `language-packs/react/` | react-patterns, react-testing, react-migration, react-e2e-mocking |
 | Angular | `language-packs/angular/` | angular-patterns, angular-testing, angular-migration, angular-e2e-mocking |
+| Spring Boot | `language-packs/spring-boot/` | spring-boot-patterns, spring-boot-testing, spring-boot-migration, spring-boot-e2e-testing |
 
 ### Database Packs
 
@@ -281,15 +409,6 @@ This framework was built from 21 findings identified during a comprehensive CI/C
 | 20 | Session continuity | session-resume skill with live context injection |
 | 21 | Version tracking | Manifest with file checksums for safe updates |
 
-## Marketplace
-
-The [cognitive-core-marketplace](https://github.com/mindcockpit-ai/cognitive-core-marketplace) is a community platform for sharing and discovering agents, skills, hooks, and packs built with cognitive-core.
-
-- **Stack**: FastAPI + SQLAlchemy 2.0 async + PostgreSQL (DDD architecture)
-- **API**: REST at `marketplace.mindcockpit.ai/api/v1/`
-- **Features**: Component publishing, search, ratings, author profiles, semantic versioning
-- **Deployment**: 3-stage K8s pipeline (dev/staging/production) on the same VPS infrastructure
-
 ## Contributing
 
 1. Fork the repository
@@ -330,4 +449,8 @@ update.sh       Checksum-based updater
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+cognitive-core is licensed under the [Functional Source License, Version 1.1, ALv2 Future License (FSL-1.1-ALv2)](LICENSE).
+
+You can use, modify, and redistribute this software for any purpose **except** offering it as a competing commercial product or service. After 2 years, each version converts to the Apache License 2.0.
+
+For commercial licensing inquiries, contact: peter.wolaschka@mindcockpit.ai

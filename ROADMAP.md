@@ -37,7 +37,6 @@ A biomimetic, vendor-agnostic skill framework for AI agents that mirrors biologi
 
 | Feature | Description | Priority |
 |---------|-------------|----------|
-| Skill Marketplace | Registry for sharing skills (builds on skill-sync) | Medium |
 | Fitness Dashboard | Visualize fitness metrics over time | Medium |
 | Pre-commit Hooks | Ready-to-use git hooks | High |
 
