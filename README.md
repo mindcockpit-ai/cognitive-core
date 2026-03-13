@@ -69,6 +69,18 @@
 
 ## Quick Start
 
+### Option 1: Claude Code Plugin (Recommended)
+
+```bash
+# Load the plugin directly from GitHub
+claude --plugin-dir https://github.com/mindcockpit-ai/cognitive-core/plugin
+
+# Configure for your project
+/setup
+```
+
+### Option 2: Legacy Install
+
 ```bash
 # 1. Clone the framework
 git clone https://github.com/mindcockpit-ai/cognitive-core.git
@@ -79,6 +91,13 @@ cd cognitive-core
 
 # 3. Start a Claude Code session -- hooks load automatically
 cd /path/to/your-project && claude
+```
+
+### Local Development Testing
+
+```bash
+# Test the plugin from a local clone
+claude --plugin-dir ./plugin
 ```
 
 ## Architecture

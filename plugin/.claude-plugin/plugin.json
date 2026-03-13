@@ -1,0 +1,22 @@
+{
+  "name": "cognitive-core",
+  "version": "1.0.0",
+  "description": "AI-augmented development framework — security hooks, specialist agents, skills, and language packs for Claude Code",
+  "author": {
+    "name": "mindcockpit-ai",
+    "url": "https://github.com/mindcockpit-ai"
+  },
+  "homepage": "https://multivac42.ai",
+  "repository": "https://github.com/mindcockpit-ai/cognitive-core",
+  "license": "FSL-1.1-ALv2",
+  "keywords": [
+    "security",
+    "hooks",
+    "agents",
+    "skills",
+    "code-review",
+    "fitness",
+    "framework",
+    "ai-augmented"
+  ]
+}

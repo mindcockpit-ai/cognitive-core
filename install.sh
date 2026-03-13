@@ -71,6 +71,13 @@ PROJECT_DIR="$(cd "$PROJECT_DIR" 2>/dev/null && pwd)" || {
 }
 
 _cc_banner
+
+# ---- Plugin notice (non-blocking) ----
+warn "NOTE: For Claude Code users, the plugin install is now the recommended method:"
+warn "  claude --plugin-dir https://github.com/mindcockpit-ai/cognitive-core/plugin"
+warn "This script continues to work and is required for Aider/IntelliJ adapters."
+echo ""
+
 info "Project directory: ${PROJECT_DIR}"
 
 # ---- Verify git repo ----
