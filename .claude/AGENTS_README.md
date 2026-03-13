@@ -23,14 +23,14 @@ acts as the central orchestrator, delegating to specialist agents based on task 
 │  • Synthesize results into unified response                  │
 │  • Manage project board and sprint planning                  │
 │                                                              │
-└──┬────────┬────────┬────────┬────────┬────────┬────────┬─────────┘
-   │        │        │        │        │        │        │
-   ▼        ▼        ▼        ▼        ▼        ▼        ▼
-┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐
-│solution││  code  ││  test  ││research││database││security││angular │
-│architec││reviewer││  spec  ││ analyst││  spec  ││ analyst││  spec  │
-│ (Opus) ││(Sonnet)││(Sonnet)││ (Opus) ││ (Opus) ││ (Opus) ││(Sonnet)│
-└────────┘└────────┘└────────┘└────────┘└────────┘└────────┘└────────┘
+└──┬────────┬────────┬────────┬────────┬────────┬────────┬────────┬────────┬──┘
+   │        │        │        │        │        │        │        │        │
+   ▼        ▼        ▼        ▼        ▼        ▼        ▼        ▼        ▼
+┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐
+│solution││  code  ││  test  ││research││database││security││angular ││ spring ││  skill │
+│architec││reviewer││  spec  ││ analyst││  spec  ││ analyst││  spec  ││  boot  ││ updater│
+│ (Opus) ││(Sonnet)││(Sonnet)││ (Opus) ││ (Opus) ││ (Opus) ││(Sonnet)││(Sonnet)││(Sonnet)│
+└────────┘└────────┘└────────┘└────────┘└────────┘└────────┘└────────┘└────────┘└────────┘
 ```
 
 ## Agent Catalog
@@ -91,6 +91,12 @@ acts as the central orchestrator, delegating to specialist agents based on task 
 - **Use when**: Angular version migration, Angular Material integration, signal adoption, Vitest setup, standalone component migration
 - **Don't use for**: Non-Angular frontend work, backend tasks, general code review
 
+### spring-boot-specialist
+- **File**: `spring-boot-specialist.md` | **Model**: sonnet
+- **Role**: Spring Boot migration (v2-4), patterns, architecture, Spring Security, RestClient, virtual threads
+- **Use when**: Spring Boot version migration, javax-to-jakarta, SecurityFilterChain, Testcontainers, GraalVM native images
+- **Don't use for**: Non-Spring Java work, frontend tasks, general code review
+
 ## Keyword → Agent Routing
 
 | Keywords in Request | Route To |
@@ -103,6 +109,7 @@ acts as the central orchestrator, delegating to specialist agents based on task 
 | "plan project", "create TODO", "sprint", "coordinate", "board" | project-coordinator |
 | "pentest", "CTF", "vulnerability", "exploit", "security scan" | security-analyst |
 | "Angular", "migration", "signals", "standalone", "zoneless", "NgRx" | angular-specialist |
+| "Spring Boot", "jakarta", "SecurityFilterChain", "RestClient", "Testcontainers" | spring-boot-specialist |
 | "sync skills", "update framework", "component version" | skill-updater |
 
 ## Delegation Flow

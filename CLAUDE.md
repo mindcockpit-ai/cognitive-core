@@ -30,7 +30,7 @@ cognitive-core/
 │   ├── claude/              # Claude Code identity adapter
 │   ├── aider/               # Aider + Ollama adapter
 │   └── intellij/            # IntelliJ IDEA adapter
-├── language-packs/          # Per-language configurations (9 languages)
+├── language-packs/          # Per-language configurations (10 languages)
 ├── database-packs/          # Per-database configurations (3 databases)
 ├── cicd/                    # CI/CD pipeline templates
 ├── tests/                   # Test suites (12 suites, 378+ tests)

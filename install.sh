@@ -143,13 +143,14 @@ else
     prompt_default CC_ORG "Organization/owner" "$(git -C "$PROJECT_DIR" config user.name 2>/dev/null || echo 'my-org')"
 
     # Language
-    prompt_choice CC_LANGUAGE "Primary language" "perl|python|node|react|angular|java|go|rust|csharp" "python"
+    prompt_choice CC_LANGUAGE "Primary language" "perl|python|node|react|angular|spring-boot|java|go|rust|csharp" "python"
     case "$CC_LANGUAGE" in
         perl)   CC_LINT_EXTENSIONS=".pl .pm .t"; CC_LINT_COMMAND='perlcritic $1'; CC_TEST_COMMAND="prove -l t/"; CC_TEST_PATTERN="t/**/*.t" ;;
         python) CC_LINT_EXTENSIONS=".py .pyi"; CC_LINT_COMMAND='ruff check $1'; CC_TEST_COMMAND="pytest"; CC_TEST_PATTERN="tests/**/*.py" ;;
         node)   CC_LINT_EXTENSIONS=".js .ts .tsx"; CC_LINT_COMMAND='eslint $1'; CC_TEST_COMMAND="npm test"; CC_TEST_PATTERN="test/**/*.test.*" ;;
         react)  CC_LINT_EXTENSIONS=".js .ts .jsx .tsx .css .scss"; CC_LINT_COMMAND='npx eslint $1'; CC_TEST_COMMAND="npx vitest run"; CC_TEST_PATTERN="**/*.test.{ts,tsx,js,jsx}" ;;
         angular) CC_LINT_EXTENSIONS=".ts .html .scss .css"; CC_LINT_COMMAND='npx ng lint'; CC_TEST_COMMAND="npx ng test --watch=false --browsers=ChromeHeadless"; CC_TEST_PATTERN="**/*.spec.ts" ;;
+        spring-boot) CC_LINT_EXTENSIONS=".java .xml .yml .yaml .properties .gradle .kts"; CC_LINT_COMMAND='./mvnw checkstyle:check -q 2>/dev/null || ./gradlew checkstyleMain -q 2>/dev/null || echo no-lint'; CC_TEST_COMMAND="./mvnw test -q 2>/dev/null || ./gradlew test -q 2>/dev/null || echo no-tests"; CC_TEST_PATTERN="**/*Test.java **/*Tests.java **/*IT.java" ;;
         java)   CC_LINT_EXTENSIONS=".java"; CC_LINT_COMMAND='checkstyle $1'; CC_TEST_COMMAND="mvn test"; CC_TEST_PATTERN="src/test/**/*.java" ;;
         go)     CC_LINT_EXTENSIONS=".go"; CC_LINT_COMMAND='golangci-lint run $1'; CC_TEST_COMMAND="go test ./..."; CC_TEST_PATTERN="**/*_test.go" ;;
         rust)   CC_LINT_EXTENSIONS=".rs"; CC_LINT_COMMAND='cargo clippy -- -D warnings'; CC_TEST_COMMAND="cargo test"; CC_TEST_PATTERN="tests/**/*.rs" ;;
@@ -167,7 +168,7 @@ else
 
     # Agents
     echo ""
-    info "Available agents: coordinator reviewer architect tester researcher database security-analyst skill-updater"
+    info "Available agents: coordinator reviewer architect tester researcher database security-analyst skill-updater angular-specialist spring-boot-specialist"
     prompt_default CC_AGENTS "Agents to install" "coordinator reviewer architect tester researcher skill-updater"
     prompt_choice CC_COORDINATOR_MODEL "Coordinator model" "opus|sonnet" "opus"
     prompt_choice CC_SPECIALIST_MODEL "Specialist model" "opus|sonnet" "sonnet"
@@ -181,6 +182,12 @@ else
 
     # Hooks
     prompt_default CC_HOOKS "Hooks to enable" "setup-env compact-reminder validate-bash validate-read validate-fetch validate-write post-edit-lint"
+
+    # Auto-append language-specific version guard hooks
+    case "${CC_LANGUAGE:-}" in
+        angular)     CC_HOOKS="$CC_HOOKS angular-version-guard" ;;
+        spring-boot) CC_HOOKS="$CC_HOOKS spring-boot-version-guard" ;;
+    esac
 
     # CI/CD
     prompt_choice CC_ENABLE_CICD "Install CI/CD pipeline?" "true|false" "false"
@@ -338,8 +345,10 @@ agent_file_for() {
         tester)      echo "test-specialist.md" ;;
         researcher)  echo "research-analyst.md" ;;
         database)          echo "database-specialist.md" ;;
-        security-analyst)  echo "security-analyst.md" ;;
-        skill-updater)     echo "skill-updater.md" ;;
+        security-analyst)       echo "security-analyst.md" ;;
+        skill-updater)          echo "skill-updater.md" ;;
+        angular-specialist)     echo "angular-specialist.md" ;;
+        spring-boot-specialist) echo "spring-boot-specialist.md" ;;
         *) echo "" ;;
     esac
 }
