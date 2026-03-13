@@ -60,7 +60,7 @@
 
 - **Hooks** -- 9 event hooks: session startup, bash/read/write/fetch validation, post-edit linting, compaction reminders, Angular and Spring Boot version guards
 - **Agents** -- Hub-and-spoke team of 10 specialists (coordinator, architect, reviewer, tester, researcher, database, security, updater, Angular specialist, Spring Boot specialist)
-- **Skills** -- 23 reusable skills from session-resume to e2e-visual-regression, with language and database packs
+- **Skills** -- 43 reusable skills: 19 core (session-resume to e2e-visual-regression) plus 24 language and database pack skills
 - **Secrets** -- 1Password / macOS Keychain backends with `secrets-run` injection, `secrets-store` CLI, and `secrets-setup` skill
 - **CI/CD** -- Evolutionary pipeline with fitness gates, self-hosted runner setup, GitHub Actions workflows
 - **Monitoring** -- Prometheus, Grafana dashboards, Alertmanager with Slack/email/PagerDuty
