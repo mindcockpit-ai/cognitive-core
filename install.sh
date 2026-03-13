@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: FSL-1.1-ALv2
 # =============================================================================
 # cognitive-core install.sh — Interactive bootstrapper
 # Installs hooks, agents, skills, language/database packs, and CI/CD pipeline

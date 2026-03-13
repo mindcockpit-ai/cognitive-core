@@ -111,7 +111,9 @@ cognitive-core/                         Your project after install:
 +-- language-packs/                       |   +-- version.json
 |   +-- perl/, python/, node/             +-- AGENTS_README.md
 |   +-- java/, go/, rust/, csharp/    CLAUDE.md
-|   +-- react/, angular/
+|   +-- react/, angular/, spring-boot/
++-- adapters/
+|   +-- claude/, aider/, intellij/
 +-- database-packs/                   cognitive-core.conf
 |   +-- oracle/, postgresql/, mysql/
 +-- cicd/
@@ -422,7 +424,8 @@ This framework was built from 21 findings identified during a comprehensive CI/C
 
 ```
 core/           Framework core (hooks, agents, skills, templates, utilities)
-language-packs/ Language-specific extensions (perl, python, node, java, go, rust, csharp, react, angular)
+language-packs/ Language-specific extensions (perl, python, node, java, go, rust, csharp, react, angular, spring-boot)
+adapters/       Platform adapters (claude, aider, intellij)
 database-packs/ Database-specific extensions (oracle, postgresql, mysql)
 cicd/           CI/CD pipeline (workflows, docker, scripts, monitoring, k8s)
 docs/           Framework documentation

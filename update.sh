@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: FSL-1.1-ALv2
 # =============================================================================
 # cognitive-core update.sh — Checksum-based updater
 # Safely updates framework files while preserving user modifications.
