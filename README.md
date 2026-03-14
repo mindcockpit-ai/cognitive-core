@@ -69,17 +69,17 @@
 
 ## Quick Start
 
-### Option 1: Claude Code Plugin (Recommended)
+### Option 1: Claude Code Plugin (Quick Start)
 
 ```bash
-# Load the plugin directly from GitHub
+# Load the plugin — hooks, agents, and skills activate instantly
 claude --plugin-dir https://github.com/mindcockpit-ai/cognitive-core/plugin
 
 # Configure for your project
 /setup
 ```
 
-### Option 2: Legacy Install
+### Option 2: Full Install (CI/CD, Language Packs, Multi-Platform)
 
 ```bash
 # 1. Clone the framework
@@ -92,6 +92,16 @@ cd cognitive-core
 # 3. Start a Claude Code session -- hooks load automatically
 cd /path/to/your-project && claude
 ```
+
+> **Both paths coexist.** If the plugin is already installed, `install.sh` detects it and skips hooks/agents/skills (provided by plugin), installing only CI/CD pipelines, language packs, and project configuration.
+
+### Supported Platforms
+
+| Platform | Install Method |
+|----------|---------------|
+| **Claude Code** | Plugin or install.sh |
+| **Aider + Ollama** | `./install.sh --platform aider` |
+| **IntelliJ / DevoxxGenie** | `./install.sh --platform intellij` |
 
 ### Local Development Testing
 

@@ -72,11 +72,19 @@ PROJECT_DIR="$(cd "$PROJECT_DIR" 2>/dev/null && pwd)" || {
 
 _cc_banner
 
-# ---- Plugin notice (non-blocking) ----
-warn "NOTE: For Claude Code users, the plugin install is now the recommended method:"
-warn "  claude --plugin-dir https://github.com/mindcockpit-ai/cognitive-core/plugin"
-warn "This script continues to work and is required for Aider/IntelliJ adapters."
-echo ""
+# ---- Plugin coexistence detection ----
+_CC_PLUGIN_DETECTED="false"
+if [ -d "${PROJECT_DIR}/.claude/plugins" ] || [ -f "${PROJECT_DIR}/.claude/settings.json" ]; then
+    if grep -q '"cognitive-core"' "${PROJECT_DIR}/.claude/settings.json" 2>/dev/null || \
+       [ -d "${HOME}/.claude/plugins/cache/cognitive-core" ] 2>/dev/null; then
+        _CC_PLUGIN_DETECTED="true"
+        info "Plugin detected: cognitive-core is also installed as a Claude Code plugin."
+        info "Plugin provides: hooks, agents, skills (auto-loaded by Claude Code)"
+        info "This install adds: CI/CD pipelines, language packs, CLAUDE.md, cognitive-core.conf"
+        info "Skipping hook/agent/skill copy to avoid double-firing."
+        echo ""
+    fi
+fi
 
 info "Project directory: ${PROJECT_DIR}"
 
@@ -362,21 +370,26 @@ agent_file_for() {
 }
 
 # ---- Install hooks ----
-header "Installing hooks"
+if [ "$_CC_PLUGIN_DETECTED" = "true" ] && [ "${CC_PLATFORM:-}" = "claude" ]; then
+    header "Skipping hooks (provided by plugin)"
+    info "Plugin provides hooks — skipping to avoid double-firing."
+else
+    header "Installing hooks"
 
-# Always install the shared library first
-_adapter_install_hook "${SCRIPT_DIR}/core/hooks/_lib.sh" "_lib.sh"
-info "Installed _lib.sh (shared hook library)"
+    # Always install the shared library first
+    _adapter_install_hook "${SCRIPT_DIR}/core/hooks/_lib.sh" "_lib.sh"
+    info "Installed _lib.sh (shared hook library)"
 
-for hook in ${CC_HOOKS:-}; do
-    src="${SCRIPT_DIR}/core/hooks/${hook}.sh"
-    if [ -f "$src" ]; then
-        _adapter_install_hook "$src" "${hook}.sh"
-        info "Installed hook: ${hook}"
-    else
-        warn "Hook not found: ${hook} (skipped)"
-    fi
-done
+    for hook in ${CC_HOOKS:-}; do
+        src="${SCRIPT_DIR}/core/hooks/${hook}.sh"
+        if [ -f "$src" ]; then
+            _adapter_install_hook "$src" "${hook}.sh"
+            info "Installed hook: ${hook}"
+        else
+            warn "Hook not found: ${hook} (skipped)"
+        fi
+    done
+fi
 
 # ---- Install utilities ----
 header "Installing utilities"
@@ -391,38 +404,49 @@ for util in check-update.sh context-cleanup.sh health-check.sh; do
 done
 
 # ---- Install agents ----
-header "Installing agents"
+if [ "$_CC_PLUGIN_DETECTED" = "true" ] && [ "${CC_PLATFORM:-}" = "claude" ]; then
+    header "Skipping agents (provided by plugin)"
+    info "Plugin provides agents — skipping to avoid duplicates."
+    INSTALLED_AGENTS="${CC_AGENTS:-}"
+else
+    header "Installing agents"
 
-INSTALLED_AGENTS=""
-for agent in ${CC_AGENTS:-}; do
-    filename=$(agent_file_for "$agent")
-    if [ -z "$filename" ]; then
-        warn "Unknown agent: ${agent} (skipped)"
-        continue
-    fi
-    src="${SCRIPT_DIR}/core/agents/${filename}"
-    if [ -f "$src" ]; then
-        _adapter_install_agent "$src" "$filename"
-        INSTALLED_AGENTS="${INSTALLED_AGENTS} ${agent}"
-        info "Installed agent: ${agent} (${filename})"
-    else
-        warn "Agent file not found: ${filename} (skipped)"
-    fi
-done
+    INSTALLED_AGENTS=""
+    for agent in ${CC_AGENTS:-}; do
+        filename=$(agent_file_for "$agent")
+        if [ -z "$filename" ]; then
+            warn "Unknown agent: ${agent} (skipped)"
+            continue
+        fi
+        src="${SCRIPT_DIR}/core/agents/${filename}"
+        if [ -f "$src" ]; then
+            _adapter_install_agent "$src" "$filename"
+            INSTALLED_AGENTS="${INSTALLED_AGENTS} ${agent}"
+            info "Installed agent: ${agent} (${filename})"
+        else
+            warn "Agent file not found: ${filename} (skipped)"
+        fi
+    done
+fi
 
 # ---- Install skills ----
-header "Installing skills"
+if [ "$_CC_PLUGIN_DETECTED" = "true" ] && [ "${CC_PLATFORM:-}" = "claude" ]; then
+    header "Skipping core skills (provided by plugin)"
+    info "Plugin provides core skills — skipping to avoid duplicates."
+else
+    header "Installing skills"
 
-# Skill name to directory mapping (direct 1:1)
-for skill in ${CC_SKILLS:-}; do
-    src="${SCRIPT_DIR}/core/skills/${skill}"
-    if [ -d "$src" ]; then
-        _adapter_install_skill "$src" "$skill"
-        info "Installed skill: ${skill}"
-    else
-        warn "Skill not found: ${skill} (skipped)"
-    fi
-done
+    # Skill name to directory mapping (direct 1:1)
+    for skill in ${CC_SKILLS:-}; do
+        src="${SCRIPT_DIR}/core/skills/${skill}"
+        if [ -d "$src" ]; then
+            _adapter_install_skill "$src" "$skill"
+            info "Installed skill: ${skill}"
+        else
+            warn "Skill not found: ${skill} (skipped)"
+        fi
+    done
+fi
 
 # ---- Install language pack ----
 if [ -n "${CC_LANGUAGE:-}" ] && [ "$CC_LANGUAGE" != "none" ]; then
