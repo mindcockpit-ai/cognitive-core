@@ -65,6 +65,23 @@ Continuation point: [next planned task]
 Ready to continue with [next task], or would you prefer to work on something else?
 ```
 
+If the session context mentions "FIRST SESSION", provide an extended welcome:
+
+```
+Welcome to cognitive-core!
+
+Agents: [list from context]
+Top skills to try:
+  /code-review        — Review code against project standards
+  /pre-commit         — Lint staged files before committing
+  /fitness            — Check project quality metrics
+  @test-specialist    — Create or update tests
+
+See .claude/AGENTS_README.md for the full agent routing guide.
+```
+
+For subsequent sessions, use the standard brief greeting.
+
 Keep this brief (3-5 lines). Do not dump the entire session doc.
 
 ### Step 5: If User Asks to "Remember" or "Refresh"

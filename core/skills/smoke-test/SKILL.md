@@ -7,6 +7,7 @@ allowed-tools: Bash, Read, Write, Grep, Glob
 argument-hint: "run | report | fix"
 featured: true
 featured_description: Smoke test all endpoints and auto-create GitHub issues for failures.
+supported-languages: [node, react, angular]
 ---
 
 # Smoke Test — Happy Path Endpoint Verification

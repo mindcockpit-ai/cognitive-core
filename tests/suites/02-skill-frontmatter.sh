@@ -69,4 +69,18 @@ while IFS= read -r skill_md; do
     fi
 done < <(find "${ROOT_DIR}/language-packs" "${ROOT_DIR}/database-packs" -name "SKILL.md" -type f 2>/dev/null | sort)
 
+# Validate supported-languages field format when present
+while IFS= read -r skill_md; do
+    skill_name="$(basename "$(dirname "$skill_md")")"
+    _sl_line=$(grep '^supported-languages:' "$skill_md" 2>/dev/null | head -1 || echo "")
+    if [ -n "$_sl_line" ]; then
+        _sl_value=$(echo "$_sl_line" | sed 's/supported-languages:[[:space:]]*//')
+        if echo "$_sl_value" | grep -qE '^\[([a-zA-Z0-9_-]+(,[[:space:]]*[a-zA-Z0-9_-]+)*)?\]$'; then
+            _pass "supported-languages format: ${skill_name}/SKILL.md"
+        else
+            _fail "supported-languages format: ${skill_name}/SKILL.md — invalid: ${_sl_value}"
+        fi
+    fi
+done < <(find "${ROOT_DIR}/core/skills" "${ROOT_DIR}/language-packs" "${ROOT_DIR}/database-packs" -name "SKILL.md" -type f 2>/dev/null | sort)
+
 suite_end

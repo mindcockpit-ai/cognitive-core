@@ -185,6 +185,15 @@ Cross-reference suppressions with GitHub issues and show a comprehensive dashboa
 | rust | `#\[allow\(\|#!\[allow\(` | Inside `allow(...)` |
 | csharp | `#pragma warning disable\|// ReSharper disable` | After `disable ` |
 
+### Java / Spring Boot Examples
+
+| Suppression | Meaning | Remediation |
+|-------------|---------|-------------|
+| `@SuppressWarnings("unchecked")` | Raw type usage | Add proper generics |
+| `@SuppressWarnings("deprecation")` | Using deprecated API | Migrate to replacement |
+| `//CHECKSTYLE:OFF` | Checkstyle bypass | Fix the violation |
+| `//NOSONAR` | SonarQube suppression | Address the code smell |
+
 ## Integration
 
 - **Post-edit hook**: `post-edit-lint.sh` detects NEW suppressions via `git diff` and reminds to run `/lint-debt sync`

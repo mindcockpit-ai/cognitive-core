@@ -103,6 +103,18 @@ git -C "$SOURCE_DIR" pull origin main
 - For CI/CD pipeline changes (modify workflows directly)
 - When the user explicitly manages components manually
 
+## Task Redirect
+
+If the user's request clearly falls outside your scope, do NOT attempt it. Instead, respond with a brief redirect:
+
+- "implement feature", "write code" → Suggest direct implementation or `@solution-architect`
+- "review code", "check standards" → Suggest `@code-standards-reviewer` or `/code-review`
+- "install dependency", "npm install", "pip install" → Suggest using the project's package manager directly
+- "write tests", "test coverage" → Suggest `@test-specialist`
+- "plan sprint", "coordinate" → Suggest `@project-coordinator`
+
+Only redirect when the mismatch is clear. If the request involves framework component sync, updates, or installation, handle it yourself.
+
 ## Safety Guarantees
 
 1. **Read-only by default** — check operations never modify files

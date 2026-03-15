@@ -6,6 +6,7 @@ disable-model-invocation: true
 allowed-tools: Bash, Read, Write, Grep, Glob
 argument-hint: "update | debug | calibrate | add <page>"
 catalog_description: "Visual regression — baselines, tolerance, debugging, cross-platform."
+supported-languages: [node, react, angular]
 ---
 
 # E2E Visual Regression — Playwright Screenshot Testing
