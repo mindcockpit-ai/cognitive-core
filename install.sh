@@ -65,6 +65,9 @@ if [ -z "$PROJECT_DIR" ]; then
     PROJECT_DIR="${user_dir:-$PROJECT_DIR}"
 fi
 
+# Normalize backslash paths (Windows Git Bash / MSYS2)
+PROJECT_DIR="${PROJECT_DIR//\\//}"
+
 PROJECT_DIR="$(cd "$PROJECT_DIR" 2>/dev/null && pwd)" || {
     err "Directory does not exist: $PROJECT_DIR"
     exit 1

@@ -3,6 +3,12 @@
 # cognitive-core shared hook library
 # Sourced by all hook scripts for config loading and JSON output helpers
 
+# CRLF self-heal: strip carriage returns if sourced from a CRLF environment (Windows Git Bash)
+if [[ "${BASH_SOURCE[0]}" == *$'\r'* ]] 2>/dev/null; then
+    _cc_self="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_lib.sh"
+    sed -i.bak 's/\r$//' "$_cc_self" 2>/dev/null && rm -f "${_cc_self}.bak"
+fi
+
 # Resolve paths (dual-mode: plugin cache or legacy .claude/hooks/)
 if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
     # Plugin mode: scripts live in plugin cache

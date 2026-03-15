@@ -1,0 +1,8 @@
+# Enforce LF line endings for all shell scripts and config files
+# Prevents CRLF issues on Windows Git Bash (MSYS2)
+*.sh text eol=lf
+*.conf text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
