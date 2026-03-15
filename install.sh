@@ -443,6 +443,17 @@ else
     for skill in ${CC_SKILLS:-}; do
         src="${SCRIPT_DIR}/core/skills/${skill}"
         if [ -d "$src" ]; then
+            # Check supported-languages filter (optional field)
+            _skill_md="${src}/SKILL.md"
+            if [ -f "$_skill_md" ]; then
+                _supported=$(grep '^supported-languages:' "$_skill_md" 2>/dev/null | head -1 | sed 's/supported-languages:[[:space:]]*//' | tr -d '[]' || echo "")
+                if [ -n "$_supported" ] && [ -n "${CC_LANGUAGE:-}" ]; then
+                    if ! echo "$_supported" | tr ',' ' ' | grep -qw "${CC_LANGUAGE}"; then
+                        info "Skipped skill: ${skill} (not supported for ${CC_LANGUAGE})"
+                        continue
+                    fi
+                fi
+            fi
             _adapter_install_skill "$src" "$skill"
             info "Installed skill: ${skill}"
         else

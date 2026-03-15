@@ -34,6 +34,41 @@
 > We didn't invent these patterns. Evolution did.
 > We applied them to how AI agents work together.
 
+### The Parsimony Principle
+
+> *A forest wastes nothing. Every leaf is sized to capture exactly the light
+> it needs. Every root extends only as far as the water demands. Evolution
+> is the original Occam's Razor — ruthlessly selecting the simplest design
+> that works.*
+
+cognitive-core applies this same parsimony:
+
+| Nature | cognitive-core | Principle |
+|--------|---------------|-----------|
+| Neural sparsity (1-15% activation) | Activate only the agents a task requires | Minimal orchestration |
+| Metabolic optimization | Request only the tools a skill cannot function without | Minimal tool sets |
+| Walk/run energy transition | Use the least restrictive response that achieves safety | Graduated hooks |
+| Streamlined body plans | Prefer the simplest design that meets requirements | Architectural parsimony |
+| Simplest-path foraging | Test the simplest hypothesis first | Problem-solving efficiency |
+
+Complexity is not forbidden — it must be *justified*. Essential complexity
+(inherent to the problem) is respected. Accidental complexity (introduced
+by the solution) is eliminated.
+
+**Exception: security.** Defense-in-depth requires intentional redundancy
+across layers. Parsimony applies *within* each security layer, never *across* them.
+
+## Who Is This For?
+
+| Audience | What You Get |
+|----------|-------------|
+| **Solo developers** using Claude Code | Production-grade safety hooks, structured agents, and skills from first install |
+| **Development teams** adopting AI-assisted workflows | Consistent coding standards, CI/CD fitness gates, multi-agent coordination |
+| **Enterprise architects** | Portable framework across 11 languages, 3 database packs, 3 platform adapters |
+| **Security-conscious organizations** | Defense-in-depth hooks that block dangerous commands, scan for secrets, audit external access |
+
+**Complements** (not replaces): Documentation tools like [Context7](https://context7.com) provide library docs — cognitive-core provides workflow safety, agent teams, and quality enforcement.
+
 ### Born Abilities (work from first install)
 
 | Nature | cognitive-core | What it does |

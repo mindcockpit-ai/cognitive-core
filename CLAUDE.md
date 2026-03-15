@@ -51,6 +51,7 @@ cognitive-core/
 6. Run `bash tests/run-all.sh` before every commit — all suites must pass
 7. Git commits: `type(scope): subject` — NO AI references
 8. Scopes: hooks, agents, skills, adapters, install, cicd, packs, docs, security
+9. **Parsimony Principle** — prefer the simplest solution that meets requirements. Every agent, tool, hook response, and architectural choice must justify its complexity. Essential complexity is respected; accidental complexity is eliminated. Exception: security layers use defense-in-depth (parsimony within layers, not across).
 
 ## Code Standards
 

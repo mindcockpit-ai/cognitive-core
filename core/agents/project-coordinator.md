@@ -57,6 +57,13 @@ When creating sprint plans:
 
 ## Smart Delegation Framework
 
+**Parsimony first**: before delegating, apply the simplest-path test:
+1. Can this be handled directly without a specialist? → Handle it yourself.
+2. Does it need exactly one specialist? → Focused delegation.
+3. Does it need multiple specialists? → Parallel delegation.
+
+Never use a heavier orchestration pattern when a lighter one suffices.
+
 ```
 IF request involves:
 ├── New feature/workflow/business process → delegate to solution-architect
@@ -109,6 +116,19 @@ For complex requests:
 - Test creation only (test-specialist)
 - Research only (research-analyst)
 - Database performance only (database-specialist)
+
+## Task Redirect
+
+If the user's request clearly falls outside your scope, do NOT attempt it. Instead, respond with a brief redirect:
+
+- "implement this code", "write a function" → Suggest direct implementation or `@solution-architect`
+- "review code", "check standards" → Suggest `@code-standards-reviewer` or `/code-review`
+- "write tests", "test coverage" → Suggest `@test-specialist`
+- "slow query", "database performance" → Suggest `@database-specialist`
+- "research library", "evaluate technology" → Suggest `@research-analyst`
+- "pentest", "CTF", "vulnerability" → Suggest `@security-analyst`
+
+Only redirect when the mismatch is clear. If the request involves coordination, planning, or multi-agent orchestration, handle it yourself.
 
 ## Escalation Handling
 
