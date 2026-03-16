@@ -2,6 +2,32 @@
 
 > **Time**: ~2 min read | **Level**: Intermediate | **Audience**: Developers choosing between review tools
 
+## Goal
+
+Run a code review using cognitive-core's two review tools — the `/code-review` skill for single files and `@code-standards-reviewer` for multi-file changes — and understand when to use each.
+
+## Prerequisites
+
+- cognitive-core installed (`./install.sh /path/to/project`)
+- At least one source file to review
+- For multi-file review: a branch with 2+ changed files
+
+## Steps
+
+### Step 1: Choose the right tool
+
+Decide between `/code-review` (single file) and `@code-standards-reviewer` (multi-file) using the table below.
+
+### Step 2: Run the review
+
+See the Single-File Review and Multi-File Review sections for exact commands and expected output.
+
+### Step 3: Fix findings and verify
+
+Follow the Recommended Workflow at the bottom: fix findings, run `/fitness`, then `/pre-commit`.
+
+---
+
 ## Quick Decision
 
 | Situation | Tool | Why |
@@ -132,8 +158,16 @@ The threshold exists because attention dilution causes inconsistent depth. Revie
 7. git commit
 ```
 
-## See Also
+## Expected Output
+
+After a single-file review (`/code-review src/services/UserService.java`), you should see a structured report with Standards, Architecture, and Anti-patterns sections, each with PASS/WARN/FAIL verdicts, and a final VERDICT line (APPROVED, APPROVED with warnings, or NEEDS_CHANGES).
+
+After a multi-file review (`@code-standards-reviewer review the auth module`), you should see per-file findings followed by cross-file integration analysis and a consolidated, deduplicated findings table grouped by theme.
+
+## Next Steps
 
 - [Getting Started with Java](getting-started-java.md) -- full install-to-first-review walkthrough
+- [Test Creation](recipe-test-creation.md) -- create tests after fixing review findings
+- [Wrong Agent?](recipe-wrong-agent.md) -- what happens when you pick the wrong agent
 - `/code-review` skill: `core/skills/code-review/SKILL.md`
 - `@code-standards-reviewer` agent: `core/agents/code-standards-reviewer.md`

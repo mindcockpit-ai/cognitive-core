@@ -145,6 +145,23 @@ cd /path/to/your-project && claude
 claude --plugin-dir ./plugin
 ```
 
+## Recipes
+
+Step-by-step guides for common workflows:
+
+| Recipe | Description |
+|--------|-------------|
+| [Getting Started — Java](docs/recipes/getting-started-java.md) | First 5 minutes with a Java/Spring Boot project |
+| [Getting Started — Python](docs/recipes/getting-started-python.md) | First 5 minutes with a Python project |
+| [Getting Started — Node.js](docs/recipes/getting-started-node.md) | First 5 minutes with a Node.js/React project |
+| [Code Review](docs/recipes/recipe-code-review.md) | Run a code review with conventions |
+| [Test Creation](docs/recipes/recipe-test-creation.md) | Create tests with @test-specialist |
+| [Security Scan](docs/recipes/recipe-security-scan.md) | Scan for vulnerabilities |
+| [Architecture Analysis](docs/recipes/recipe-architecture-analysis.md) | Analyze project architecture |
+| [Coordinator Workflow](docs/recipes/recipe-coordinator-workflow.md) | Autonomous multi-agent workflow |
+| [Wrong Agent?](docs/recipes/recipe-wrong-agent.md) | How agent redirect works |
+| [Nothing Happened?](docs/recipes/recipe-no-output.md) | Common setup troubleshooting |
+
 ## Architecture
 
 ```

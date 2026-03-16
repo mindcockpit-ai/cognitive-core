@@ -2,6 +2,15 @@
 
 > **Time**: 2 min read | **Level**: Beginner | **Applies to**: All languages
 
+## Goal
+
+Understand how cognitive-core's Task Redirect mechanism prevents wasted time when you accidentally pick the wrong agent for a task.
+
+## Prerequisites
+
+- cognitive-core installed (`./install.sh /path/to/project`)
+- At least one agent available (any language/framework)
+
 ## The Problem
 
 You ask an agent to do something outside its scope. It either gives poor results, hallucinates a workflow it was never designed for, or burns 30 minutes before you realize nothing useful came out.
@@ -51,6 +60,41 @@ If your request is ambiguous, the agent may attempt it. Be specific:
 - **Vague:** "Look at this and tell me what's wrong" (any agent might try)
 - **Clear:** "Review code quality and naming conventions" (triggers redirect if wrong agent)
 
+## Steps
+
+### Step 1: Try the wrong agent (intentionally)
+
+```
+@solution-architect review code, doc file and provide necessary improvements
+```
+
+### Step 2: Observe the redirect
+
+The agent recognizes this is a code review task and responds:
+
+```
+This looks like a code review task — use @code-standards-reviewer or /code-review
+instead. I specialize in business analysis and architecture decisions.
+```
+
+### Step 3: Follow the redirect
+
+```
+@code-standards-reviewer review code, doc file and provide necessary improvements
+```
+
+Now you get a proper code review with Standards, Architecture, and Anti-patterns analysis.
+
+## Expected Output
+
+When you send a task to the wrong agent, you should see a short redirect message naming the correct agent or skill. No wasted processing, no misleading output. When you follow the redirect, you get the full, correct output from the right agent.
+
 ## The Full Routing Guide
 
 For the complete keyword-to-agent mapping, including which keywords trigger which agent and all redirect rules, see [`.claude/AGENTS_README.md`](../../.claude/AGENTS_README.md).
+
+## Next Steps
+
+- [Code Review Workflow](recipe-code-review.md) -- deep dive on `/code-review` vs `@code-standards-reviewer`
+- [Getting Started with Java](getting-started-java.md) -- full install-to-first-review walkthrough
+- [Coordinator Workflow](recipe-coordinator-workflow.md) -- the coordinator's Smart Delegation prevents wrong-agent issues entirely
