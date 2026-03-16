@@ -1,19 +1,70 @@
 ---
 name: project-board
-description: Manage GitHub Project board — issues, sprints, status tracking, acceptance verification, and release management. White-labeled template for any project.
+description: Manage project board — issues, sprints, status tracking, acceptance verification, and release management. Supports GitHub Projects, Jira, and YouTrack via pluggable providers.
 user-invocable: true
 allowed-tools: Bash, Read, Grep, Glob
 argument-hint: "[list|create|close|cancel|assign|sprint|sprint-plan|triage|board|move|verify] [options]"
-catalog_description: GitHub Project board — issues, sprints, releases, and triage.
+catalog_description: Project board — issues, sprints, releases, and triage. Supports GitHub, Jira, YouTrack.
 ---
 
-# Project Board — GitHub Issue & Sprint Management
+# Project Board — Issue & Sprint Management
 
-Manage GitHub Issues and Project board from Claude Code. Provides full lifecycle management from roadmap ideas through sprint execution to completion, including acceptance criteria verification.
+Manage issues and project board from Claude Code. Provides full lifecycle management from roadmap ideas through sprint execution to completion, including acceptance criteria verification. Supports multiple issue tracking backends via pluggable providers.
+
+## Provider Architecture
+
+This skill uses a **provider pattern** to support multiple issue tracking systems through a unified interface. Each provider implements the same CLI contract, so all workflow rules (transitions, guards, formatting) work identically regardless of backend.
+
+### Supported Providers
+
+| Provider | Backend | CLI Tool | Status |
+|----------|---------|----------|--------|
+| `github` | GitHub Projects + Issues | `gh` | Full support |
+| `jira` | Jira Cloud / Data Center | `curl` | Full support |
+| `youtrack` | YouTrack Cloud / Standalone | `curl` | Full support |
+
+### Using Provider Scripts
+
+All API operations go through provider-specific scripts in this skill's `providers/` directory:
+
+```bash
+# Source config to get provider setting
+source ./cognitive-core.conf 2>/dev/null || source ./.claude/cognitive-core.conf
+
+# Find and use the active provider script
+PB_PROVIDER="${CC_PROJECT_BOARD_PROVIDER:-github}"
+PB_SCRIPT=$(find . -path "*/project-board/providers/${PB_PROVIDER}.sh" -type f 2>/dev/null | head -1)
+
+# All providers share the same CLI interface:
+$PB_SCRIPT issue list [--priority P] [--area A] [--state S]
+$PB_SCRIPT issue create "title" [--labels L] [--body B]
+$PB_SCRIPT issue close <N> [--comment C]
+$PB_SCRIPT issue reopen <N>
+$PB_SCRIPT issue view <N> [--json fields]
+$PB_SCRIPT issue comment <N> "body"
+$PB_SCRIPT issue assign <N> <user>
+$PB_SCRIPT board summary
+$PB_SCRIPT board status <N>
+$PB_SCRIPT board move <N> <status_key>
+$PB_SCRIPT board add <N>
+$PB_SCRIPT sprint list [--all]
+$PB_SCRIPT sprint assign "sprint-title" <N> [N2 N3...]
+$PB_SCRIPT branch create <N> <type> <slug> [--base B]
+$PB_SCRIPT provider info
+```
+
+All provider output is JSON for consistent parsing. The SKILL.md handles workflow rules, transition validation, and output formatting — providers handle only API translation.
 
 ## Configuration
 
-Set these values in your project's `cognitive-core.conf` or replace `{{placeholders}}` after installation:
+### Provider Selection
+
+```bash
+# In cognitive-core.conf:
+CC_PROJECT_BOARD_PROVIDER="github"         # github|jira|youtrack
+```
+
+### GitHub Provider
 
 ```bash
 CC_GITHUB_OWNER="owner"                    # e.g., "wolaschka"
@@ -23,8 +74,33 @@ CC_PROJECT_ID="PVT_xxx"                     # GraphQL Project ID
 CC_STATUS_FIELD_ID="PVTSSF_xxx"             # Status field ID
 CC_AREA_FIELD_ID="PVTSSF_xxx"               # Area field ID (optional)
 CC_SPRINT_FIELD_ID="PVTIF_xxx"              # Sprint iteration field ID (optional)
+```
 
-# Branching strategy (optional — set CC_BRANCH_AUTO_CREATE="true" to enable)
+### Jira Provider
+
+```bash
+CC_JIRA_URL="https://company.atlassian.net" # Jira Cloud or Data Center URL
+CC_JIRA_PROJECT="PROJ"                      # Project key
+CC_JIRA_EMAIL="user@company.com"            # Account email (Cloud auth)
+CC_JIRA_TOKEN="api-token"                   # API token (Cloud) or PAT (Data Center)
+CC_JIRA_AUTH_TYPE="basic"                   # basic (Cloud) or bearer (Data Center)
+CC_JIRA_BOARD_ID=""                         # Agile board ID (optional, for sprints)
+CC_JIRA_STATUS_MAP="roadmap=To Do|backlog=Backlog|todo=To Do|progress=In Progress|testing=In Review|done=Done|canceled=Canceled"
+```
+
+### YouTrack Provider
+
+```bash
+CC_YOUTRACK_URL="https://company.youtrack.cloud"  # YouTrack URL
+CC_YOUTRACK_PROJECT="PROJ"                  # Project short name
+CC_YOUTRACK_TOKEN="perm:token"              # Permanent token
+CC_YOUTRACK_AGILE_ID=""                     # Agile board ID (optional, for sprints)
+CC_YOUTRACK_STATUS_MAP="roadmap=No State|backlog=Open|todo=To Do|progress=In Progress|testing=To Verify|done=Done|canceled=Canceled"
+```
+
+### Branching Strategy (all providers)
+
+```bash
 CC_BRANCH_AUTO_CREATE="false"              # Auto-create branch on move to In Progress
 CC_BRANCH_AUTO_CHECKOUT="true"             # Auto-checkout the created branch locally
 CC_BRANCH_BASE="main"                      # Base branch for feature/fix branches

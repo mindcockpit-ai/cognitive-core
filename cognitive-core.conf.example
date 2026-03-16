@@ -107,10 +107,37 @@ CC_ALLOWED_DOMAINS=""
 CC_KNOWN_SAFE_DOMAINS=""
 
 # ===== PROJECT BOARD =====
+# Issue tracking provider: github|jira|youtrack
+CC_PROJECT_BOARD_PROVIDER="github"
 # Auto-attach active plan file to newly created issues: true|false
 # When true, /project-board create checks ~/.claude/plans/ for an active plan
 # and posts it as a comment. Can also use --plan <path> flag explicitly.
 CC_ISSUE_ATTACH_PLAN="false"
+
+# --- GitHub provider (when CC_PROJECT_BOARD_PROVIDER=github) ---
+# CC_GITHUB_OWNER="owner"
+# CC_GITHUB_REPO="owner/repo"
+# CC_PROJECT_NUMBER=3
+# CC_PROJECT_ID="PVT_xxx"
+# CC_STATUS_FIELD_ID="PVTSSF_xxx"
+# CC_AREA_FIELD_ID="PVTSSF_xxx"
+# CC_SPRINT_FIELD_ID="PVTIF_xxx"
+
+# --- Jira provider (when CC_PROJECT_BOARD_PROVIDER=jira) ---
+# CC_JIRA_URL="https://company.atlassian.net"
+# CC_JIRA_PROJECT="PROJ"
+# CC_JIRA_EMAIL="user@company.com"
+# CC_JIRA_TOKEN="api-token"
+# CC_JIRA_AUTH_TYPE="basic"               # basic (Cloud) or bearer (Data Center)
+# CC_JIRA_BOARD_ID=""                     # Agile board ID (for sprint support)
+# CC_JIRA_STATUS_MAP="roadmap=To Do|backlog=Backlog|todo=To Do|progress=In Progress|testing=In Review|done=Done|canceled=Canceled"
+
+# --- YouTrack provider (when CC_PROJECT_BOARD_PROVIDER=youtrack) ---
+# CC_YOUTRACK_URL="https://company.youtrack.cloud"
+# CC_YOUTRACK_PROJECT="PROJ"
+# CC_YOUTRACK_TOKEN="perm:token"
+# CC_YOUTRACK_AGILE_ID=""                 # Agile board ID (for sprint support)
+# CC_YOUTRACK_STATUS_MAP="roadmap=No State|backlog=Open|todo=To Do|progress=In Progress|testing=To Verify|done=Done|canceled=Canceled"
 
 # ===== GIT =====
 # Main branch name
