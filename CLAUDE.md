@@ -108,6 +108,11 @@ See `.claude/AGENTS_README.md` for the full agent team documentation.
 5. Commit with conventional format: `type(scope): subject`
 6. Verify acceptance criteria on related issue
 
+## Imported Rules
+
+@import .claude/rules/testing.md
+@import .claude/rules/python-conventions.md
+
 ## Related
 
 - **Website**: [multivac42.ai](https://multivac42.ai)
