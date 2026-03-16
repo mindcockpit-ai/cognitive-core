@@ -3,7 +3,7 @@ name: acceptance-verification
 description: Verify GitHub issue acceptance criteria against codebase evidence. Posts structured verification comments on issues.
 user-invocable: true
 allowed-tools: Bash, Read, Grep, Glob
-argument-hint: "<issue-number> [--strict] [--dry-run]"
+argument-hint: "Issue number to verify"
 catalog_description: Verify GitHub issue acceptance criteria against codebase evidence.
 ---
 

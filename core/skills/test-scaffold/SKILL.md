@@ -4,6 +4,7 @@ description: Generate test file scaffolds for project modules. Language-agnostic
 user-invocable: true
 disable-model-invocation: true
 allowed-tools: Bash, Read, Grep, Glob, Write
+argument-hint: "Module or file to generate tests for"
 catalog_description: Generate test file scaffolds — language-agnostic with config support.
 ---
 

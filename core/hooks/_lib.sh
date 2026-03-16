@@ -63,6 +63,55 @@ _cc_json_pretool_deny() {
     fi
 }
 
+# Structured deny with error classification
+# Usage: _cc_json_pretool_deny_structured "reason" "errorCategory" "isRetryable" ["suggestion"]
+# errorCategory: security | validation | permission | policy
+# isRetryable: true | false
+_cc_json_pretool_deny_structured() {
+    local reason="${1:-}"
+    local category="${2:-security}"
+    local retryable="${3:-false}"
+    local suggestion="${4:-}"
+
+    if command -v jq &>/dev/null; then
+        if [ -n "$suggestion" ]; then
+            jq -n --arg reason "$reason" --arg cat "$category" \
+                --argjson retry "$retryable" --arg sug "$suggestion" '{
+                hookSpecificOutput: {
+                    hookEventName: "PreToolUse",
+                    permissionDecision: "deny",
+                    permissionDecisionReason: $reason,
+                    errorCategory: $cat,
+                    isRetryable: $retry,
+                    suggestion: $sug
+                }
+            }'
+        else
+            jq -n --arg reason "$reason" --arg cat "$category" \
+                --argjson retry "$retryable" '{
+                hookSpecificOutput: {
+                    hookEventName: "PreToolUse",
+                    permissionDecision: "deny",
+                    permissionDecisionReason: $reason,
+                    errorCategory: $cat,
+                    isRetryable: $retry
+                }
+            }'
+        fi
+    else
+        local escaped
+        escaped=$(printf '%s' "$reason" | sed 's/"/\\"/g')
+        local suggestion_field=""
+        if [ -n "$suggestion" ]; then
+            local escaped_sug
+            escaped_sug=$(printf '%s' "$suggestion" | sed 's/"/\\"/g')
+            suggestion_field=$(printf ',"suggestion":"%s"' "$escaped_sug")
+        fi
+        printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s","errorCategory":"%s","isRetryable":%s%s}}' \
+            "$escaped" "$category" "$retryable" "$suggestion_field"
+    fi
+}
+
 _cc_json_posttool_context() {
     local ctx="$1"
     if command -v jq &>/dev/null; then

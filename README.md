@@ -170,11 +170,14 @@ cognitive-core/                         Your project after install:
 |   |   +-- pre-commit/    --------->    |   +-- pre-commit/
 |   |   +-- fitness/        --------->    |   +-- fitness/
 |   |   +-- ...                           |   +-- ...
-|   +-- templates/                        +-- settings.json
-|   +-- utilities/                        +-- cognitive-core/
-+-- language-packs/                       |   +-- version.json
-|   +-- perl/, python/, node/             +-- AGENTS_README.md
-|   +-- java/, go/, rust/, csharp/    CLAUDE.md
+|   +-- templates/                        +-- rules/
+|   |   +-- rules/testing.md  --------->  |   +-- testing.md
+|   +-- utilities/                        |   +-- <language>-conventions.md
++-- language-packs/                       +-- settings.json
+|   +-- perl/, python/, node/             +-- cognitive-core/
+|   |   +-- rules/ (per-language)         |   +-- version.json
+|   +-- java/, go/, rust/, csharp/        +-- AGENTS_README.md
+|   +-- react/, angular/, spring-boot/ CLAUDE.md
 |   +-- react/, angular/, spring-boot/
 +-- adapters/
 |   +-- claude/, aider/, intellij/
@@ -353,6 +356,10 @@ CC_MONITORING="true"              # Install monitoring stack
 ```
 
 See `cognitive-core.conf.example` for the complete reference with all options.
+
+### Path-Scoped Rules (`.claude/rules/`)
+
+The installer creates `.claude/rules/` with convention files that only load when you edit matching file paths. Use `CLAUDE.md` for project-wide rules and `.claude/rules/` for language- or pattern-specific conventions (e.g., testing patterns load only when editing test files). Each rule file uses YAML frontmatter `paths` globs to control when it activates.
 
 ## Language Packs
 

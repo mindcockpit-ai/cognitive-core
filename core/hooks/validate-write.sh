@@ -32,16 +32,21 @@ if [ ! -f "$FILE_PATH" ]; then
 fi
 
 WARNINGS=""
+STRUCTURED_DENY=""
 
 # Secret detection patterns
 # AWS access keys
 if grep -qE 'AKIA[0-9A-Z]{16}' "$FILE_PATH" 2>/dev/null; then
     WARNINGS="${WARNINGS}\n- Possible AWS access key detected (AKIA...)"
+    STRUCTURED_DENY="aws"
 fi
 
 # PEM private keys
 if grep -q -e '-----BEGIN.*PRIVATE.*KEY-----' "$FILE_PATH" 2>/dev/null; then
     WARNINGS="${WARNINGS}\n- Private key (PEM format) detected"
+    if [ -z "$STRUCTURED_DENY" ]; then
+        STRUCTURED_DENY="pem"
+    fi
 fi
 
 # Generic API keys/tokens (high-entropy strings assigned to key-like variables)
@@ -54,10 +59,24 @@ if grep -qE -e '(password|secret|token)[[:space:]]*[:=][[:space:]]*["'"'"'][^"'"
     WARNINGS="${WARNINGS}\n- Possible hardcoded password/secret/token detected"
 fi
 
-# Output warning if secrets found
+# Output structured deny for high-confidence secrets, warning for others
 if [ -n "$WARNINGS" ]; then
     _cc_security_log "WARN" "secret-detected" "file=${FILE_PATH}${WARNINGS}"
-    _cc_json_posttool_context "SECRET SCAN WARNING in ${FILE_PATH}:${WARNINGS}\nConsider using environment variables or a secrets manager instead of hardcoding credentials."
+    case "$STRUCTURED_DENY" in
+        aws)
+            _cc_json_pretool_deny_structured \
+                "Hardcoded AWS access key detected in ${FILE_PATH}" \
+                "security" "true" "Use environment variable instead"
+            ;;
+        pem)
+            _cc_json_pretool_deny_structured \
+                "Private key (PEM format) detected in ${FILE_PATH}" \
+                "security" "true" "Store in secure vault"
+            ;;
+        *)
+            _cc_json_posttool_context "SECRET SCAN WARNING in ${FILE_PATH}:${WARNINGS}\nConsider using environment variables or a secrets manager instead of hardcoding credentials."
+            ;;
+    esac
 fi
 
 exit 0

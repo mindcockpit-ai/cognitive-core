@@ -123,6 +123,23 @@ if [ -f "$LIB" ]; then
         assert_contains "_lib: session_context contains hello" "$output" "hello world"
     fi
 
+    # Test _cc_json_pretool_deny_structured (with suggestion)
+    output=$(bash -c "source '${LIB}'; _cc_json_pretool_deny_structured 'Test reason' 'security' 'false' 'Try alternative'" 2>/dev/null)
+    assert_contains "structured deny has errorCategory" "$output" '"errorCategory"'
+    assert_contains "structured deny has isRetryable" "$output" '"isRetryable"'
+    assert_contains "structured deny has suggestion" "$output" '"suggestion"'
+    assert_contains "structured deny category is security" "$output" '"security"'
+
+    # Test _cc_json_pretool_deny_structured (without suggestion)
+    output=$(bash -c "source '${LIB}'; _cc_json_pretool_deny_structured 'No suggestion' 'validation' 'true'" 2>/dev/null)
+    assert_contains "structured deny without suggestion has errorCategory" "$output" '"errorCategory"'
+    assert_contains "structured deny without suggestion has isRetryable" "$output" '"isRetryable"'
+    assert_contains "structured deny without suggestion category is validation" "$output" '"validation"'
+    if command -v jq &>/dev/null; then
+        decision=$(echo "$output" | jq -r '.hookSpecificOutput.permissionDecision // ""' 2>/dev/null)
+        assert_eq "structured deny decision=deny" "deny" "$decision"
+    fi
+
     # Test _cc_json_posttool_context
     output=$(bash -c "source '${LIB}'; _cc_json_posttool_context 'post info'" 2>/dev/null)
     if command -v jq &>/dev/null; then

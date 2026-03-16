@@ -83,4 +83,32 @@ while IFS= read -r skill_md; do
     fi
 done < <(find "${ROOT_DIR}/core/skills" "${ROOT_DIR}/language-packs" "${ROOT_DIR}/database-packs" -name "SKILL.md" -type f 2>/dev/null | sort)
 
+# Validate context field when present (only valid value: fork)
+while IFS= read -r skill_md; do
+    skill_name="$(basename "$(dirname "$skill_md")")"
+    _ctx_line=$(grep '^context:' "$skill_md" 2>/dev/null | head -1 || echo "")
+    if [ -n "$_ctx_line" ]; then
+        _ctx_value=$(echo "$_ctx_line" | sed 's/context:[[:space:]]*//')
+        if [ "$_ctx_value" = "fork" ]; then
+            _pass "context field: ${skill_name}/SKILL.md"
+        else
+            _fail "context field: ${skill_name}/SKILL.md — invalid value: ${_ctx_value} (must be fork)"
+        fi
+    fi
+done < <(find "${ROOT_DIR}/core/skills" "${ROOT_DIR}/language-packs" "${ROOT_DIR}/database-packs" -name "SKILL.md" -type f 2>/dev/null | sort)
+
+# Validate argument-hint field when present (must be non-empty string)
+while IFS= read -r skill_md; do
+    skill_name="$(basename "$(dirname "$skill_md")")"
+    _ah_line=$(grep '^argument-hint:' "$skill_md" 2>/dev/null | head -1 || echo "")
+    if [ -n "$_ah_line" ]; then
+        _ah_value=$(echo "$_ah_line" | sed 's/argument-hint:[[:space:]]*//' | sed 's/^"//;s/"$//' | sed "s/^'//;s/'$//")
+        if [ -n "$_ah_value" ]; then
+            _pass "argument-hint field: ${skill_name}/SKILL.md"
+        else
+            _fail "argument-hint field: ${skill_name}/SKILL.md — value must be non-empty"
+        fi
+    fi
+done < <(find "${ROOT_DIR}/core/skills" "${ROOT_DIR}/language-packs" "${ROOT_DIR}/database-packs" -name "SKILL.md" -type f 2>/dev/null | sort)
+
 suite_end

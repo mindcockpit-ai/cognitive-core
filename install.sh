@@ -518,6 +518,25 @@ if [ -n "${CC_DATABASE:-}" ] && [ "$CC_DATABASE" != "none" ]; then
     fi
 fi
 
+# ---- Install rules ----
+header "Installing path-scoped rules"
+mkdir -p "${CC_INSTALL_DIR}/rules"
+
+# Core testing rules (always installed)
+if [ -f "${SCRIPT_DIR}/core/templates/rules/testing.md" ]; then
+    cp "${SCRIPT_DIR}/core/templates/rules/testing.md" "${CC_INSTALL_DIR}/rules/testing.md"
+    info "Installed rule: testing.md"
+fi
+
+# Language-specific rules
+if [ -n "${CC_LANGUAGE:-}" ] && [ -d "${SCRIPT_DIR}/language-packs/${CC_LANGUAGE}/rules" ]; then
+    for rule_file in "${SCRIPT_DIR}/language-packs/${CC_LANGUAGE}/rules/"*.md; do
+        [ -f "$rule_file" ] || continue
+        cp "$rule_file" "${CC_INSTALL_DIR}/rules/$(basename "$rule_file")"
+        info "Installed rule: $(basename "$rule_file")"
+    done
+fi
+
 # ---- Generate platform settings ----
 header "Generating platform settings"
 _adapter_generate_settings "$PROJECT_DIR"

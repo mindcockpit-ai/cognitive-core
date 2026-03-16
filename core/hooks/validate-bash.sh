@@ -122,7 +122,7 @@ fi
 # Output deny JSON if blocked, otherwise silent exit 0
 if [ -n "$REASON" ]; then
     _cc_security_log "DENY" "bash-blocked" "${REASON} | cmd=${CMD}"
-    _cc_json_pretool_deny "$REASON"
+    _cc_json_pretool_deny_structured "$REASON" "security" "false"
 fi
 
 exit 0

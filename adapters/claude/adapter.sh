@@ -156,6 +156,29 @@ See \`.claude/AGENTS_README.md\` for the agent team documentation.
 4. Run lint: \`${CC_LINT_COMMAND}\`
 5. Commit with conventional format
 CLAUDEEOF
+
+    # Append @import statements for installed rule files
+    local rules_dir="${project_dir}/.claude/rules"
+    if [ -d "$rules_dir" ]; then
+        local has_rules=false
+        for rule_file in "${rules_dir}/"*.md; do
+            [ -f "$rule_file" ] || continue
+            has_rules=true
+            break
+        done
+        if [ "$has_rules" = true ]; then
+            cat >> "$claudemd" << 'IMPORTEOF'
+
+## Imported Rules
+
+IMPORTEOF
+            for rule_file in "${rules_dir}/"*.md; do
+                [ -f "$rule_file" ] || continue
+                echo "@import .claude/rules/$(basename "$rule_file")" >> "$claudemd"
+            done
+        fi
+    fi
+
     info "Generated CLAUDE.md scaffold."
 }
 

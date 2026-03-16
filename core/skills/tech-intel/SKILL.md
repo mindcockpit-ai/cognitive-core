@@ -2,6 +2,7 @@
 name: tech-intel
 description: Technology intelligence gathering. Web research for dependency updates, security advisories, and ecosystem developments relevant to your stack.
 user-invocable: true
+context: fork
 disable-model-invocation: true
 allowed-tools: Bash, Read, Write, WebSearch, WebFetch, Glob
 catalog_description: Dependency updates, security advisories, and ecosystem intelligence.

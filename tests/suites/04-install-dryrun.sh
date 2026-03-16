@@ -115,6 +115,12 @@ assert_contains "install: version.json has source" "$version_content" '"source"'
 # ---- Verify CLAUDE.md ----
 assert_file_exists "install: CLAUDE.md generated" "${test_dir}/CLAUDE.md"
 
+claudemd_content=$(cat "${test_dir}/CLAUDE.md")
+assert_contains "install: CLAUDE.md has @import for rules" "$claudemd_content" "@import .claude/rules/"
+assert_contains "install: CLAUDE.md imports testing rules" "$claudemd_content" "@import .claude/rules/testing.md"
+assert_contains "install: CLAUDE.md imports language rules" "$claudemd_content" "@import .claude/rules/python-conventions.md"
+assert_contains "install: CLAUDE.md has Imported Rules section" "$claudemd_content" "## Imported Rules"
+
 # ---- Verify utilities ----
 assert_file_exists "install: check-update.sh installed" "${test_dir}/.claude/cognitive-core/check-update.sh"
 assert_file_exists "install: context-cleanup.sh installed" "${test_dir}/.claude/cognitive-core/context-cleanup.sh"
@@ -131,6 +137,11 @@ assert_contains "install: AGENTS_README has Don't use for" "$agents_readme" "Don
 
 # ---- Verify compact-reminder.sh installed ----
 assert_file_exists "install: compact-reminder.sh installed" "${test_dir}/.claude/hooks/compact-reminder.sh"
+
+# ---- Verify rules ----
+assert_dir_exists "install: .claude/rules/ created" "${test_dir}/.claude/rules"
+assert_file_exists "install: testing rules installed" "${test_dir}/.claude/rules/testing.md"
+assert_file_exists "install: python rules installed" "${test_dir}/.claude/rules/python-conventions.md"
 
 # Cleanup
 rm -rf "$test_dir"
