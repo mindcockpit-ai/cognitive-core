@@ -277,6 +277,47 @@ pb_board_add() {
     _pb_success "Issue $issue_id is on the board (YouTrack: automatic for project issues)"
 }
 
+pb_board_approve() {
+    local issue_id="${1:?Issue ID required}"
+    shift
+    local comment=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --comment) comment="$2"; shift 2 ;;
+            *)         shift ;;
+        esac
+    done
+
+    # Verify issue is in testing status
+    local result current_status
+    result=$(pb_issue_view "$issue_id")
+    current_status=$(echo "$result" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for cf in data.get('customFields', []):
+    if cf.get('name') == 'State' and cf.get('value'):
+        print(cf['value'].get('name', '')); break
+" 2>/dev/null)
+
+    local testing_status
+    testing_status=$(_yt_status_name "testing")
+    if [[ "$current_status" != "$testing_status" ]]; then
+        _pb_die "Cannot approve $issue_id — current status is '$current_status', expected '$testing_status'"
+    fi
+
+    # Add approval comment and transition to Done
+    local approval_comment="Approved."
+    [[ -n "$comment" ]] && approval_comment="Approved: ${comment}"
+    pb_issue_comment "$issue_id" "$approval_comment"
+
+    local done_status
+    done_status=$(_yt_status_name "done")
+    _yt_api POST "/issues/${issue_id}" \
+        -d "{\"customFields\":[{\"name\":\"State\",\"\$type\":\"StateIssueCustomField\",\"value\":{\"name\":\"$done_status\"}}]}" >/dev/null
+
+    _pb_success "Issue $issue_id approved and moved to $done_status"
+}
+
 # =============================================================================
 # SPRINT COMMANDS
 # =============================================================================

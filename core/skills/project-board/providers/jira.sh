@@ -390,6 +390,53 @@ pb_board_add() {
     _pb_success "Issue $issue_key is on the board (Jira: automatic)"
 }
 
+pb_board_approve() {
+    local issue_key="${1:?Issue key required}"
+    shift
+    local comment=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --comment) comment="$2"; shift 2 ;;
+            *)         shift ;;
+        esac
+    done
+
+    # Verify issue is in testing status
+    local result current_status
+    result=$(_jira_api GET "/issue/${issue_key}?fields=status,comment")
+    current_status=$(echo "$result" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(data['fields']['status']['name'])
+" 2>/dev/null)
+
+    local testing_status
+    testing_status=$(_jira_status_name "testing")
+    if [[ "$current_status" != "$testing_status" ]]; then
+        _pb_die "Cannot approve $issue_key — current status is '$current_status', expected '$testing_status'"
+    fi
+
+    # Verify evidence exists (at least one comment)
+    local comment_count
+    comment_count=$(echo "$result" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(len(data['fields'].get('comment', {}).get('comments', [])))
+" 2>/dev/null)
+
+    if [[ "$comment_count" -eq 0 ]]; then
+        _pb_die "Cannot approve $issue_key — no verification evidence found (0 comments)"
+    fi
+
+    # Add approval comment and transition to Done
+    local approval_comment="Approved."
+    [[ -n "$comment" ]] && approval_comment="Approved: ${comment}"
+    pb_issue_comment "$issue_key" "$approval_comment"
+    _jira_do_transition "$issue_key" "Done"
+
+    _pb_success "Issue $issue_key approved and moved to Done"
+}
+
 # =============================================================================
 # SPRINT COMMANDS
 # =============================================================================

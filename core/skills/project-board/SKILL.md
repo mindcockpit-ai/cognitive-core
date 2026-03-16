@@ -47,6 +47,7 @@ $PB_SCRIPT board summary
 $PB_SCRIPT board status <N>
 $PB_SCRIPT board move <N> <status_key>
 $PB_SCRIPT board add <N>
+$PB_SCRIPT board approve <N> [--comment C]
 $PB_SCRIPT sprint list [--all]
 $PB_SCRIPT sprint assign "sprint-title" <N> [N2 N3...]
 $PB_SCRIPT branch create <N> <type> <slug> [--base B]
@@ -140,6 +141,18 @@ Roadmap → Backlog → Todo → In Progress → To Be Tested → Done
 | **To Be Tested** | Code complete, needs verification | Yes |
 | **Done** | Verified and closed (terminal) | — |
 | **Canceled** | Abandoned or deferred (terminal) | — |
+
+### Human Approval Gate
+
+When `CC_REQUIRE_HUMAN_APPROVAL="true"` (default), automated workflows stop at "To Be Tested" instead of auto-closing to "Done". This provides:
+
+- **Governance**: Enterprise compliance (SOX, ISO 27001, ITIL CAB)
+- **Trust**: New users review AI work before acceptance
+- **Auditability**: Every closure has an explicit human approval with attribution
+
+The coordinator agent posts verification evidence (acceptance criteria table, deployment screenshots, code references) and leaves the issue open for human review. Use `/project-board approve <number>` to accept and close.
+
+Set `CC_REQUIRE_HUMAN_APPROVAL="false"` for fully autonomous workflows.
 
 ### Status Option IDs
 
@@ -613,6 +626,23 @@ Verify acceptance criteria for an issue. Delegates to the `acceptance-verificati
 This reads the issue's acceptance criteria, searches the codebase for evidence (commits, code, tests, docs), and posts a structured verification comment on the issue with PASS/PARTIAL/FAIL status per criterion.
 
 See the `acceptance-verification` skill for full workflow details.
+
+### `approve`
+
+Human approval gate. Moves an issue from "To Be Tested" to "Done" after reviewing verification evidence. Only works when `CC_REQUIRE_HUMAN_APPROVAL="true"` (default).
+
+**Syntax**: `/project-board approve <number> [--comment "reason"]`
+
+**Guards**:
+1. Issue must be in "To Be Tested" status — blocks otherwise
+2. Issue must have at least one verification comment (evidence exists)
+3. Approval is attributed to the current GitHub user
+
+**Flow**:
+1. Verify issue is in "To Be Tested"
+2. Verify evidence comment exists
+3. Close the issue with "Approved by @username" comment
+4. Move to Done on the board
 
 ## Error Handling
 

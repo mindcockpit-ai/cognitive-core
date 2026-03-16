@@ -94,6 +94,7 @@ _pb_status_display_name() {
 #   pb_board_status NUMBER
 #   pb_board_move NUMBER STATUS_KEY
 #   pb_board_add NUMBER [--area A]
+#   pb_board_approve NUMBER [--comment C]
 #   pb_provider_info
 #
 # Optional (providers may return "not supported"):
@@ -148,7 +149,8 @@ _pb_route() {
                 status)  pb_board_status "$@" ;;
                 move)    pb_board_move "$@" ;;
                 add)     pb_board_add "$@" ;;
-                *)       _pb_die "Unknown board command: $cmd. Use: summary|status|move|add" ;;
+                approve) pb_board_approve "$@" ;;
+                *)       _pb_die "Unknown board command: $cmd. Use: summary|status|move|add|approve" ;;
             esac
             ;;
         sprint)
@@ -179,7 +181,7 @@ Usage: <provider>.sh <group> <command> [args...]
 
 Groups:
   issue     list|create|close|reopen|view|comment|assign
-  board     summary|status|move|add
+  board     summary|status|move|add|approve
   sprint    list|assign
   branch    create|list
   provider  info

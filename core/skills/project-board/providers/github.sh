@@ -323,6 +323,63 @@ pb_board_add() {
     echo "{\"item_id\":\"$item_id\",\"number\":$number}"
 }
 
+pb_board_approve() {
+    local number="${1:?Issue number required}"
+    shift
+    local comment=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --comment) comment="$2"; shift 2 ;;
+            *)         shift ;;
+        esac
+    done
+
+    # Verify issue is in "To Be Tested" status
+    local items item_id current_status
+    items=$(_gh_get_items)
+    item_id=$(echo "$items" | python3 -c "
+import json, sys
+for item in json.load(sys.stdin).get('items', []):
+    if item.get('content', {}).get('number') == $number:
+        print(item['id']); break
+" 2>/dev/null) || _pb_die "Issue #$number not found on board"
+
+    current_status=$(echo "$items" | python3 -c "
+import json, sys
+for item in json.load(sys.stdin).get('items', []):
+    if item.get('content', {}).get('number') == $number:
+        print(item.get('status', '')); break
+" 2>/dev/null)
+
+    if [[ "$current_status" != "To Be Tested" && "$current_status" != "In Review" ]]; then
+        _pb_die "Cannot approve #$number — current status is '$current_status', expected 'To Be Tested'"
+    fi
+
+    # Verify evidence exists (at least one comment on the issue)
+    local comment_count
+    comment_count=$(gh issue view "$number" --repo "$CC_GITHUB_REPO" --json comments --jq '.comments | length')
+    if [[ "$comment_count" -eq 0 ]]; then
+        _pb_die "Cannot approve #$number — no verification evidence found (0 comments)"
+    fi
+
+    # Get current user for attribution
+    local approver
+    approver=$(gh api user --jq '.login' 2>/dev/null || echo "unknown")
+
+    # Close the issue
+    local approval_comment="Approved by @${approver}."
+    [[ -n "$comment" ]] && approval_comment="Approved by @${approver}: ${comment}"
+    gh issue close "$number" --repo "$CC_GITHUB_REPO" --comment "$approval_comment" >/dev/null 2>&1
+
+    # Move to Done - need the status option ID passed as argument or discovered
+    local done_option_id="${1:-}"
+    if [[ -n "$done_option_id" ]]; then
+        _gh_set_field "$item_id" "$CC_STATUS_FIELD_ID" "$done_option_id" >/dev/null
+    fi
+
+    _pb_success "Issue #$number approved and moved to Done by @$approver"
+}
+
 # =============================================================================
 # SPRINT COMMANDS
 # =============================================================================
