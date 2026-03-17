@@ -61,6 +61,16 @@ if [ -f "$_UPDATE_CHECK" ] && [ -x "$_UPDATE_CHECK" ]; then
     fi
 fi
 
+# ---- Session hygiene (glymphatic cleanup) ----
+if [ -f "${SCRIPT_DIR}/_session-hygiene.sh" ]; then
+    # shellcheck source=_session-hygiene.sh
+    source "${SCRIPT_DIR}/_session-hygiene.sh"
+    _HYGIENE_NOTICE=$(_cc_session_hygiene "$CC_PROJECT_DIR") || true
+    if [ -n "$_HYGIENE_NOTICE" ]; then
+        STATUS="${STATUS} ${_HYGIENE_NOTICE}"
+    fi
+fi
+
 # ---- First-session onboarding ----
 _ONBOARD_MARKER="${CC_PROJECT_DIR}/.claude/cognitive-core/.session-started"
 if [ ! -f "$_ONBOARD_MARKER" ]; then

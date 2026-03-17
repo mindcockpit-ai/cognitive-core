@@ -218,8 +218,8 @@ else
     _fail "skill parity: plugin(${plugin_skills}) < core(${core_skills}) — missing skills"
 fi
 
-core_hooks=$(find "${ROOT_DIR}/core/hooks" -name "*.sh" -not -name "_lib.sh" | wc -l | tr -d ' ')
-plugin_hooks=$(find "${PLUGIN_DIR}/scripts" -name "*.sh" -not -name "_lib.sh" | wc -l | tr -d ' ')
+core_hooks=$(find "${ROOT_DIR}/core/hooks" -name "*.sh" -not -name "_*.sh" | wc -l | tr -d ' ')
+plugin_hooks=$(find "${PLUGIN_DIR}/scripts" -name "*.sh" -not -name "_*.sh" | wc -l | tr -d ' ')
 if [ "$plugin_hooks" -ge "$core_hooks" ]; then
     _pass "hook parity: plugin(${plugin_hooks}) >= core(${core_hooks})"
 else
