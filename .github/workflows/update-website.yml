@@ -29,7 +29,18 @@ jobs:
       - name: Validate JSON
         run: python3 -c "import json; json.load(open('framework-health.json'))"
 
+      - name: Check cross-repo token
+        id: check-token
+        run: |
+          if [ -n "${{ secrets.MULTIVAC_PAT }}" ] || [ -n "${{ env.MULTIVAC_PAT }}" ]; then
+            echo "has_token=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_token=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::MULTIVAC_PAT not configured — skipping website update. Set MULTIVAC_PAT secret or OP_SERVICE_ACCOUNT_TOKEN for cross-repo updates."
+          fi
+
       - name: Checkout multivac42.ai
+        if: steps.check-token.outputs.has_token == 'true'
         uses: actions/checkout@v4
         with:
           repository: mindcockpit-ai/multivac42.ai
@@ -37,9 +48,11 @@ jobs:
           path: website
 
       - name: Update health data
+        if: steps.check-token.outputs.has_token == 'true'
         run: cp framework-health.json website/src/data/framework-health.json
 
       - name: Create Pull Request
+        if: steps.check-token.outputs.has_token == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           path: website
