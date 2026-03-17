@@ -14,6 +14,10 @@
 
 <p align="center"><em>Born abilities from day one. Learned abilities from experience.<br/>Nature's teamwork, applied to AI agents.</em></p>
 
+<p align="center">
+  <a href="https://multivac42.ai"><img src="docs/screenshot.png" alt="cognitive-core landing page" width="700"/></a>
+</p>
+
 ## Philosophy
 
 > **Why a forest, not a factory**
