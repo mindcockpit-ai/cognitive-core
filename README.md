@@ -69,6 +69,33 @@ across layers. Parsimony applies *within* each security layer, never *across* th
 
 **Complements** (not replaces): Documentation tools like [Context7](https://context7.com) provide library docs — cognitive-core provides workflow safety, agent teams, and quality enforcement.
 
+## Why cognitive-core?
+
+| | Traditional IDE AI | Cloud SaaS Tools | cognitive-core |
+|---|---|---|---|
+| **Deployment** | Locked to one IDE | Cloud-dependent | Installs into any project |
+| **AI Provider** | Single vendor | Single vendor | Multi-adapter (Claude, Ollama, IntelliJ) |
+| **Data Sovereignty** | Cloud required | Cloud required | Fully local possible |
+| **Project Management** | None | None | GitHub, Jira, YouTrack |
+| **Legacy Support** | Generic | Generic | Struts/JSP, legacy Java archeology |
+| **Customization** | Extensions/plugins | None | Create skills, rules, agents |
+| **Governance** | Optional | Optional | Human Approval Gate (architectural principle) |
+| **Language** | English only | English only | Any language the model supports |
+| **License** | Proprietary | Proprietary | Fair Source (FSL-1.1-ALv2) |
+| **Source Code** | Not accessible | Not accessible | Publicly auditable |
+
+## Self-Evolving Framework
+
+cognitive-core is not a static product you install and use "as is." Like a living organism, it evolves with every deployment:
+
+- **Every prompt** refines agent behavior
+- **Every resolved issue** generates domain knowledge
+- **Every session** strengthens project-specific patterns
+
+We don't have product managers — we have cognitive-core. Every idea is evaluated immediately. What survives evolution, stays. What doesn't add value, naturally fades.
+
+Multi-agent peer review — where agents check each other's work — was implemented in cognitive-core before Anthropic officially added it to their tools.
+
 ### Born Abilities (work from first install)
 
 | Nature | cognitive-core | What it does |
@@ -161,6 +188,15 @@ Step-by-step guides for common workflows:
 | [Coordinator Workflow](docs/recipes/recipe-coordinator-workflow.md) | Autonomous multi-agent workflow |
 | [Wrong Agent?](docs/recipes/recipe-wrong-agent.md) | How agent redirect works |
 | [Nothing Happened?](docs/recipes/recipe-no-output.md) | Common setup troubleshooting |
+
+## Academic Foundation & EU Collaboration
+
+cognitive-core is built on principles from evolutionary cognitive biology and behavioral ecology. Academic collaboration drives real results — peer-reviewed studies (RAFT by UC Berkeley/Microsoft/Meta, RAG-HAT from EMNLP 2024) show that RAG + finetuning reduces hallucination to 0-4%.
+
+Current collaborations:
+- **Hochschule Albstadt-Sigmaringen** — semester project with students
+- **Brigadee** (EU startup) — using the framework for development
+- **TZO startup TUKE Kosice** & **University of Veterinary Medicine Kosice** (PharmaSys project)
 
 ## Architecture
 
