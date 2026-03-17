@@ -33,7 +33,7 @@ cognitive-core/
 ├── language-packs/          # Per-language configurations (10 languages)
 ├── database-packs/          # Per-database configurations (3 databases)
 ├── cicd/                    # CI/CD pipeline templates
-├── tests/                   # Test suites (12 suites, 378+ tests)
+├── tests/                   # Test suites (13 suites, 524+ tests)
 │   ├── suites/              # Individual test scripts
 │   └── lib/                 # Test helpers and assertions
 ├── install.sh               # Main installer (adapter-aware)
@@ -104,7 +104,7 @@ See `.claude/AGENTS_README.md` for the full agent team documentation.
 1. Check current branch and status
 2. Check project board: issues in **In Progress** column
 3. Implement changes following architecture patterns above
-4. Run tests: `bash tests/run-all.sh` (all 12 suites must pass)
+4. Run tests: `bash tests/run-all.sh` (all 13 suites must pass)
 5. Commit with conventional format: `type(scope): subject`
 6. Verify acceptance criteria on related issue
 

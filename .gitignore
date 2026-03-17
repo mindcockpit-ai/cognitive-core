@@ -110,3 +110,4 @@ htmlcov/
 # Archives
 *.tar.gz
 *.zip
+.claude/cognitive-core/last-check

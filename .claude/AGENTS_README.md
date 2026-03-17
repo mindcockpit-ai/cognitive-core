@@ -23,14 +23,14 @@ acts as the central orchestrator, delegating to specialist agents based on task 
 │  • Synthesize results into unified response                  │
 │  • Manage project board and sprint planning                  │
 │                                                              │
-└──┬────────┬────────┬────────┬────────┬────────┬────────┬────────┬────────┬──┘
-   │        │        │        │        │        │        │        │        │
-   ▼        ▼        ▼        ▼        ▼        ▼        ▼        ▼        ▼
-┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐
-│solution││  code  ││  test  ││research││database││security││angular ││ spring ││  skill │
-│architec││reviewer││  spec  ││ analyst││  spec  ││ analyst││  spec  ││  boot  ││ updater│
-│ (Opus) ││(Sonnet)││(Sonnet)││ (Opus) ││ (Opus) ││ (Opus) ││(Sonnet)││(Sonnet)││(Sonnet)│
-└────────┘└────────┘└────────┘└────────┘└────────┘└────────┘└────────┘└────────┘└────────┘
+└────────┬──────────┬──────────┬──────────┬──────────┬─────────┘
+         │          │          │          │          │
+         ▼          ▼          ▼          ▼          ▼
+   ┌──────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
+   │ solution │ │  code  │ │  test  │ │research│ │database│
+   │ architect│ │reviewer│ │  spec  │ │ analyst│ │  spec  │
+   │  (Opus)  │ │(Sonnet)│ │(Sonnet)│ │ (Opus) │ │ (Opus) │
+   └──────────┘ └────────┘ └────────┘ └────────┘ └────────┘
 ```
 
 ## Agent Catalog
@@ -79,24 +79,6 @@ acts as the central orchestrator, delegating to specialist agents based on task 
 - **Use when**: Pentest, CTF challenges, vulnerability scanning, security code review, breach analysis
 - **Don't use for**: General code review, business analysis, non-security tasks
 
-### skill-updater
-- **File**: `skill-updater.md` | **Model**: sonnet
-- **Role**: Framework synchronization, component updates, skill and hook maintenance
-- **Use when**: Updating framework files, syncing skills across projects, component version management
-- **Don't use for**: Feature development, code review, architecture decisions
-
-### angular-specialist
-- **File**: `angular-specialist.md` | **Model**: sonnet
-- **Role**: Angular migration (v18-21), patterns, architecture, signals, standalone components, zoneless
-- **Use when**: Angular version migration, Angular Material integration, signal adoption, Vitest setup, standalone component migration
-- **Don't use for**: Non-Angular frontend work, backend tasks, general code review
-
-### spring-boot-specialist
-- **File**: `spring-boot-specialist.md` | **Model**: sonnet
-- **Role**: Spring Boot migration (v2-4), patterns, architecture, Spring Security, RestClient, virtual threads
-- **Use when**: Spring Boot version migration, javax-to-jakarta, SecurityFilterChain, Testcontainers, GraalVM native images
-- **Don't use for**: Non-Spring Java work, frontend tasks, general code review
-
 ## Keyword → Agent Routing
 
 | Keywords in Request | Route To |
@@ -108,9 +90,6 @@ acts as the central orchestrator, delegating to specialist agents based on task 
 | "slow query", "performance", "bulk import", "database", "index" | database-specialist |
 | "plan project", "create TODO", "sprint", "coordinate", "board" | project-coordinator |
 | "pentest", "CTF", "vulnerability", "exploit", "security scan" | security-analyst |
-| "Angular", "migration", "signals", "standalone", "zoneless", "NgRx" | angular-specialist |
-| "Spring Boot", "jakarta", "SecurityFilterChain", "RestClient", "Testcontainers" | spring-boot-specialist |
-| "sync skills", "update framework", "component version" | skill-updater |
 
 ## Delegation Flow
 
@@ -128,7 +107,6 @@ code-standards-reviewer finds performance issue  → database-specialist
 test-specialist finds architectural flaw          → solution-architect
 database-specialist needs research                → research-analyst
 security-analyst finds systemic vulnerability     → project-coordinator
-angular-specialist finds architectural issue      → solution-architect
 Any agent blocked or needs cross-cutting work     → project-coordinator
 ```
 
