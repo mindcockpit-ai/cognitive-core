@@ -23,13 +23,11 @@
 
 ### Slide: Who I Am
 
-> Mein Name ist Peter Wolaschka. Ich bin Software-Architekt und gewaehltes Mitglied des Akademischen Senats der FEI TUKE und des Wissenschaftlichen Rates. Sechs Semester als Research Assistant.
+> Mein Name ist Peter Wolaschka. Ich bin seit ueber 20 Jahren freiberuflicher Software-Architekt — unter anderem bei Unicredit und Airbus Defence. Aktuell Consultant fuer AI-augmented Development.
 >
-> Beruflich arbeite ich seit ueber 20 Jahren in der Softwareentwicklung — Enterprise Java, SAP-Umfeld, Legacy-Modernisierung. Aktuell als unabhaengiger Consultant fuer AI-augmented Development.
->
-> Heute zeige ich Ihnen cognitive-core — ein Framework, das ich entwickelt habe, um AI-gestuetzte Softwareentwicklung systematisch, sicher und wiederholbar zu machen.
+> cognitive-core ist aus dieser Projektarbeit entstanden. Nicht aus der Theorie, sondern aus konkreten Anforderungen bei Enterprise-Kunden.
 
-**Key point**: Not a startup pitch. A technical framework built from production experience.
+**Key point**: Freelancer with enterprise credibility. Not a startup pitch.
 
 ---
 
