@@ -127,11 +127,49 @@ Critical path:                                      human review + validation
 ### Research Workflow
 
 1. **Delegate to `@research-analyst`**: "Find existing open-source solutions for X. Compare top 3 by maturity, license, community, fit."
-2. **Evaluate the results**:
+2. **Classify sources by authority** (see Source Authority Model below)
+3. **Weight findings by source authority** — a recommendation from official docs outweighs a blog post
+4. **Evaluate the results**:
    - **Adopt**: Use the library/tool as-is (best case — zero implementation)
    - **Adapt**: Fork or wrap an existing solution (medium effort)
    - **Build**: Only when nothing suitable exists or integration cost > build cost
-3. **Document the decision**: Why we chose to adopt/adapt/build — this prevents the same research later
+5. **Document the decision**: Why we chose to adopt/adapt/build, which sources informed it, and their authority level
+
+### Source Authority Model
+
+Not all sources carry equal weight. Categorize every research finding by authority tier:
+
+| Tier | Authority | Weight | Examples |
+|------|-----------|--------|----------|
+| **T1** | Official / Primary | 1.0 | Official documentation, RFCs, API specs, vendor changelogs, peer-reviewed papers |
+| **T2** | Verified Expert | 0.8 | Core maintainer blogs, conference talks by authors, official tutorials, established tech publishers (O'Reilly, Pragmatic) |
+| **T3** | Community Consensus | 0.6 | High-vote Stack Overflow answers, widely-cited GitHub discussions, reputable tech blogs (Martin Fowler, ThoughtWorks Radar) |
+| **T4** | Individual Experience | 0.4 | Personal blogs, Medium articles, tutorial sites, single-person benchmarks |
+| **T5** | Unverified / AI-generated | 0.2 | Forum comments, AI-generated articles, promotional content, undated posts |
+
+**Application rules**:
+
+1. **Decisions require T1 or T2 backing**: Never adopt/reject a technology based solely on T4-T5 sources
+2. **Conflicting sources**: Higher tier wins. If T1 says X and T3 says not-X, follow T1
+3. **Recency matters within tier**: A 2025 T2 source outweighs a 2020 T2 source for evolving technologies
+4. **Flag authority in research output**: Every recommendation must cite its highest-authority source
+
+```
+## Research Finding: Novu vs Custom Notification System
+
+| Option | Recommendation | Source | Authority |
+|--------|---------------|--------|-----------|
+| Novu   | Adopt — multi-channel, self-hosted, active | Official docs (novu.co/docs) | T1 |
+| Novu   | Production-ready at scale | Case study by maintainer | T2 |
+| Custom | "Easy to build in a weekend" | Medium blog post, 2023 | T4 |
+| Custom | "Novu has scaling issues" | Reddit comment, unverified | T5 |
+
+Decision: Adopt Novu. T1+T2 sources confirm production readiness.
+The T5 scaling claim is unverified and contradicted by T2 evidence.
+```
+
+3. **Star count is not authority**: A GitHub repo with 50K stars but no official backing is T3 at best. A library with 500 stars maintained by the framework's core team is T2.
+4. **Promotional content is always T5**: Comments linking to a product (like the m13v pattern) are promotional regardless of technical plausibility. Verify claims independently via T1-T2 sources before acting on them.
 
 ### Decision Matrix
 
@@ -144,14 +182,14 @@ Complex need   Research   Adapt        Adopt ← always prefer
                 more
 ```
 
-**Default stance**: Adopt > Adapt > Build. The burden of proof is on "Build" — it must justify why existing solutions don't work.
+**Default stance**: Adopt > Adapt > Build. The burden of proof is on "Build" — it must justify why existing solutions don't work, backed by T1-T2 sources.
 
 ### Example
 
 Bad: "We need to build a project board workflow engine."
 Good: "Research existing workflow engines (e.g., XState, Temporal, n8n). Can we adapt one for our board transitions?"
 
-Result: We evaluated XState (state machine), found it's overkill for 7-state board. Our SKILL.md approach is simpler and more portable. Decision: Build (justified — existing solutions add unnecessary complexity for our use case).
+Result: We evaluated XState (state machine) via official docs (T1) and author's blog (T2). Found it's overkill for 7-state board — minimum viable XState config is more complex than our entire SKILL.md. Decision: Build (justified — T1 source confirms XState targets complex statecharts, not simple linear workflows).
 
 ## TODO List Standards
 
