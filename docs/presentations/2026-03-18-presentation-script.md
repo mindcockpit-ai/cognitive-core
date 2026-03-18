@@ -29,6 +29,21 @@
 
 **Key point**: Freelancer with enterprise credibility. Not a startup pitch.
 
+### Origin Story
+
+> cognitive-core ist aus Frustration entstanden. Ich habe vor einem Jahr angefangen, ernsthaft mit AI zu entwickeln — Claude, Copilot, Cursor. Und es war beeindruckend. Fuer 20 Minuten.
+>
+> Dann kam die Realitaet:
+> - Session crasht — alles weg. Kein Memory, kein Kontext.
+> - AI halluziniert eine Library, die es nicht gibt. Ich suche eine Stunde, bevor ich es merke.
+> - Kontext-Fenster voll — ploetzlich vergisst die AI die Haelfte der Architektur.
+> - Keine Struktur — jeder Prompt ist ein Einzelkampf. Kein Wissen bleibt im Projekt.
+> - AI schreibt Code, der rm -rf oder Secrets im Klartext enthaelt. Kein Safety Net.
+>
+> Das sind keine theoretischen Probleme. Das sind Dinge, die mir jede Woche passiert sind. Bei Kundenprojekten. Mit Deadlines.
+>
+> Also habe ich angefangen, sie systematisch zu loesen. Hook fuer Hook, Agent fuer Agent, Skill fuer Skill. Das Ergebnis ist cognitive-core.
+
 ---
 
 ## PART 2: The Problem (5 min)
