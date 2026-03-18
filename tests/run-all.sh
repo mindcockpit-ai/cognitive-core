@@ -41,22 +41,25 @@ suite_pretty_name() {
 
 # ---- Component counting ----
 count_components() {
-    local agents=0 skills=0 hooks=0 lang_packs=0 db_packs=0
+    local agents=0 skills=0 hooks=0 rules=0 lang_packs=0 db_packs=0 adapters=0
 
     # Agents: .md files in core/agents/
     if [ -d "${ROOT_DIR}/core/agents" ]; then
         agents=$(find "${ROOT_DIR}/core/agents" -maxdepth 1 -name "*.md" -type f | wc -l | tr -d ' ')
     fi
 
-    # Skills: subdirectories in core/skills/
-    if [ -d "${ROOT_DIR}/core/skills" ]; then
-        skills=$(find "${ROOT_DIR}/core/skills" -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')
-    fi
+    # Skills: all SKILL.md across core + language-packs + database-packs (unique)
+    skills=$(find "${ROOT_DIR}/core/skills" "${ROOT_DIR}/language-packs" "${ROOT_DIR}/database-packs" \
+        -name "SKILL.md" -path "*/skills/*/SKILL.md" 2>/dev/null | wc -l | tr -d ' ')
 
     # Hooks: .sh files in core/hooks/ (exclude _lib.sh)
     if [ -d "${ROOT_DIR}/core/hooks" ]; then
         hooks=$(find "${ROOT_DIR}/core/hooks" -maxdepth 1 -name "*.sh" -not -name "_*" -type f | wc -l | tr -d ' ')
     fi
+
+    # Rules: .md files in .claude/rules/ + language-packs/*/rules/
+    rules=$(find "${ROOT_DIR}/.claude/rules" "${ROOT_DIR}/language-packs" \
+        -name "*.md" -path "*/rules/*" 2>/dev/null | wc -l | tr -d ' ')
 
     # Language packs: subdirectories in language-packs/
     if [ -d "${ROOT_DIR}/language-packs" ]; then
@@ -68,8 +71,13 @@ count_components() {
         db_packs=$(find "${ROOT_DIR}/database-packs" -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')
     fi
 
-    printf '{"agents":%d,"skills":%d,"hooks":%d,"language_packs":%d,"database_packs":%d}' \
-        "$agents" "$skills" "$hooks" "$lang_packs" "$db_packs"
+    # Adapters: subdirectories in adapters/ with adapter.sh
+    if [ -d "${ROOT_DIR}/adapters" ]; then
+        adapters=$(find "${ROOT_DIR}/adapters" -maxdepth 2 -name "adapter.sh" -type f | wc -l | tr -d ' ')
+    fi
+
+    printf '{"agents":%d,"skills":%d,"hooks":%d,"rules":%d,"language_packs":%d,"database_packs":%d,"adapters":%d}' \
+        "$agents" "$skills" "$hooks" "$rules" "$lang_packs" "$db_packs" "$adapters"
 }
 
 # ---- Featured component extraction ----
