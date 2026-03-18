@@ -90,7 +90,7 @@
 >
 > Jeder Agent hat Least-Privilege — der Code Reviewer darf keine Dateien schreiben, der Security Analyst darf keine Websuchen machen.
 
-**Layer 3: Skills System (46 Skills)**
+**Layer 3: Skills System (47 Skills)**
 > Wiederverwendbare Faehigkeiten: Code Review, Lint-Debt-Tracking, Smoke Tests, Sprint-Management, Akzeptanzkriterien-Verifikation. 19 Core-Skills plus 26 sprachspezifische (Java, Python, Angular, React, etc.)
 
 ---
@@ -254,7 +254,7 @@ We have an open issue #78 on board. Please coordinate implementation, verify acc
 |--------|-------|
 | Version | v1.0.0 (released today) |
 | Agents | 10 (hub + 9 specialists) |
-| Skills | 46 (19 core + 26 language + 1 database) |
+| Skills | 47 (20 core + 26 language + 1 database) |
 | Hooks | 9 security hooks |
 | Rules | 12 path-scoped |
 | Language packs | 11 |
