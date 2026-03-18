@@ -93,6 +93,36 @@ If the user explicitly asks to refresh context:
 4. Read any referenced implementation plans
 5. Provide a comprehensive summary
 
+## Session State Machine
+
+This skill is the entry point for the session lifecycle:
+
+```
+Fresh → Active → Compacted → Resumed → Ended
+```
+
+| Transition | Trigger | This Skill's Role |
+|-----------|---------|-------------------|
+| Fresh → Active | First user message | Loads context, greets, transitions to Active |
+| Compacted → Resumed | Context compaction + new message | Re-invoked to reconstruct context |
+| Ended → Fresh | New conversation | Auto-loads as Fresh state |
+
+### What Is Preserved vs Reconstructed
+
+| Context | Method | Reliability |
+|---------|--------|-------------|
+| Key Rules (CLAUDE.md) | `compact-reminder.sh` re-injects | Always preserved |
+| Cross-session notes | MEMORY.md (persistent file) | Always preserved |
+| Git state | Repository (immutable history) | Always preserved |
+| Last session summary | SESSION_*.md (persistent file) | Always preserved |
+| Conversation history | Context window only | Lost after compaction |
+| Agent delegation results | Context window only | Lost after compaction |
+| Intermediate reasoning | Context window only | Not recoverable |
+
+When resuming after compaction, prioritize **reconstructable** state (git, files)
+over conversation replay. Do not attempt to recover lost intermediate reasoning --
+re-derive from current state if needed.
+
 ## Notes
 
 - This skill auto-loads on every session -- keep it lean

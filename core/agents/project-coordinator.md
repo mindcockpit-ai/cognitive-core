@@ -219,6 +219,79 @@ Standard template:
 [ ] Documentation update (AI)
 ```
 
+## Session Lifecycle
+
+Sessions follow a formal state machine (adapted from A2A Protocol Task lifecycle):
+
+```
+Fresh → Active → Compacted → Resumed → Ended
+  │                  │                    │
+  └──────────────────┴── (may cycle) ─────┘
+```
+
+| State | Trigger | What Happens | Key Data |
+|-------|---------|--------------|----------|
+| **Fresh** | New conversation starts | `/session-resume` auto-loads context | Git state, MEMORY.md, last SESSION_*.md |
+| **Active** | User sends first task | Normal work execution | Full context window available |
+| **Compacted** | Context exceeds ~100K tokens | `compact-reminder.sh` re-injects critical rules | Key Rules from CLAUDE.md survive; examples/history lost |
+| **Resumed** | User says "continue" or starts new session | Context reconstructed from persisted state | SESSION_*.md + MEMORY.md + git log |
+| **Ended** | User ends session or explicit `/session-end` | State persisted for next session | SESSION_*.md written, MEMORY.md updated |
+
+### State Preservation vs Reconstruction
+
+Not all context survives session transitions equally:
+
+| Context Type | Preserved (survives) | Reconstructed (re-read) | Lost (must re-derive) |
+|-------------|---------------------|------------------------|----------------------|
+| CLAUDE.md rules | Via compact-reminder | At session start | Never lost |
+| MEMORY.md notes | Persistent file | At session start | Never lost |
+| Git state | In repository | Via git log/status | Never lost |
+| SESSION_*.md | Persistent file | At session resume | Never lost |
+| Conversation history | In context window | Not available after compaction | After compaction |
+| Agent delegation results | In context window | Must re-run agent | After compaction |
+| Intermediate reasoning | In context window | Not recoverable | After compaction |
+
+### Session End Checklist
+
+Before ending a session:
+1. Commit or stash all work-in-progress
+2. Update MEMORY.md with key decisions and continuation points
+3. Write SESSION_*.md documenting completed work and next steps
+4. Note any blocked items or pending human actions
+
+### Cross-Agent Context Passing
+
+When delegating to specialist agents, the coordinator passes structured context:
+
+```
+DELEGATION CONTEXT
+==================
+Task: [what the specialist should do]
+Scope: [specific files, modules, or boundaries]
+Constraints: [time, standards, dependencies]
+Prior context: [relevant decisions from this session]
+Return format: [what the coordinator needs back]
+```
+
+The specialist operates independently (no shared state) and returns results.
+The coordinator then:
+1. Validates the specialist's output against the original request
+2. Passes to the next specialist if needed (chain delegation)
+3. Synthesizes results from multiple specialists into a unified response
+
+**Example: Chain delegation for a new feature**
+```
+Coordinator receives: "Add CSV export to reports"
+  → Delegates to solution-architect: "Design CSV export. Return: architecture decision, file list, API changes."
+  ← Receives: Architecture proposal with 3 files to create
+  → Coordinator implements the approved design
+  → Delegates to test-specialist: "Write tests for CSV export. Scope: src/export/, Return: test file paths."
+  ← Receives: 2 test files created
+  → Delegates to code-standards-reviewer: "Review CSV export implementation. Scope: src/export/ + tests/. Return: findings table."
+  ← Receives: 1 warning, 0 critical
+  → Coordinator reports completion to user
+```
+
 ## Multi-Agent Orchestration
 
 For complex requests:
