@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.1.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.0.0...v1.1.0) (2026-03-18)
+
+
+### Features
+
+* **adapters:** expose shared MCP server for Claude Code ([#88](https://github.com/mindcockpit-ai/cognitive-core/issues/88)) ([23cbabb](https://github.com/mindcockpit-ai/cognitive-core/commit/23cbabb7c53c0cb8135cf46803107630c059a9b0))
+* **agents:** formalize information provenance with W3C PROV vocabulary ([#89](https://github.com/mindcockpit-ai/cognitive-core/issues/89)) ([af6d98c](https://github.com/mindcockpit-ai/cognitive-core/commit/af6d98ca680bcb03fa145ff1676b6456575f81c6))
+* **agents:** formalize session lifecycle with A2A-inspired state machine ([#90](https://github.com/mindcockpit-ai/cognitive-core/issues/90)) ([724be7f](https://github.com/mindcockpit-ai/cognitive-core/commit/724be7f00429fb995112403443ac35a5b702571e))
+* **skills:** add batch-review skill with 3-tier processing strategy ([#87](https://github.com/mindcockpit-ai/cognitive-core/issues/87)) ([c4c10f2](https://github.com/mindcockpit-ai/cognitive-core/commit/c4c10f2e9dbe6614a832c2eecbb5c66c82710926))
+
+
+### Bug Fixes
+
+* **presentations:** apply code review fact-check corrections ([aefe572](https://github.com/mindcockpit-ai/cognitive-core/commit/aefe57203db3feec350f8a98a2e572036ac2fefe))
+* **presentations:** correct skill count 46→47 (batch-review added 20th core skill) ([9d76f46](https://github.com/mindcockpit-ai/cognitive-core/commit/9d76f467cf6d0bd7d69bc5e46f54faae746d84fb))
+
 ## [1.0.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v0.2.0...v1.0.0) (2026-03-18)
 
 cognitive-core reaches v1.0.0 with 4 industry-first features, enterprise governance,
