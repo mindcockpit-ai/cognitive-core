@@ -237,7 +237,7 @@ We have an open issue #78 on board. Please coordinate implementation, verify acc
 
 > cognitive-core ist kein Produkt, das AI ersetzt. Es ist ein Framework, das AI regiert — mit denselben Prinzipien, die wir seit Jahrzehnten in der Softwareentwicklung anwenden: Separation of Concerns, Least Privilege, Defense in Depth.
 >
-> Der Unterschied ist: Wir sind die Ersten, die das systematisch fuer AI-augmented Development umgesetzt haben.
+> Der Unterschied ist: Unser Ziel ist, die Ersten zu sein, die das konsequent fuer AI-augmented Development umgesetzt haben.
 >
 > Danke fuer Ihre Aufmerksamkeit. Fragen?
 
