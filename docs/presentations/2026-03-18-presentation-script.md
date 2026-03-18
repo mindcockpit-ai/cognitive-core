@@ -35,7 +35,7 @@
 >
 > Am Anfang hatte ich eine riesige CLAUDE.md — hunderte Zeilen Anweisungen, alles sauber dokumentiert. Und die AI hat die Haelfte ignoriert. Ich habe mich geaergert: Warum befolgt sie klare Instruktionen nicht?
 >
-> Bis ich herausgefunden habe: Das Modell liest per Default nur die ersten 100 Zeilen. Den Rest ueberspringt es. Meine ganzen Architektur-Regeln, Security-Vorgaben — nie gelesen. Da wurde mir klar: Man kann sich nicht darauf verlassen, dass das Modell alles liest. Man braucht Mechanismen, die unabhaengig vom Modell funktionieren.
+> Bis ich herausgefunden habe: Das Modell liest per Default nur die ersten 100 Zeilen. Den Rest ueberspringt es. Meine ganzen Architektur-Regeln, Security-Vorgaben — nie gelesen. Da wurde mir klar: Man kann sich nicht darauf verlassen, dass das Modell alles liest. **Man braucht Mechanismen, die unabhaengig vom Modell funktionieren.**
 >
 > Dann kam die Realitaet:
 > - Session crasht — alles weg. Kein Memory, kein Kontext.
