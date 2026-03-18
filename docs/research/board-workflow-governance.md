@@ -132,3 +132,61 @@ New providers (Azure DevOps, Linear, Shortcut) implement the same CLI contract. 
 ## Impact
 
 A single `cognitive-core.conf` file configures enterprise-grade governance that would otherwise require Jira + 3 plugins + Jira Service Management licensing. Teams get SOX compliance, approval gates, WIP limits, transition enforcement, and agile metrics from one framework — across GitHub, Jira, and YouTrack.
+
+## Implementation in cognitive-core
+
+### Files
+
+| File | Role |
+|------|------|
+| [`core/skills/project-board/SKILL.md`](../../core/skills/project-board/SKILL.md) | Complete workflow — 15 commands, transition matrix, WIP limits, blocked state, approval gate, epic decomposition, metrics |
+| [`core/skills/project-board/_provider-lib.sh`](../../core/skills/project-board/_provider-lib.sh) | Provider contract — CLI router, status mapping, JSON output helpers, validation |
+| [`core/skills/project-board/providers/github.sh`](../../core/skills/project-board/providers/github.sh) | GitHub Projects V2 provider — GraphQL API, 512 lines |
+| [`core/skills/project-board/providers/jira.sh`](../../core/skills/project-board/providers/jira.sh) | Jira Cloud/DC provider — REST API, 549 lines |
+| [`core/skills/project-board/providers/youtrack.sh`](../../core/skills/project-board/providers/youtrack.sh) | YouTrack provider — REST API |
+| [`core/skills/project-board/references/recipes.md`](../../core/skills/project-board/references/recipes.md) | 7 role-based enterprise recipes (Scrum Master, PM, QA, CTO, BA, Compliance, Release) |
+| [`cicd/workflows/project-board-automation.yml`](../../cicd/workflows/project-board-automation.yml) | CI automation — PR/issue events trigger board transitions, respects approval gate |
+| [`cognitive-core.conf`](../../cognitive-core.conf) | Configuration — `CC_REQUIRE_HUMAN_APPROVAL`, `CC_REQUIRE_DIFFERENT_APPROVER`, `CC_WIP_LIMIT_*` |
+
+### Architecture — 3-Layer Separation
+
+```
+Layer 1: SKILL.md         — Workflow rules, transition matrix, WIP limits (vendor-agnostic)
+Layer 2: _provider-lib.sh  — Shared CLI contract, JSON I/O, command routing
+Layer 3: providers/*.sh    — Vendor adapters (GitHub, Jira, YouTrack)
+```
+
+New providers implement the same CLI contract — all workflow rules apply automatically with zero changes to Layer 1 or 2.
+
+### Commands (15 total)
+
+`list` | `create` | `close` | `cancel` | `assign` | `sprint` | `sprint-plan` | `triage` | `board` | `move` | `verify` | `approve` | `blocked` | `unblock` | `metrics`
+
+### Configuration Variables
+
+```bash
+CC_REQUIRE_HUMAN_APPROVAL="true"      # Approval gate on/off
+CC_REQUIRE_DIFFERENT_APPROVER="false"  # SOX segregation of duties
+CC_REQUIRED_APPROVERS="1"             # Single or dual approval
+CC_WIP_LIMIT_PROGRESS="0"            # WIP limit for In Progress
+CC_WIP_LIMIT_TESTING="0"             # WIP limit for To Be Tested
+CC_WIP_LIMIT_TODO="0"                # WIP limit for Todo
+```
+
+### Test Coverage
+
+| Suite | Tests | What It Validates |
+|-------|-------|-------------------|
+| Suite 02 — Skill Frontmatter | 64 | project-board SKILL.md frontmatter (name, description, allowed-tools, argument-hint) |
+| Suite 01 — ShellCheck | 39 | _provider-lib.sh and all provider scripts pass shell syntax validation |
+| Suite 04 — Install Dry-Run | 44 | project-board skill installed correctly with setup.sh and providers/ |
+
+### Verification
+
+The board workflow manages the cognitive-core project itself:
+- **Project board**: [github.com/orgs/mindcockpit-ai/projects/9](https://github.com/orgs/mindcockpit-ai/projects/9)
+- **Issues managed**: 93+ issues through full lifecycle (Roadmap → Done)
+- **Approval gate**: Active — CI automation stops at To Be Tested (bug #P0 fixed in `9197dfe`)
+- **Epic decomposition**: Applied on epic #91 (certification improvement) with 4 sub-issues, recursive verification, all closed
+- **Transition enforcement**: Transition matrix validated during sprint planning and issue triage
+- **CI automation**: `project-board-automation.yml` installed in `.github/workflows/`, processes PR and issue events

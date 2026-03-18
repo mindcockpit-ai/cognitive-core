@@ -102,3 +102,51 @@ Teams using cognitive-core cannot close an epic by simply closing sub-issues. Th
 - **Audit gaps**: No evidence trail between requirement and implementation
 
 The recursive nature means this scales to any epic depth — an epic of epics is verified all the way down.
+
+## Implementation in cognitive-core
+
+### Files
+
+| File | Role |
+|------|------|
+| [`core/skills/acceptance-verification/SKILL.md`](../../core/skills/acceptance-verification/SKILL.md) | Core verification engine — 6-step workflow, PASS/PARTIAL/FAIL assessment, closure guard, epic-aware recursion |
+| [`core/skills/project-board/SKILL.md`](../../core/skills/project-board/SKILL.md) | `verify` command — delegates to acceptance-verification, Epic Verification section with consolidated output format |
+| [`core/skills/project-board/references/recipes.md`](../../core/skills/project-board/references/recipes.md) | QA Lead recipes — pre-release verification, approval gate workflow |
+
+### How It Works
+
+1. User invokes `/project-board verify 91` (an epic)
+2. Skill parses issue body for task list items: `- [ ] #87`, `- [ ] #88`, etc.
+3. For each sub-issue, runs acceptance-verification:
+   - Fetches issue body and acceptance criteria via `gh issue view`
+   - Searches git history for commits referencing `#N`
+   - Searches codebase for keyword matches from criteria
+   - Checks test files for verification evidence
+   - Assesses each criterion: PASS / PARTIAL / FAIL
+4. Aggregates results across all sub-issues
+5. Verifies epic's own acceptance criteria
+6. Posts consolidated report as comment on the epic
+7. **Closure guard**: Blocks epic closure if ANY sub-issue is PARTIAL or FAIL
+
+### Key Design Decisions
+
+- **Auto-tick checkboxes**: When a criterion passes, the issue body checkbox is ticked (`- [ ]` → `- [x]`)
+- **PARTIAL stays unchecked**: Only PASS criteria get ticked — never optimistic
+- **Evidence sources ranked**: explicit `#N` references > keyword matching > file path inference > temporal proximity
+- **Strict mode** (`--strict`): Report only, no state changes — suitable for audit documentation
+
+### Test Coverage
+
+| Suite | Tests | What It Validates |
+|-------|-------|-------------------|
+| Suite 02 — Skill Frontmatter | 64 | acceptance-verification and project-board SKILL.md have valid frontmatter |
+| Suite 04 — Install Dry-Run | 44 | Both skills installed correctly in target project |
+
+### Verification
+
+Applied in production on epic #91 (certification score improvement):
+- 4 sub-issues (#87, #88, #89, #90) created with acceptance criteria
+- Each implemented by project-coordinator agent
+- Verification confirmed all criteria met
+- Epic closed after all sub-issues passed
+- Score improved from 913 to 959/1000 — verified against 43 exam subtasks

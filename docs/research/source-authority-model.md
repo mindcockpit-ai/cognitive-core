@@ -73,3 +73,34 @@ Every research output from cognitive-core agents now includes:
 - Highest authority level backing each decision
 
 This prevents the framework from consuming AI-generated hallucinations and ensures decisions are traceable to authoritative sources.
+
+## Implementation in cognitive-core
+
+### Files
+
+| File | Role |
+|------|------|
+| [`core/agents/research-analyst.md`](../../core/agents/research-analyst.md) | Primary implementation — T1-T5 table, authority rules, AI slop detection heuristics, provenance output format |
+| [`core/agents/project-coordinator.md`](../../core/agents/project-coordinator.md) | Research-First principle — mandates T1-T2 backing for adopt/adapt/build decisions |
+| [`core/agents/solution-architect.md`](../../core/agents/solution-architect.md) | Source Attribution section with provenance categories |
+| [`core/agents/code-standards-reviewer.md`](../../core/agents/code-standards-reviewer.md) | Review findings include source category (verified/documented/inferred/automated) |
+
+### How It Works
+
+1. **research-analyst** receives a research task (e.g., "compare notification libraries")
+2. Agent searches web, reads docs, evaluates GitHub repos
+3. Each finding is classified: "Novu production-ready (T1: official docs)" or "Has scaling issues (T5: Reddit comment, discarded)"
+4. Output includes a Source Quality Assessment table with T1-T5 counts
+5. **project-coordinator** reads the research output and makes adopt/adapt/build decision requiring T1-T2 backing
+6. If only T3-T4 sources exist, the finding is flagged: "Community consensus, not officially confirmed"
+
+### Test Coverage
+
+| Suite | Tests | What It Validates |
+|-------|-------|-------------------|
+| Suite 07 — Agent Permissions | 24 | Agent frontmatter validity, model field, disallowedTools restrictions |
+| Suite 02 — Skill Frontmatter | 64 | YAML frontmatter for all skills referenced by agents |
+
+### Verification
+
+The model was applied during this session (2026-03-18) when evaluating comments from user m13v on issues #81 and #83. The research-analyst classified 18 T1 sources, 10 T2 sources, and discarded multiple T5 sources (AI-generated promotional comments). The classification directly informed the decision to maintain the native-hooks strategy for the VS Code adapter instead of the MCP-first approach suggested by a T5 source.

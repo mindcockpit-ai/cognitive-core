@@ -100,3 +100,52 @@ Teams can adjust thresholds to match their maturity level. A new team might star
 ## Impact
 
 The graduated model creates a quality ramp that matches the increasing confidence required at each stage. Developers can iterate freely at the lint stage (60%) while the deploy gate ensures production-ready quality (95%). The 5-point spread between gates (80/85/90/95) creates meaningful differentiation — if all gates used the same threshold, the intermediate gates would add no value.
+
+## Implementation in cognitive-core
+
+### Files
+
+| File | Role |
+|------|------|
+| [`core/skills/fitness/SKILL.md`](../../core/skills/fitness/SKILL.md) | Skill definition — 4 fitness categories, 5 gates, scoring output format |
+| [`cognitive-core.conf`](../../cognitive-core.conf) | Configuration — `CC_FITNESS_LINT=60`, `CC_FITNESS_COMMIT=80`, etc. |
+| [`cicd/scripts/fitness-check.sh`](../../cicd/scripts/fitness-check.sh) | CI script — evaluates fitness score against gate threshold |
+| [`cicd/scripts/push-metrics.sh`](../../cicd/scripts/push-metrics.sh) | Metrics — pushes fitness scores to monitoring (Prometheus) |
+| [`cicd/workflows/evolutionary-cicd.yml`](../../cicd/workflows/evolutionary-cicd.yml) | CI pipeline — runs fitness checks at each stage |
+
+### How It Works
+
+1. Developer invokes `/fitness --gate=merge` (or CI runs it automatically)
+2. Skill evaluates 4 categories:
+   - **Code Standards** — lint pass, format check, naming, error handling
+   - **Architecture** — layer dependencies, domain purity, anti-pattern absence
+   - **Tests** — test existence for new modules, test suite passes
+   - **Security** — no hardcoded credentials, parameterized queries, input validation
+3. Each category produces a 0.00-1.00 score
+4. Overall score is compared against the gate threshold
+5. Output: `FIT — PASSED` or `UNFIT — BLOCKED` with required fixes
+
+### Configuration
+
+```bash
+# cognitive-core.conf — adjustable per project maturity
+CC_FITNESS_LINT=60       # Low bar for local iteration
+CC_FITNESS_COMMIT=80     # Moderate for reviewable code
+CC_FITNESS_TEST=85       # Higher for merge readiness
+CC_FITNESS_MERGE=90      # Near-production quality
+CC_FITNESS_DEPLOY=95     # Production-ready
+CC_LINT_COMMAND="bash -n" # Shell syntax check (default for bash projects)
+CC_TEST_COMMAND="bash tests/run-all.sh"
+```
+
+### Test Coverage
+
+| Suite | Tests | What It Validates |
+|-------|-------|-------------------|
+| Suite 02 — Skill Frontmatter | 64 | fitness SKILL.md has valid YAML frontmatter (name, description, allowed-tools, context:fork) |
+| Suite 01 — ShellCheck | 39 | fitness-check.sh passes shell syntax validation |
+| Suite 04 — Install Dry-Run | 44 | fitness skill installed correctly in target project |
+
+### Verification
+
+The fitness skill is installed in the cognitive-core repo itself and used in CI. The reference implementation TIMS scored 4.2/5 in an independent workflow audit, with "Code Quality 5.0/5" directly attributed to the multi-layer enforcement including fitness gates.
