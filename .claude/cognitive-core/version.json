@@ -1,7 +1,7 @@
 {
-    "version": "1.0.0",
+    "version": "$(cat ",
     "installed_at": "2026-03-16T14:11:01Z",
-    "platform": "claude",
+    "updated_at": "2026-03-18T16:25:26Z",
     "project": "cognitive-core",
     "language": "python",
     "database": "none",
