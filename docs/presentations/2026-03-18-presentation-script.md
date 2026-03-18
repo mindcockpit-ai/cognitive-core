@@ -42,7 +42,11 @@
 >
 > Das sind keine theoretischen Probleme. Das sind Dinge, die mir jede Woche passiert sind. Bei Kundenprojekten. Mit Deadlines.
 >
-> Also habe ich angefangen, sie systematisch zu loesen. Hook fuer Hook, Agent fuer Agent, Skill fuer Skill. Das Ergebnis ist cognitive-core.
+> Mir ist klar: Halluzinationen sind keine Bugs — das ist die Natur von LLMs. Die sind stochastisch, nicht deterministisch. Man kann das nicht wegkonfigurieren.
+>
+> Aber man kann drumherum bauen. Deterministische Schichten um ein stochastisches System. Hooks, die gefaehrliche Befehle blockieren — egal was das Modell halluziniert. Quality Gates, die Code pruefen, bevor er committet wird. Ein Source Authority Model, das AI-generierte Quellen automatisch verwirft.
+>
+> Also habe ich angefangen, genau das zu bauen. Hook fuer Hook, Agent fuer Agent, Skill fuer Skill. Das Ergebnis ist cognitive-core.
 
 ---
 
