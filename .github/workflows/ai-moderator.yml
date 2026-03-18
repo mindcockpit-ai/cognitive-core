@@ -1,0 +1,24 @@
+name: AI Moderator
+on:
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created, edited]
+
+permissions:
+  issues: write
+  models: read
+
+jobs:
+  moderate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: AI Moderator
+        uses: github/ai-moderator@v1
+        with:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          spam_detection: true
+          link_spam_detection: true
+          ai_generated_detection: true
+          spam_label: "spam"
+          ai_generated_label: "ai-generated"
