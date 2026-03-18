@@ -99,7 +99,7 @@ jobs:
             fi
           done
 
-  # ── PR merged → linked issues move to Done ──
+  # ── PR merged → linked issues move to To Be Tested (or Done if no approval gate) ──
   pr-merged:
     if: >
       github.event_name == 'pull_request' &&
@@ -107,9 +107,13 @@ jobs:
       github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-      - name: Move linked issues to Done
+      - name: Move linked issues (respects approval gate)
         env:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          # Set to "true" to require human approval before Done.
+          # When true: PR merge → To Be Tested (human must /project-board approve).
+          # When false: PR merge → Done (fully autonomous).
+          REQUIRE_HUMAN_APPROVAL: "true"
         run: |
           PR_BODY=$(cat <<'PREOF'
           ${{ github.event.pull_request.body }}
@@ -122,6 +126,15 @@ jobs:
           if [ -z "$ISSUES" ]; then
             echo "No linked issues found in PR body"
             exit 0
+          fi
+
+          # Select target status based on approval gate setting
+          if [ "$REQUIRE_HUMAN_APPROVAL" = "true" ]; then
+            TARGET_ID="$TO_BE_TESTED_ID"
+            TARGET_NAME="To Be Tested"
+          else
+            TARGET_ID="$DONE_ID"
+            TARGET_NAME="Done"
           fi
 
           ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500)
@@ -140,10 +153,10 @@ jobs:
                 projectId: "'"$PROJECT_ID"'"
                 itemId: "'"$ITEM_ID"'"
                 fieldId: "'"$STATUS_FIELD_ID"'"
-                value: { singleSelectOptionId: "'"$DONE_ID"'" }
+                value: { singleSelectOptionId: "'"$TARGET_ID"'" }
               }) { projectV2Item { id } }
             }'
-            echo "Moved #$ISSUE_NUM → Done (PR merged)"
+            echo "Moved #$ISSUE_NUM → $TARGET_NAME (PR merged)"
           done
 
   # ── Issue assigned (from Backlog/Roadmap) → Todo ──
@@ -253,26 +266,47 @@ jobs:
             echo "Moved #$ISSUE_NUM: $CURRENT → In Progress (reopened)"
           fi
 
-  # ── Issue closed → move to Done ──
+  # ── Issue closed → move to Done (or To Be Tested if approval gate active) ──
   issue-closed:
     if: >
       github.event_name == 'issues' &&
       github.event.action == 'closed'
     runs-on: ubuntu-latest
     steps:
-      - name: Move closed issue to Done
+      - name: Move closed issue (respects approval gate)
         env:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          REQUIRE_HUMAN_APPROVAL: "true"
         run: |
           ISSUE_NUM=${{ github.event.issue.number }}
           ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500)
 
           ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
             '.items[] | select(.content.number == $n) | .id')
+          CURRENT=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
+            '.items[] | select(.content.number == $n) | .status')
 
           if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
             echo "Issue #$ISSUE_NUM not on board"
             exit 0
+          fi
+
+          # If already in To Be Tested or Done, this close is likely from
+          # /project-board approve — move to Done regardless of gate
+          if [ "$CURRENT" = "To Be Tested" ] || [ "$CURRENT" = "Done" ]; then
+            TARGET_ID="$DONE_ID"
+            TARGET_NAME="Done"
+          elif [ "$REQUIRE_HUMAN_APPROVAL" = "true" ]; then
+            # Approval gate active: close moves to To Be Tested, not Done
+            # Human must use /project-board approve to reach Done
+            TARGET_ID="$TO_BE_TESTED_ID"
+            TARGET_NAME="To Be Tested"
+            # Reopen the issue — it shouldn't be closed yet
+            gh issue reopen "$ISSUE_NUM" --repo "${{ github.repository }}" \
+              --comment "Approval gate active — issue moved to To Be Tested. Use \`/project-board approve $ISSUE_NUM\` to close." 2>/dev/null || true
+          else
+            TARGET_ID="$DONE_ID"
+            TARGET_NAME="Done"
           fi
 
           gh api graphql -f query='mutation {
@@ -280,7 +314,7 @@ jobs:
               projectId: "'"$PROJECT_ID"'"
               itemId: "'"$ITEM_ID"'"
               fieldId: "'"$STATUS_FIELD_ID"'"
-              value: { singleSelectOptionId: "'"$DONE_ID"'" }
+              value: { singleSelectOptionId: "'"$TARGET_ID"'" }
             }) { projectV2Item { id } }
           }'
-          echo "Moved #$ISSUE_NUM → Done (closed)"
+          echo "Moved #$ISSUE_NUM → $TARGET_NAME (closed)"

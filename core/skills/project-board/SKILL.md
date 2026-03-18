@@ -180,13 +180,13 @@ FROM → TO         Roadmap  Backlog  Todo  In Progress  To Be Tested  Done  Can
 Roadmap              -       ✓       ✓        -             -          -      ✓
 Backlog              ✓       -       ✓        -             -          -      ✓
 Todo                 -       ✓       -        ✓             -          -      ✓
-In Progress          -       -       -        -             ✓          -      ✓
+In Progress          -       ✓*      ✓*       -             ✓          -      ✓
 To Be Tested         -       -       -        ✓*            -          ✓      ✓
 Done                 -       -       -        ✓*            ✓*         -      -
 Canceled             -       ✓*     ✓*        -             -          -      -
 ```
 
-`✓` = Allowed | `✓*` = Allowed but warn (reopen/rework) | `-` = Blocked
+`✓` = Allowed | `✓*` = Allowed but warn (deprioritize/reopen/rework) | `-` = Blocked
 
 ### Key Rules
 
@@ -195,6 +195,7 @@ Canceled             -       ✓*     ✓*        -             -          -    
 3. **Canceled reachable from anywhere** except Done
 4. **Reopen from Done/Canceled**: Allowed with warning. The `move` command automatically reopens the GitHub issue when moving out of Done or Canceled.
 5. **No skipping**: Cannot jump Backlog → In Progress (must pass through Todo first)
+6. **Deprioritize/descope**: In Progress → Todo (with warning: "Deprioritized") and In Progress → Backlog (with warning: "Descoped from sprint") are allowed. Sprint assignment is cleared when moving backward.
 6. **Reopen syncs GitHub state**: When moving from Done or Canceled to an active column, the `move` command automatically runs `gh issue reopen` to sync the GitHub issue state with the board status.
 7. **Auto-sprint assignment**: When moving to Todo, In Progress, or To Be Tested, the `move` command automatically assigns the issue to the current sprint if it has no sprint set. Requires `CC_SPRINT_FIELD_ID` to be configured.
 8. **Auto-assignee**: Sprint items must have an owner. When moving to a sprint-required column and the issue has no assignee, auto-assign to the current user (initiator of the change).
@@ -203,11 +204,12 @@ Canceled             -       ✓*     ✓*        -             -          -    
 
 The `project-board-automation.yml` workflow (in `cicd/workflows/`) handles:
 - PR opened with `Closes #N` → issue moves to In Progress (from Todo only)
-- PR merged → issue moves to Done
+- PR merged → issue moves to **To Be Tested** (when `REQUIRE_HUMAN_APPROVAL=true`) or Done (when false)
 - Issue assigned (from Backlog/Roadmap) → moves to Todo
 - New issue opened → added to board in Backlog
 - Issue reopened → moves to In Progress
-- Issue closed → moves to Done
+- Issue closed → moves to **To Be Tested** and reopens issue (when `REQUIRE_HUMAN_APPROVAL=true`) or Done (when false)
+- Issue closed from "To Be Tested" → moves to Done (approval gate: `/project-board approve` path)
 
 ### Area (Row Grouping)
 
@@ -483,7 +485,7 @@ TARGET="<target_status>"
 #   Roadmap      → Backlog, Todo, Canceled
 #   Backlog      → Roadmap, Todo, Canceled
 #   Todo         → Backlog, In Progress, Canceled
-#   In Progress  → To Be Tested, Canceled
+#   In Progress  → Backlog (descope), Todo (deprioritize), To Be Tested, Canceled
 #   To Be Tested → In Progress (rework), Done, Canceled
 #   Done         → In Progress (reopen), To Be Tested (reopen)
 #   Canceled     → Backlog (reopen), Todo (reopen)
