@@ -48,18 +48,20 @@
 
 ## PART 2: The Problem (5 min)
 
-### Slide: What Goes Wrong with AI Coding Today
+### Was heute schieflaeuft
 
 > Die meisten Entwickler nutzen AI heute ad-hoc. Copilot, ChatGPT, Cursor — man tippt einen Prompt, bekommt Code zurueck, copy-paste, weiter.
 >
 > Das funktioniert fuer einfache Aufgaben. Aber was passiert in einem Team mit 5-10 Entwicklern?
 
-**3 concrete problems (sachlich, no buzzwords):**
+**Drei konkrete Probleme:**
 
-1. **No governance** — AI can execute `rm -rf /`, leak secrets, commit to wrong branches. No safety net.
-2. **No quality assurance** — AI-generated code passes no quality gate before reaching production. DORA 2025 data: AI adoption correlates with increased instability.
-3. **No team knowledge capture** — Every developer configures their AI differently. Knowledge stays in individual sessions, not in the project.
-
+> **Erstens: Keine Governance.** AI kann `rm -rf /` ausfuehren, Secrets leaken, in den falschen Branch committen. Es gibt kein Safety Net. Nichts haelt die AI auf.
+>
+> **Zweitens: Keine Qualitaetssicherung.** AI-generierter Code passiert kein einziges Quality Gate, bevor er in Produktion landet. DORA 2025 zeigt: AI-Adoption korreliert mit steigender Instabilitaet. Mehr AI, mehr Fehler — wenn man es nicht steuert.
+>
+> **Drittens: Kein Teamwissen.** Jeder Entwickler konfiguriert seine AI anders. Wissen bleibt in einzelnen Sessions, nicht im Projekt. Morgen weiss die AI nichts mehr von gestern.
+>
 > cognitive-core loest diese drei Probleme mit einem einzigen Framework.
 
 ---
