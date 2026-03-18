@@ -1,143 +1,117 @@
-# Cognitive Core Roadmap
+# cognitive-core Roadmap
 
 ## Vision
 
-A biomimetic, vendor-agnostic skill framework for AI agents that mirrors biological systems for intelligence, resilience, and evolution.
+A portable, vendor-agnostic AI-augmented development framework that governs the entire development lifecycle — from research quality to production deployment. Multi-adapter, multi-provider, enterprise-ready.
 
 ---
 
-## Current Status (v0.1.0)
+## v1.0.0 — Released (2026-03-18)
 
-### ✅ Completed
+[Release Notes](https://github.com/mindcockpit-ai/cognitive-core/releases/tag/v1.0.0) | [CHANGELOG](./CHANGELOG.md)
 
-| Feature | Description | Status |
-|---------|-------------|--------|
-| **Biomimetic Hierarchy** | Atomic → Molecular → Cellular → Organism skill organization | ✅ Published |
-| **Evolutionary CI/CD** | Fitness functions, quality gates, selection pressure | ✅ Published |
-| **Immune System Security** | AIS algorithms, defense-in-depth, Dual-LLM pattern | ✅ Published |
-| **Ethics Framework** | VADER integration, governance controls | ✅ Published |
-| **Skill Templates** | Python, Java, React, Angular, Vue, Svelte | ✅ Published |
-| **Architectural Patterns** | Messaging, API Integration, Testing, Security, CI/CD | ✅ Published |
-| **Claude Adapter** | SKILL.md generation for Claude Code | ✅ Published |
-| **Skill Sync** | Checksum-based component synchronization with `/skill-sync` skill and `skill-updater` agent | ✅ Published |
+### Industry Firsts (Novel — no equivalent in any competing framework)
 
----
+| Feature | Description | Research Paper |
+|---------|-------------|---------------|
+| **Source Authority Model (T1-T5)** | 5-tier research quality classification. AI slop (T5) auto-discarded | [Paper](docs/research/source-authority-model.md) |
+| **Team-Aware Estimation** | Tasks tagged (human/AI/human+AI). Human review = critical path | [Paper](docs/research/team-aware-estimation.md) |
+| **Graduated Fitness Gates** | Quality thresholds 60% → 95% across pipeline | [Paper](docs/research/graduated-fitness-gates.md) |
+| **Recursive Epic Verification** | Criteria-level verification across parent-child issue hierarchy | [Paper](docs/research/recursive-epic-verification.md) |
 
-## Short Term (v0.2.0)
+### Core Framework
 
-### 🔄 In Progress
+| Feature | Details |
+|---------|---------|
+| 10 specialist agents | Hub-and-spoke coordination, smart delegation, least-privilege |
+| 47 composable skills | 20 core + 26 language-pack + 1 database-pack |
+| 9 security hooks | validate-bash, validate-read, validate-write, validate-fetch, setup-env, compact-reminder, post-edit-lint, angular/spring-boot version guards |
+| 11 rules | 1 core (testing) + 10 language-specific (path-scoped with YAML frontmatter) |
+| 11 language packs | Angular, React, Spring Boot, Python, Perl, Node.js, Go, Rust, C#, Java, Struts+JSP |
+| 3 database packs | PostgreSQL, Oracle, MySQL |
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Additional Adapters | OpenAI, Ollama, Cursor adapters | High |
-| Implementation Examples | Complete Kafka, OpenAI, pytest examples | High |
-| Wiki Integration | GitHub wiki with full documentation | Medium |
+### Multi-Adapter
 
-### 📋 Planned
+| Adapter | Platform | AI Model | Status |
+|---------|----------|----------|--------|
+| claude | Claude Code CLI | Claude (any) | Production |
+| aider | Aider + Ollama | Local models (Mistral, Llama) | Production |
+| intellij | IntelliJ + DevoxxGenie | Any provider | Production |
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Fitness Dashboard | Visualize fitness metrics over time | Medium |
-| Pre-commit Hooks | Ready-to-use git hooks | High |
+### Enterprise Governance
 
----
+| Feature | Details |
+|---------|---------|
+| Board workflow | 7-column lifecycle with enforced transition matrix |
+| SOX compliance | Different-approver enforcement, dual approval |
+| WIP limits | Configurable per-column |
+| Blocked state | Label-based impediment tracking |
+| Agile metrics | Cycle time, lead time, throughput, flow efficiency |
+| Approval gate | CI automation respects human approval (stops at To Be Tested) |
+| Multi-provider | GitHub Projects, Jira, YouTrack |
+| PM recipes | 7 role-based workflows (Scrum Master, PM, QA, CTO, BA, Compliance, Release) |
 
-## Medium Term (v0.3.0 - v0.5.0)
+### Quality & Certification
 
-### 📋 Planned
+| Metric | Value |
+|--------|-------|
+| Test suites | 13 suites, 528 tests, all passing |
+| Claude Certified Architect | 959/1000 (Grade A, all 5 domains) |
+| Workflow Maturity Audit | 4.79/5.0 (+63% above industry average) |
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Skill Composition | Automatic skill chaining | High |
-| Multi-Agent Orchestration | Coordinate multiple AI agents | High |
-| **Agent Learning Framework** | Shared knowledge digest, reflection hook, Letta-inspired skill learning ([#32](https://github.com/mindcockpit-ai/cognitive-core/issues/32)) — [RFC](https://github.com/wolaschka/dev-notes/blob/main/workspace/reports/2026-03-05-cognitive-core-agent-learning-proposal.md) | **High** |
+### Infrastructure
 
----
-
-## Long Term (v1.0.0+)
-
-### 🔬 Research & Future Vision
-
-#### DNA-Inspired Skill Storage
-
-**Research conducted**: February 2026
-
-**Concept**: Store and transmit skill definitions using DNA-inspired encoding, enabling biological storage media and extreme data density.
-
-**Key findings from research**:
-
-| Aspect | Details |
-|--------|---------|
-| **Encoding** | Quaternary system (A=00, T=01, G=10, C=11) |
-| **Density** | 215 petabytes per gram of DNA |
-| **Longevity** | Stable for 1000+ years in optimal conditions |
-| **Error Correction** | Reed-Solomon codes, biological redundancy |
-
-**Potential applications**:
-
-1. **Archival Storage** - Store skill libraries for millennia
-2. **Biological Computing** - Skills executable in biological systems
-3. **Extreme Environments** - Space missions, deep archives
-4. **Biomolecular AI** - Future bio-silicon hybrid systems
-
-**Implementation phases**:
-
-```
-Phase 1: Digital DNA Encoding (software simulation)
-         - YAML → DNA sequence conversion
-         - Error correction algorithms
-         - Validation and testing
-
-Phase 2: Synthesis Integration (lab partnership)
-         - Partner with DNA synthesis providers
-         - Encode real skill definitions
-         - Read-back verification
-
-Phase 3: Biological Execution (research)
-         - Explore biological computing
-         - CRISPR-based skill modification
-         - Bio-silicon interfaces
-```
-
-**Current status**: Theoretical research complete, awaiting technology maturation
-
-**References**:
-- Church et al., "Next-Generation Digital Information Storage in DNA" (Science, 2012)
-- Grass et al., "Robust Chemical Preservation of Digital Information" (Angewandte Chemie, 2015)
-- Microsoft Research, "DNA Data Storage" (ongoing research)
-- Twist Bioscience, DNA synthesis capabilities
+| Feature | Details |
+|---------|---------|
+| release-please | Automated semantic versioning from conventional commits |
+| CI pipeline | 7 jobs, cross-platform (macOS + Ubuntu), JUnit reports |
+| AI moderator | GitHub spam/slop detection on issues and comments |
+| Website auto-update | framework-health.json pushed from CI to multivac42.ai |
 
 ---
 
-#### Other Long-Term Research
+## v1.x — In Progress
 
-| Topic | Description | Status |
-|-------|-------------|--------|
-| **Quantum Skills** | Skills optimized for quantum computing | Research |
-| **Neuromorphic Computing** | Skills for brain-inspired hardware | Research |
-| **Federated Learning** | Distributed skill improvement | Planned |
-| **Emergent Behavior** | Skills that develop novel capabilities | Research |
+| # | Feature | Priority | Size | Status |
+|---|---------|----------|------|--------|
+| [#81](https://github.com/mindcockpit-ai/cognitive-core/issues/81) | VS Code adapter (Copilot + Continue.dev + Cline) | P1-high | L | Feasibility complete |
+| [#82](https://github.com/mindcockpit-ai/cognitive-core/issues/82) | Eclipse adapter (Copilot + EclipseLlama) | P2-medium | XL | Feasibility complete |
+| [#83](https://github.com/mindcockpit-ai/cognitive-core/issues/83) | Cursor IDE adapter | P2-medium | M | Feasibility complete |
+| [#84](https://github.com/mindcockpit-ai/cognitive-core/issues/84) | Windsurf adapter (Cascade + workflows) | P3-low | M | Feasibility complete |
+| [#85](https://github.com/mindcockpit-ai/cognitive-core/issues/85) | Neovim adapter (codecompanion + avante) | P3-low | L | Feasibility complete |
+| [#93](https://github.com/mindcockpit-ai/cognitive-core/issues/93) | Integration test suite — end-to-end verification | P1-high | XL | Planned |
+| [#95](https://github.com/mindcockpit-ai/cognitive-core/issues/95) | EU AI Act compliance research | P1-high | M | Research |
+| [#100](https://github.com/mindcockpit-ai/cognitive-core/issues/100) | Step-by-step tutorials | P1-high | L | Planned |
+| [#97](https://github.com/mindcockpit-ai/cognitive-core/issues/97) | Introduction video + video course | P2-medium | L | Planned |
 
 ---
 
-## Contributing
+## Enterprise — Planned (Premium)
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to contribute to the roadmap.
+| Feature | Description |
+|---------|-------------|
+| Fleet management | Orchestrate framework updates across entire organizations |
+| Compliance dashboards | Audit artifacts for SOX, ISO 27001, ITIL |
+| Custom agent development | Proprietary technology stacks |
+| On-premises deployment | Full data sovereignty |
+| EU AI Act alignment | Certification preparation for AI-augmented development |
 
-### Proposing Features
+---
 
-1. Open a GitHub Discussion for idea validation
-2. Create an RFC (Request for Comments) if approved
-3. Submit PR with implementation
+## Research
 
-### Priority Criteria
-
-| Criterion | Weight |
-|-----------|--------|
-| User demand | 30% |
-| Technical feasibility | 25% |
-| Strategic alignment | 25% |
-| Implementation effort | 20% |
+| Topic | Paper | Status |
+|-------|-------|--------|
+| Source Authority Model | [docs/research/source-authority-model.md](docs/research/source-authority-model.md) | Published |
+| Team-Aware Estimation | [docs/research/team-aware-estimation.md](docs/research/team-aware-estimation.md) | Published |
+| Graduated Fitness Gates | [docs/research/graduated-fitness-gates.md](docs/research/graduated-fitness-gates.md) | Published |
+| Recursive Epic Verification | [docs/research/recursive-epic-verification.md](docs/research/recursive-epic-verification.md) | Published |
+| Board Workflow Governance | [docs/research/board-workflow-governance.md](docs/research/board-workflow-governance.md) | Published |
+| Workflow Maturity Audit v2 | [docs/research/workflow-maturity-audit-v2.md](docs/research/workflow-maturity-audit-v2.md) | Published |
+| DNA-Inspired Skill Storage | [docs/research/dna-inspired-storage.md](docs/research/dna-inspired-storage.md) | Theoretical |
+| IP Protection Strategy | [#98](https://github.com/mindcockpit-ai/cognitive-core/issues/98) | Planned |
+| Consultant Model Feasibility | [#96](https://github.com/mindcockpit-ai/cognitive-core/issues/96) | Planned |
+| EU AI Act Compliance | [#95](https://github.com/mindcockpit-ai/cognitive-core/issues/95) | Planned |
 
 ---
 
@@ -145,8 +119,10 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to contribute to the roadmap.
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| v1.0.0 | 2026-03-18 | 4 novel features, enterprise governance, 3 adapters, 959/1000 certification |
+| v0.2.0 | 2026-02-17 | Security guard, connected projects, CI/CD, landing page |
 | v0.1.0 | 2026-02 | Initial release with core architecture |
 
 ---
 
-*Last updated: March 2026*
+*Last updated: 2026-03-19*
