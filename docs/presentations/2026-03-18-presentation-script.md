@@ -33,6 +33,10 @@
 
 > cognitive-core ist aus Frustration entstanden. Ich habe vor einem Jahr angefangen, ernsthaft mit AI zu entwickeln — Claude, Copilot, Cursor. Und es war beeindruckend. Fuer 20 Minuten.
 >
+> Am Anfang hatte ich eine riesige CLAUDE.md — hunderte Zeilen Anweisungen, alles sauber dokumentiert. Und die AI hat die Haelfte ignoriert. Ich habe mich geaergert: Warum befolgt sie klare Instruktionen nicht?
+>
+> Bis ich herausgefunden habe: Das Modell liest per Default nur die ersten 100 Zeilen. Den Rest ueberspringt es. Meine ganzen Architektur-Regeln, Security-Vorgaben — nie gelesen. Da wurde mir klar: Man kann sich nicht darauf verlassen, dass das Modell alles liest. Man braucht Mechanismen, die unabhaengig vom Modell funktionieren.
+>
 > Dann kam die Realitaet:
 > - Session crasht — alles weg. Kein Memory, kein Kontext.
 > - AI halluziniert eine Library, die es nicht gibt. Ich suche eine Stunde, bevor ich es merke.
