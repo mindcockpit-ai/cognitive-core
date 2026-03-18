@@ -102,6 +102,10 @@ _pb_status_display_name() {
 #   pb_sprint_assign SPRINT_TITLE NUMBERS...
 #   pb_branch_create NUMBER TYPE SLUG [--base B]
 #   pb_branch_list NUMBER
+#   pb_board_label_add NUMBER LABEL
+#   pb_board_label_remove NUMBER LABEL
+#   pb_board_metrics [--sprint S]
+#   pb_issue_timeline NUMBER  (returns status change events for metrics)
 
 _pb_validate_provider() {
     local required_fns=(
@@ -149,8 +153,11 @@ _pb_route() {
                 status)  pb_board_status "$@" ;;
                 move)    pb_board_move "$@" ;;
                 add)     pb_board_add "$@" ;;
-                approve) pb_board_approve "$@" ;;
-                *)       _pb_die "Unknown board command: $cmd. Use: summary|status|move|add|approve" ;;
+                approve)      pb_board_approve "$@" ;;
+                blocked)      pb_board_label_add "$1" "blocked" "${@:2}" ;;
+                unblock)      pb_board_label_remove "$1" "blocked" "${@:2}" ;;
+                metrics)      pb_board_metrics "$@" ;;
+                *)            _pb_die "Unknown board command: $cmd. Use: summary|status|move|add|approve|blocked|unblock|metrics" ;;
             esac
             ;;
         sprint)
@@ -181,7 +188,7 @@ Usage: <provider>.sh <group> <command> [args...]
 
 Groups:
   issue     list|create|close|reopen|view|comment|assign
-  board     summary|status|move|add|approve
+  board     summary|status|move|add|approve|blocked|unblock|metrics
   sprint    list|assign
   branch    create|list
   provider  info

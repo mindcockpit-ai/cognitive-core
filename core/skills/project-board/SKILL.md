@@ -3,7 +3,7 @@ name: project-board
 description: Manage project board — issues, sprints, status tracking, acceptance verification, and release management. Supports GitHub Projects, Jira, and YouTrack via pluggable providers.
 user-invocable: true
 allowed-tools: Bash, Read, Grep, Glob
-argument-hint: "[list|create|close|cancel|assign|sprint|sprint-plan|triage|board|move|verify] [options]"
+argument-hint: "[list|create|close|cancel|assign|sprint|sprint-plan|triage|board|move|verify|approve|blocked|unblock|metrics] [options]"
 catalog_description: Project board — issues, sprints, releases, and triage. Supports GitHub, Jira, YouTrack.
 ---
 
@@ -48,6 +48,9 @@ $PB_SCRIPT board status <N>
 $PB_SCRIPT board move <N> <status_key>
 $PB_SCRIPT board add <N>
 $PB_SCRIPT board approve <N> [--comment C]
+$PB_SCRIPT board blocked <N> [--reason R] [--by N2]
+$PB_SCRIPT board unblock <N> [--comment C]
+$PB_SCRIPT board metrics [--sprint S]
 $PB_SCRIPT sprint list [--all]
 $PB_SCRIPT sprint assign "sprint-title" <N> [N2 N3...]
 $PB_SCRIPT branch create <N> <type> <slug> [--base B]
@@ -55,6 +58,44 @@ $PB_SCRIPT provider info
 ```
 
 All provider output is JSON for consistent parsing. The SKILL.md handles workflow rules, transition validation, and output formatting — providers handle only API translation.
+
+## Architecture — Clean Separation of Concerns
+
+The board workflow is designed as a **three-layer architecture** that keeps vendor-specific logic isolated:
+
+```
+┌─────────────────────────────────────────────────┐
+│  Layer 1: SKILL.md (Workflow Rules)             │
+│  - Transition matrix, WIP limits, approval gate │
+│  - Epic decomposition, closure guard            │
+│  - Metrics computation, output formatting       │
+│  - 100% vendor-agnostic                         │
+├─────────────────────────────────────────────────┤
+│  Layer 2: _provider-lib.sh (Shared Contract)    │
+│  - CLI interface (issue, board, sprint, branch) │
+│  - JSON I/O protocol                            │
+│  - Provider validation and routing              │
+├─────────────────────────────────────────────────┤
+│  Layer 3: providers/*.sh (Vendor Adapters)      │
+│  - github.sh → GitHub Projects V2 GraphQL API  │
+│  - jira.sh → Jira REST API (Cloud + DC)        │
+│  - youtrack.sh → YouTrack REST API              │
+│  - Future: azure.sh, linear.sh, shortcut.sh    │
+└─────────────────────────────────────────────────┘
+```
+
+**Key design rules**:
+1. **SKILL.md never calls vendor APIs directly** — all operations go through the provider script
+2. **Providers return JSON only** — the skill handles presentation and formatting
+3. **Workflow rules live in SKILL.md** — providers do NOT enforce transitions, WIP limits, or approval gates
+4. **New providers implement the same CLI contract** — no changes to SKILL.md or _provider-lib.sh needed
+5. **Configuration is layered** — `CC_*` variables are provider-agnostic; vendor-specific settings use `CC_GITHUB_*`, `CC_JIRA_*`, `CC_YOUTRACK_*` prefixes
+
+**Adding a new provider** (e.g., Azure DevOps):
+1. Create `providers/azure.sh` implementing the CLI contract
+2. Add `CC_AZURE_*` configuration variables
+3. Map Azure work item states to the 7-column model in a `CC_AZURE_STATUS_MAP`
+4. Done — all workflow rules, WIP limits, approval gates, and metrics work automatically
 
 ## Configuration
 
@@ -97,6 +138,22 @@ CC_YOUTRACK_PROJECT="PROJ"                  # Project short name
 CC_YOUTRACK_TOKEN="perm:token"              # Permanent token
 CC_YOUTRACK_AGILE_ID=""                     # Agile board ID (optional, for sprints)
 CC_YOUTRACK_STATUS_MAP="roadmap=No State|backlog=Open|todo=To Do|progress=In Progress|testing=To Verify|done=Done|canceled=Canceled"
+```
+
+### Governance & Compliance
+
+```bash
+CC_REQUIRE_HUMAN_APPROVAL="true"           # Stop at To Be Tested, require /approve
+CC_REQUIRE_DIFFERENT_APPROVER="false"      # SOX: approver must differ from assignee
+CC_REQUIRED_APPROVERS="1"                  # Number of approvals needed (1 or 2)
+```
+
+### WIP Limits (Kanban)
+
+```bash
+CC_WIP_LIMIT_PROGRESS="0"                 # Max issues In Progress (0 = unlimited)
+CC_WIP_LIMIT_TESTING="0"                  # Max issues in To Be Tested (0 = unlimited)
+CC_WIP_LIMIT_TODO="0"                     # Max issues in Todo (0 = unlimited)
 ```
 
 ### Branching Strategy (all providers)
@@ -142,6 +199,46 @@ Roadmap → Backlog → Todo → In Progress → To Be Tested → Done
 | **Done** | Verified and closed (terminal) | — |
 | **Canceled** | Abandoned or deferred (terminal) | — |
 
+### Blocked Flag
+
+Any active issue (Todo, In Progress, To Be Tested) can be flagged as blocked. Blocked is a **label**, not a column — the issue stays in its current column but is visually marked.
+
+**Set blocked**:
+```bash
+gh issue edit <N> --repo {{CC_GITHUB_REPO}} --add-label "blocked"
+gh issue comment <N> --repo {{CC_GITHUB_REPO}} --body "Blocked: <reason>. Waiting on: <dependency>"
+```
+
+**Clear blocked**:
+```bash
+gh issue edit <N> --repo {{CC_GITHUB_REPO}} --remove-label "blocked"
+gh issue comment <N> --repo {{CC_GITHUB_REPO}} --body "Unblocked: <resolution>"
+```
+
+**Blocked dependency tracking**: Use the convention `Blocked-by: #N` in the blocking comment. When the blocking issue is resolved, the `move` command should prompt to unblock dependent issues.
+
+**Sprint impact**: Blocked items count against WIP limits but should be flagged in sprint reviews as impediments.
+
+### WIP Limits
+
+When configured, the `move` command enforces Work-in-Progress limits per column. This prevents context-switching overload and makes bottlenecks visible.
+
+| Setting | Column | Default |
+|---------|--------|---------|
+| `CC_WIP_LIMIT_TODO` | Todo | 0 (unlimited) |
+| `CC_WIP_LIMIT_PROGRESS` | In Progress | 0 (unlimited) |
+| `CC_WIP_LIMIT_TESTING` | To Be Tested | 0 (unlimited) |
+
+**Enforcement**: Before moving an issue into a WIP-limited column, count current items in that column. If at limit:
+- **Warn**: "WIP limit reached for In Progress (3/3). Moving this issue will exceed the limit."
+- **Allow with override**: The move proceeds but the warning is logged. Use `--force` to suppress the warning.
+- **Blocked items excluded**: Issues with the `blocked` label do not count against WIP limits (they are impediments, not active work).
+
+**Recommended limits** (per team member):
+- Solo developer: Progress=3, Testing=5
+- Small team (2-4): Progress=6, Testing=8
+- Enterprise team (5+): Progress=10, Testing=15
+
 ### Human Approval Gate
 
 When `CC_REQUIRE_HUMAN_APPROVAL="true"` (default), automated workflows stop at "To Be Tested" instead of auto-closing to "Done". This provides:
@@ -153,6 +250,19 @@ When `CC_REQUIRE_HUMAN_APPROVAL="true"` (default), automated workflows stop at "
 The coordinator agent posts verification evidence (acceptance criteria table, deployment screenshots, code references) and leaves the issue open for human review. Use `/project-board approve <number>` to accept and close.
 
 Set `CC_REQUIRE_HUMAN_APPROVAL="false"` for fully autonomous workflows.
+
+#### Segregation of Duties (SOX Compliance)
+
+When `CC_REQUIRE_DIFFERENT_APPROVER="true"`:
+- The approver MUST be a different user than the issue assignee
+- Blocks approval with: "SOX compliance: approver (@user) cannot be the same as assignee (@user). A different team member must approve."
+- This enforces ITIL/SOX segregation of duties without requiring external tools
+
+When `CC_REQUIRED_APPROVERS="2"` (dual approval):
+- Two different users must approve before the issue can move to Done
+- First approval is recorded as a comment; issue remains in To Be Tested
+- Second approval triggers the move to Done
+- Both approvers must differ from the assignee (when `CC_REQUIRE_DIFFERENT_APPROVER="true"`)
 
 ### Status Option IDs
 
@@ -676,12 +786,91 @@ Human approval gate. Moves an issue from "To Be Tested" to "Done" after reviewin
 1. Issue must be in "To Be Tested" status — blocks otherwise
 2. Issue must have at least one verification comment (evidence exists)
 3. Approval is attributed to the current GitHub user
+4. **SOX guard** (when `CC_REQUIRE_DIFFERENT_APPROVER="true"`): Approver must differ from issue assignee. Block with: "SOX compliance: approver cannot be the same as assignee."
+5. **Dual approval** (when `CC_REQUIRED_APPROVERS="2"`): First approval is recorded as comment, issue stays in To Be Tested. Second approval from a different user triggers Done.
 
 **Flow**:
 1. Verify issue is in "To Be Tested"
 2. Verify evidence comment exists
-3. Close the issue with "Approved by @username" comment
-4. Move to Done on the board
+3. Check SOX guard (if enabled): compare approver with assignee
+4. Check dual approval (if enabled): count existing approval comments
+5. Close the issue with "Approved by @username" comment
+6. Move to Done on the board
+
+### `blocked`
+
+Flag an issue as blocked by an impediment.
+
+**Syntax**: `/project-board blocked <number> --reason "why" [--by #N]`
+
+1. Add `blocked` label to the issue
+2. Post comment: "Blocked: <reason>. Waiting on: #N" (if `--by` specified)
+3. Issue stays in its current column — blocked is a flag, not a status
+
+### `unblock`
+
+Remove blocked flag from an issue.
+
+**Syntax**: `/project-board unblock <number> [--comment "resolution"]`
+
+1. Remove `blocked` label
+2. Post comment: "Unblocked: <resolution>"
+
+### `metrics`
+
+Show agile health metrics for the current or specified sprint.
+
+**Syntax**: `/project-board metrics [--sprint "Sprint N"] [--since 30d]`
+
+Computes from issue event history:
+
+```
+AGILE METRICS
+=============
+Sprint: Sprint 7 (2026-03-04 → 2026-03-18)
+
+THROUGHPUT
+  Completed:     8 issues
+  Canceled:      1 issue
+  Carried over:  2 issues (from previous sprint)
+
+CYCLE TIME (start → done)
+  Average:       3.2 days
+  Median:        2.5 days
+  P95:           7.1 days
+  By priority:
+    P1-high:     1.8 days (3 issues)
+    P2-medium:   3.5 days (4 issues)
+    P3-low:      5.2 days (1 issue)
+
+LEAD TIME (created → done)
+  Average:       8.4 days
+  Median:        6.0 days
+
+WIP HEALTH
+  Current In Progress:  3 (limit: 6)
+  Current To Be Tested: 2 (limit: 8)
+  Blocked items:        1 (#45 — waiting on external API)
+
+FLOW EFFICIENCY
+  Active time:   62% (time in Progress + Testing)
+  Wait time:     38% (time in Backlog + Todo)
+```
+
+**Data sources**:
+- Issue creation timestamps (lead time start)
+- Board transition events via issue timeline API (cycle time)
+- Current board state via `gh project item-list`
+- Blocked label for impediment tracking
+
+**Comparison**: When `--since` spans multiple sprints, show trend:
+
+```
+SPRINT TRENDS
+  Sprint 5:  6 done, avg cycle 4.1d
+  Sprint 6:  7 done, avg cycle 3.8d
+  Sprint 7:  8 done, avg cycle 3.2d  ← improving
+```
 
 ## Epic Decomposition
 
