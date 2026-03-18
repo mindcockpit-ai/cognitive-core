@@ -1,0 +1,35 @@
+# =============================================================================
+# Release Please — cognitive-core framework
+# =============================================================================
+# Automated versioning and release management using Google's release-please.
+# Creates Release PRs from conventional commits and publishes GitHub Releases.
+#
+# Prerequisites:
+#   - release-please-config.json in repo root
+#   - .release-please-manifest.json in repo root
+#   - version.txt as source of truth (for release-type: simple)
+#
+# Customize:
+#   - target-branch: your default branch (main, master, develop, development)
+#   - config-file/manifest-file: paths if non-standard
+# =============================================================================
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main               # Change to your default branch
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          target-branch: main    # Change to your default branch

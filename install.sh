@@ -13,8 +13,9 @@
 set -euo pipefail
 
 # ---- Constants ----
-CC_VERSION="1.0.0"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CC_VERSION="$(cat "${SCRIPT_DIR}/version.txt" 2>/dev/null | tr -d '[:space:]')"
+CC_VERSION="${CC_VERSION:-0.0.0}"  # fallback if version.txt missing
 
 # ---- Branding (colors, banners, status helpers) ----
 # shellcheck disable=SC1091
