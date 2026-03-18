@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-cognitive-core MCP Server for IntelliJ IDE plugins.
+cognitive-core MCP Server — shared across all adapters.
 
 Exposes cognitive-core capabilities as MCP tools over stdio transport.
-Works with DevoxxGenie, Continue.dev, Cline, and any MCP-compatible client.
+Works with Claude Code (.mcp.json), IntelliJ plugins (DevoxxGenie,
+Continue.dev, Cline), and any MCP-compatible client.
 
 Usage:
   python3 server.py
@@ -11,6 +12,8 @@ Usage:
 Environment:
   CC_PROJECT_DIR  — Project root directory (auto-detected if not set)
   CC_INSTALL_DIR  — cognitive-core install dir (default: <project>/.cognitive-core)
+
+See TOOLS.md for tool boundaries and JSON schemas.
 """
 import json
 import os

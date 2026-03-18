@@ -193,3 +193,41 @@ _adapter_install_dir_structure() {
     mkdir -p "${install_dir}/cognitive-core"
     info "Created .claude/ directory tree."
 }
+
+_adapter_post_install() {
+    local project_dir="$1"
+
+    # Install shared MCP server if available
+    local shared_mcp="${SCRIPT_DIR}/adapters/_shared/mcp-server"
+    if [ -d "$shared_mcp" ]; then
+        local target_mcp="${project_dir}/.cognitive-core/mcp-server"
+        mkdir -p "$target_mcp/tools"
+        cp "$shared_mcp/server.py" "$target_mcp/"
+        cp "$shared_mcp/requirements.txt" "$target_mcp/" 2>/dev/null || true
+        cp "$shared_mcp/TOOLS.md" "$target_mcp/" 2>/dev/null || true
+        cp "$shared_mcp/tools/"*.py "$target_mcp/tools/" 2>/dev/null || true
+        info "Installed cognitive-core MCP server."
+    fi
+
+    # Generate .mcp.json for Claude Code MCP integration
+    local mcp_json="${project_dir}/.mcp.json"
+    if [ ! -f "$mcp_json" ] || [ "${FORCE:-false}" = "true" ]; then
+        cat > "$mcp_json" << 'MCPEOF'
+{
+  "mcpServers": {
+    "cognitive-core": {
+      "command": "python3",
+      "args": [".cognitive-core/mcp-server/server.py"],
+      "env": {
+        "CC_PROJECT_DIR": ".",
+        "CC_INSTALL_DIR": ".cognitive-core"
+      }
+    }
+  }
+}
+MCPEOF
+        info "Generated .mcp.json (cognitive-core MCP server registered)."
+    else
+        info ".mcp.json already exists (preserved)."
+    fi
+}

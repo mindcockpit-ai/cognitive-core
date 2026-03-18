@@ -10,7 +10,7 @@ source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
 suite_start "12 — MCP Server"
 
-MCP_SERVER="${ROOT_DIR}/adapters/intellij/mcp-server/server.py"
+MCP_SERVER="${ROOT_DIR}/adapters/_shared/mcp-server/server.py"
 
 # ---- Check Python 3.9+ available ----
 if ! command -v python3 &>/dev/null; then
@@ -37,7 +37,7 @@ else
 fi
 
 # ---- Test security_validate.py compiles ----
-sv_check=$(python3 -c "import py_compile; py_compile.compile('${ROOT_DIR}/adapters/intellij/mcp-server/tools/security_validate.py', doraise=True)" 2>&1) || true
+sv_check=$(python3 -c "import py_compile; py_compile.compile('${ROOT_DIR}/adapters/_shared/mcp-server/tools/security_validate.py', doraise=True)" 2>&1) || true
 if [ -z "$sv_check" ]; then
     _pass "security_validate.py compiles without error"
 else
@@ -163,7 +163,7 @@ fi
 # ---- Test: security_validate.py standalone ----
 sv_test=$(python3 -c "
 import sys
-sys.path.insert(0, '${ROOT_DIR}/adapters/intellij/mcp-server/tools')
+sys.path.insert(0, '${ROOT_DIR}/adapters/_shared/mcp-server/tools')
 from security_validate import validate_command
 # Test deny
 r1 = validate_command('rm -rf /')
