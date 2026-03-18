@@ -5,12 +5,13 @@
 <h1 align="center">cognitive-core</h1>
 
 <p align="center">
+  <a href="https://github.com/mindcockpit-ai/cognitive-core/releases/tag/v1.0.0"><img src="https://img.shields.io/badge/version-v1.0.0-38bdf8?style=flat-square" alt="v1.0.0"/></a>
   <a href="https://multivac42.ai"><img src="https://img.shields.io/badge/website-multivac42.ai-38bdf8?style=flat-square" alt="Website"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-FSL--1.1--ALv2-38bdf8?style=flat-square" alt="License: FSL-1.1-ALv2"/></a>
   <a href="https://github.com/mindcockpit-ai/cognitive-core"><img src="https://img.shields.io/github/stars/mindcockpit-ai/cognitive-core?style=flat-square" alt="GitHub Stars"/></a>
 </p>
 
-<p align="center">A portable framework that installs production-grade hooks, agents, skills, CI/CD pipelines, and monitoring into any Claude Code project in under 60 seconds.</p>
+<p align="center">A portable AI-augmented development framework with production-grade governance, multi-adapter support, and 4 industry-first features no other tool has.</p>
 
 <p align="center"><em>Born abilities from day one. Learned abilities from experience.<br/>Nature's teamwork, applied to AI agents.</em></p>
 
@@ -124,14 +125,41 @@ Multi-agent peer review — where agents check each other's work — was impleme
 
 ## Feature Highlights
 
-- **Hooks** -- 9 event hooks: session startup, bash/read/write/fetch validation, post-edit linting, compaction reminders, Angular and Spring Boot version guards
-- **Agents** -- Hub-and-spoke team of 10 specialists (coordinator, architect, reviewer, tester, researcher, database, security, updater, Angular specialist, Spring Boot specialist)
-- **Skills** -- 43 reusable skills: 19 core (session-resume to e2e-visual-regression) plus 24 language and database pack skills
-- **Secrets** -- 1Password / macOS Keychain backends with `secrets-run` injection, `secrets-store` CLI, and `secrets-setup` skill
-- **CI/CD** -- Evolutionary pipeline with fitness gates, self-hosted runner setup, GitHub Actions workflows
-- **Monitoring** -- Prometheus, Grafana dashboards, Alertmanager with Slack/email/PagerDuty
-- **Kubernetes** -- Base manifests, Kustomize overlays, monitoring stack for horizontal scaling
-- **Checksum updater** -- Safe framework updates that preserve your customizations
+### Industry Firsts (Novel — [research papers](docs/research/))
+
+- **[Source Authority Model (T1-T5)](docs/research/source-authority-model.md)** — AI agents classify research sources by authority. AI-generated slop (T5) auto-discarded. Decisions require T1-T2 backing
+- **[Team-Aware Estimation](docs/research/team-aware-estimation.md)** — Tasks tagged (human/AI/human+AI). Human review = critical path. No more fictional "developer-days"
+- **[Graduated Fitness Gates](docs/research/graduated-fitness-gates.md)** — Quality thresholds 60% → 95% across pipeline (lint/commit/test/merge/deploy)
+- **[Recursive Epic Verification](docs/research/recursive-epic-verification.md)** — Verify an epic and it recursively verifies every sub-issue. PASS/PARTIAL/FAIL per criterion
+
+### Core
+
+- **Hooks** — 9 security hooks: validate-bash/read/write/fetch, setup-env, compact-reminder, post-edit-lint, Angular + Spring Boot version guards
+- **Agents** — Hub-and-spoke team of 10 specialists with smart delegation and least-privilege tool restrictions
+- **Skills** — 47 composable skills: 20 core + 26 language-pack + 1 database-pack
+- **Adapters** — Claude Code, Aider+Ollama, IntelliJ+DevoxxGenie (VS Code, Eclipse, Cursor planned)
+
+### Enterprise Governance ([details](docs/research/board-workflow-governance.md))
+
+- **Board Workflow** — 7-column lifecycle with enforced transition matrix. No skipping columns
+- **SOX Compliance** — Different-approver enforcement, dual approval, attributed closures
+- **WIP Limits** — Configurable per-column. Blocked state with dependency tracking
+- **Agile Metrics** — Cycle time, lead time, throughput, flow efficiency, sprint trends
+- **Multi-Provider** — GitHub Projects, Jira, YouTrack through pluggable provider pattern
+- **PM Recipes** — 7 role-based workflows (Scrum Master, PM, QA, CTO, BA, Compliance, Release)
+
+### Quality
+
+- **13 test suites, 528 tests** — all passing
+- **[Claude Certified Architect](docs/certification-report.md)** — 959/1000, Grade A across all 5 domains
+- **[Workflow Maturity Audit](docs/research/workflow-maturity-audit-v2.md)** — 4.79/5.0 (+63% above industry average)
+
+### Infrastructure
+
+- **Secrets** — 1Password / macOS Keychain backends with `secrets-run` injection
+- **CI/CD** — Evolutionary pipeline with 5 fitness gates, release-please automated versioning
+- **Monitoring** — Prometheus, Grafana dashboards, Alertmanager
+- **Checksum updater** — Safe framework updates that preserve your customizations
 
 ## Quick Start
 
@@ -394,6 +422,7 @@ detects stuck tasks, breaks deadlocks, and ensures quality gates are met.
 | lint-debt | manual | Track and reduce lint debt across the codebase |
 | ctf-pentesting | manual | CTF challenge methodology and kill chain |
 | e2e-visual-regression | manual | E2E testing patterns with visual regression and Playwright |
+| batch-review | manual | Batch processing — agent swarms, API batches, sequential pipelines |
 
 ## Configuration
 
