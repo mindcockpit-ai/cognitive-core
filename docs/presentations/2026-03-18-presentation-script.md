@@ -91,7 +91,7 @@
 > Jeder Agent hat Least-Privilege — der Code Reviewer darf keine Dateien schreiben, der Security Analyst darf keine Websuchen machen.
 
 **Layer 3: Skills System (47 Skills)**
-> Wiederverwendbare Faehigkeiten: Code Review, Lint-Debt-Tracking, Smoke Tests, Sprint-Management, Akzeptanzkriterien-Verifikation. 19 Core-Skills plus 26 sprachspezifische (Java, Python, Angular, React, etc.)
+> Wiederverwendbare Faehigkeiten: Code Review, Lint-Debt-Tracking, Smoke Tests, Sprint-Management, Akzeptanzkriterien-Verifikation. 20 Core-Skills plus 26 sprachspezifische (Java, Python, Angular, React, etc.)
 
 ---
 
@@ -198,7 +198,7 @@ We have an open issue #78 on board. Please coordinate implementation, verify acc
 > cognitive-core funktioniert nicht nur mit Claude Code:
 > - **Aider + Ollama** — vollstaendig lokal, keine Cloud
 > - **IntelliJ + DevoxxGenie** — fuer Java-Entwickler
-> - **VS Code, Eclipse, Cursor** — in Entwicklung (Issues #81-#85 mit Feasibility Studies)
+> - **5 weitere geplant**: VS Code, Eclipse, Cursor, Windsurf, Neovim (Issues #81-#85)
 >
 > Ein Framework, alle Plattformen. Die Workflow-Regeln gelten ueberall gleich.
 
@@ -228,7 +228,7 @@ We have an open issue #78 on board. Please coordinate implementation, verify acc
 > Cursor und Copilot sind IDEs. cognitive-core ist ein Framework, das IN jeder IDE funktioniert. Es geht nicht um das Tool, sondern um Governance, Qualitaet und Wiederholbarkeit.
 
 **"Is this production-ready?"**
-> v1.0.0, 525+ Tests, 13 Suites, alle gruen. Im Einsatz bei TIMS (Workflow-Audit 4.79/5). Certification 959/1000.
+> v1.0.0, 528 Tests, 13 Suites, alle gruen. Im Einsatz bei TIMS. Das Framework selbst erreicht 4.79/5 im Maturity-Audit. Certification 959/1000.
 
 **"What about hallucinations?"**
 > Source Authority Model (T1-T5). AI-generierte Inhalte (T5) werden verworfen. Entscheidungen erfordern T1-T2 Quellen. Das ist der einzige Framework, der AI-Slop systematisch filtert.
@@ -256,7 +256,7 @@ We have an open issue #78 on board. Please coordinate implementation, verify acc
 | Agents | 10 (hub + 9 specialists) |
 | Skills | 47 (20 core + 26 language + 1 database) |
 | Hooks | 9 security hooks |
-| Rules | 12 path-scoped |
+| Rules | 11 path-scoped (1 core + 10 language-specific) |
 | Language packs | 11 |
 | Database packs | 3 |
 | Adapters | 3 (Claude, Aider, IntelliJ) + 5 planned |
