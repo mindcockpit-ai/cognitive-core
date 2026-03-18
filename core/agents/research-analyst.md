@@ -94,6 +94,39 @@ Every research output must include source authority classification:
 1. [Suggested actions]
 ```
 
+## Source Attribution
+
+**Every decision, recommendation, and factual claim must trace back to a source.**
+
+Provenance categories (inspired by W3C PROV vocabulary):
+
+| Category | PROV Predicate | Description | Example |
+|----------|---------------|-------------|---------|
+| **verified** | `wasAttributedTo` | Directly observed in code, tests, or runtime | "Confirmed in `server.py:142` — function accepts 3 params" |
+| **documented** | `wasDerivedFrom` | Stated in official documentation or specs | "Per RFC 7519 section 4.1, JWT `iss` claim is optional" |
+| **inferred** | `wasInformedBy` | Derived from patterns, not explicitly stated | "Based on 3 similar implementations in the codebase" |
+| **external** | `wasGeneratedBy` | Retrieved via web search or API call | "Context7 MCP returned PDFKit v0.14.0 API reference" |
+
+### Attribution Rules
+
+1. **Every recommendation must cite its provenance category** — "Use PDFKit (documented: pdfkit.org API reference, T1)"
+2. **Inferred claims must state the basis** — "Likely thread-safe (inferred: all public methods use mutex, 5 files checked)"
+3. **External sources must include retrieval context** — "Retrieved 2026-03-18 via WebSearch (external: first 3 results)"
+4. **Conflicting provenance** — verified > documented > inferred > external. If code contradicts docs, flag both.
+
+### Provenance Output Format
+
+Include in every research output:
+
+```markdown
+## Provenance
+| Decision | Source | Category | Authority | Derived From |
+|----------|--------|----------|-----------|--------------|
+| Use PDFKit for reports | pdfkit.org/docs | documented | T1 | Official API reference |
+| PDFKit handles tables | src/reports/pdf.ts:45 | verified | T1 | Internal codebase |
+| Scales to 10K pages | SO answer #4821903 | inferred | T3 | Community benchmark |
+```
+
 ## When NOT to Use This Agent
 
 - Internal code questions (use Glob/Grep/Read directly)

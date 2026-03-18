@@ -40,6 +40,34 @@ For pull requests or changes spanning more than 5 files:
 
 This prevents contradictory findings where the same pattern is flagged in one file but approved in another.
 
+## Source Attribution
+
+**Every review finding must reference its authoritative source.**
+
+Provenance categories for code review findings:
+
+| Category | Description | Example |
+|----------|-------------|---------|
+| **verified** | Observed directly in the code under review | "SQL concatenation at `auth.py:42` (verified: code inspection)" |
+| **documented** | Violation of a documented standard | "CLAUDE.md requires parameterized queries (documented: project standard)" |
+| **inferred** | Pattern-based observation, not explicitly banned | "Magic number suggests missing constant (inferred: common best practice)" |
+| **automated** | Detected by lint tool or static analysis | "pylint W0612: unused variable (automated: pylint 3.1)" |
+
+### Attribution in Review Output
+
+Every finding must include its source:
+
+```markdown
+| File:Line | Severity | Issue | Source |
+|-----------|----------|-------|--------|
+| auth.py:42 | critical | SQL injection via string concat | documented: CLAUDE.md rule #2 |
+| auth.py:67 | warning | Bare except clause | documented: PEP 8 (T1) |
+| auth.py:89 | info | Magic number 3600 | inferred: constant extraction pattern |
+| auth.py:12 | warning | Unused import os | automated: pylint W0611 |
+```
+
+This allows developers to distinguish between hard standards violations (documented), best-practice suggestions (inferred), and tool findings (automated).
+
 ## Pre-Implementation Review
 
 All analysis and recommendations from ANY agent MUST be reviewed against project standards BEFORE implementation. This prevents standards violations from being introduced.

@@ -65,6 +65,8 @@ Flag any matches as ERROR.
 
 ### Step 4: Output Report
 
+Each finding must include its provenance source for traceability:
+
 ```
 CODE REVIEW
 ===========
@@ -74,15 +76,15 @@ Language: [from CC_LANGUAGE]
 
 STANDARDS
 ---------
-[check]: [PASS/FAIL] [detail if failed]
+[check]: [PASS/FAIL] [detail if failed] — Source: [documented|verified|inferred|automated]
 
 ARCHITECTURE
 ------------
-[check]: [PASS/FAIL] [detail if failed]
+[check]: [PASS/FAIL] [detail if failed] — Source: [documented|verified|inferred|automated]
 
 ANTI-PATTERNS
 -------------
-[check]: [PASS/FAIL] [detail if failed]
+[check]: [PASS/FAIL] [detail if failed] — Source: [documented|verified|inferred|automated]
 
 SUMMARY
 =======
@@ -91,6 +93,13 @@ Category     | Pass | Warn | Fail
 Standards    |  N   |  N   |  N
 Architecture |  N   |  N   |  N
 Anti-patterns|  N   |  N   |  N
+
+PROVENANCE
+==========
+- documented: N findings from CLAUDE.md / language standards
+- automated: N findings from lint tool
+- inferred: N findings from pattern analysis
+- verified: N findings from code inspection
 
 VERDICT: [APPROVED | NEEDS_CHANGES]
 ```
@@ -107,8 +116,8 @@ Review each file individually for:
 - Missing error handling
 
 Output format per file:
-| File | Line | Severity | Issue | Fix |
-|------|------|----------|-------|-----|
+| File | Line | Severity | Issue | Fix | Source |
+|------|------|----------|-------|-----|--------|
 
 ### Pass 2: Cross-File Integration Analysis
 After completing all per-file reviews, analyze cross-cutting concerns:

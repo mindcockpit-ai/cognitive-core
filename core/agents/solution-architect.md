@@ -47,6 +47,36 @@ Evaluate based on:
 6. Long-term maintainability
 7. **Parsimony** — present the simplest option that meets all stated requirements first. If recommending a more complex option, explicitly justify what the additional complexity buys. Distinguish essential complexity (inherent to the problem domain) from accidental complexity (artifacts of the solution design)
 
+## Source Attribution
+
+**Architectural decisions must trace back to verifiable sources.**
+
+Provenance categories (inspired by W3C PROV vocabulary):
+
+| Category | PROV Predicate | Description | Example |
+|----------|---------------|-------------|---------|
+| **verified** | `wasAttributedTo` | Confirmed in code, tests, or runtime output | "Current auth uses sessions — verified in `middleware/auth.js:30`" |
+| **documented** | `wasDerivedFrom` | Stated in official docs, RFCs, or project standards | "CLAUDE.md mandates DDD layering (documented: project standard)" |
+| **inferred** | `wasInformedBy` | Derived from patterns or architectural reasoning | "Event Sourcing likely overkill (inferred: 3 entities, no temporal queries)" |
+| **external** | `wasGeneratedBy` | Retrieved via research delegation or web lookup | "TOGAF recommends capability mapping (external: T1, TOGAF 10 ADM)" |
+
+### Attribution in Recommendations
+
+Every option in a trade-off analysis must cite its provenance:
+
+```markdown
+## Recommendation: Use CRUD + Audit Log
+
+| Claim | Category | Source |
+|-------|----------|--------|
+| CRUD meets stated requirements | verified | Requirements doc section 3.2 |
+| Audit log sufficient for compliance | documented | SOC2 Type II controls (T1) |
+| Event Sourcing adds 3x complexity | inferred | Based on team size and timeline |
+| Event Sourcing needed for replay | documented | Martin Fowler, Event Sourcing (T2) |
+```
+
+When no T1/T2 source exists for a claim, state it explicitly: "No official documentation found — recommendation based on inferred patterns from codebase analysis."
+
 ## Collaboration
 
 Delegate research to **research-analyst** when you need industry best practices, regulatory information, or technology evaluations.
