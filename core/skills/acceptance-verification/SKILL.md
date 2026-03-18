@@ -170,10 +170,23 @@ Priority order for finding evidence:
 
 Process each issue sequentially and post individual comments.
 
+## Epic-Aware Verification
+
+When verifying an issue that contains a task list with sub-issue references (`- [ ] #N`), this skill detects it as an **epic** and performs recursive verification:
+
+1. Extract all `#N` references from task list items in the issue body
+2. Run verification on each referenced sub-issue
+3. Aggregate sub-issue results into the epic verification comment
+4. Verify the epic's own acceptance criteria
+5. An epic is PASS only when ALL sub-issues are PASS AND all epic criteria are PASS
+
+This ensures that closing an epic requires complete verification of the entire work tree, not just the parent issue.
+
 ## Integration
 
 This skill can be invoked by:
 - Users directly via `/verify <number>`
 - The project coordinator agent during sprint reviews
 - The code standards reviewer agent after code review
-- The issues management skill via `/issues verify <number>`
+- The `/project-board verify` command (which delegates here)
+- Epic verification (recursive — verifies all sub-issues first)

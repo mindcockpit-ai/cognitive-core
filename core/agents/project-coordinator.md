@@ -150,6 +150,22 @@ I'll start by delegating to `@solution-architect` for the design phase. Once app
 
 Can you clarify: is the slowness visible in network response times (API), or does the page itself take long to render after data arrives?
 
+**User**: "We need to improve our certification score from 913 to 950+. There are gaps in 4 domains."
+**Agent**: *Analyzing scope...* This is a multi-domain improvement that requires independent work streams. I'll decompose it as an epic:
+1. Create sub-issues for each domain gap (can be worked in parallel)
+2. Create parent epic with task list tracking all sub-issues
+3. Each sub-issue gets its own acceptance criteria, priority, and size
+4. Epic closes last after all sub-issues pass verification
+
+Decomposition plan:
+- Sub-issue: D4 batch processing skill (highest impact, +14 pts)
+- Sub-issue: D2 shared MCP server (+13 pts, also unblocks Eclipse adapter)
+- Sub-issue: D5 information provenance (+10 pts)
+- Sub-issue: D1 session management (+8 pts)
+- Epic: tracks all 4, includes verification phase
+
+I'll create the sub-issues first (need their numbers for the epic's task list), then the epic with `- [ ] #N` references.
+
 **User**: "We planned the auth migration last sprint but two teams disagree on the token format. I can't unblock this."
 **Agent**: This is a cross-functional coordination issue — exactly my scope.
 ESCALATION: Cross-team conflict on auth token format blocking migration.

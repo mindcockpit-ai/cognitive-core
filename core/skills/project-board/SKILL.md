@@ -627,6 +627,43 @@ This reads the issue's acceptance criteria, searches the codebase for evidence (
 
 See the `acceptance-verification` skill for full workflow details.
 
+#### Epic Verification (Recursive)
+
+When `verify` is called on an **epic** (an issue containing a task list with `- [ ] #N` references), it performs **recursive verification**:
+
+1. **Detect epic**: Parse the issue body for task list items matching `- [ ] #N` or `- [x] #N`
+2. **Verify each sub-issue**: Run `acceptance-verification` on every referenced sub-issue
+3. **Aggregate results**: Collect PASS/PARTIAL/FAIL status from all sub-issues
+4. **Verify epic criteria**: Then verify the epic's own acceptance criteria
+5. **Post consolidated comment** on the epic:
+
+```
+## Epic Verification
+
+### Sub-Issue Status
+
+| # | Title | Criteria | Passed | Status |
+|---|-------|----------|--------|--------|
+| #87 | Batch processing skill | 5 | 5 | PASS |
+| #88 | Shared MCP server | 6 | 4 | PARTIAL |
+| #89 | Information provenance | 4 | 4 | PASS |
+| #90 | Session management | 3 | 3 | PASS |
+
+### Epic Criteria
+
+| # | Criterion | Status | Evidence |
+|---|-----------|--------|----------|
+| 1 | All sub-issues completed | PARTIAL | #88 has 2 open criteria |
+| 2 | Tests pass (525+) | PASS | 13/13 suites, 530 tests |
+
+### Summary
+- **Sub-issues**: 3/4 PASS, 1 PARTIAL
+- **Epic criteria**: 1/2 PASS, 1 PARTIAL
+- **Overall**: PARTIAL — #88 blocks epic closure
+```
+
+**Epic closure rule**: An epic can only be closed when ALL sub-issues are PASS AND all epic-level criteria are PASS. If any sub-issue is PARTIAL or FAIL, the epic is blocked.
+
 ### `approve`
 
 Human approval gate. Moves an issue from "To Be Tested" to "Done" after reviewing verification evidence. Only works when `CC_REQUIRE_HUMAN_APPROVAL="true"` (default).
@@ -643,6 +680,98 @@ Human approval gate. Moves an issue from "To Be Tested" to "Done" after reviewin
 2. Verify evidence comment exists
 3. Close the issue with "Approved by @username" comment
 4. Move to Done on the board
+
+## Epic Decomposition
+
+When a problem is too complex for a single issue, decompose it into an **epic** (parent) with **sub-issues** (children). This keeps the board clean and progress trackable.
+
+### When to Decompose
+
+- Issue requires work across multiple domains or components
+- Estimated effort exceeds size:L (2+ days)
+- Multiple independent work streams can proceed in parallel
+- Different specialists or teams own different parts
+
+### Structure
+
+```
+Epic (parent issue)
+├── Sub-issue #1 — specific deliverable
+├── Sub-issue #2 — specific deliverable
+├── Sub-issue #3 — specific deliverable
+└── Verification phase (in epic acceptance criteria)
+```
+
+### Workflow
+
+**Step 1 — Create sub-issues first** (they need issue numbers for the task list):
+
+```bash
+gh issue create --title "scope(area): sub-task title" \
+  --label "enhancement,area:hooks,priority:p2-medium,size:M" \
+  --body "## Context
+...
+**Parent**: TBD (will be linked from epic)
+
+## Acceptance Criteria
+- [ ] ..."
+```
+
+**Step 2 — Create the epic** with a task list referencing sub-issues:
+
+```bash
+gh issue create --title "epic(scope): high-level objective" \
+  --label "enhancement,priority:p2-medium,size:XL" \
+  --body "## Objective
+...
+
+## Sub-Issues
+
+- [ ] #101 — sub-task 1 description
+- [ ] #102 — sub-task 2 description
+- [ ] #103 — sub-task 3 description
+
+## Plan
+
+### Phase 1 — ...
+### Phase 2 — ...
+
+## Acceptance Criteria
+- [ ] All sub-issues completed
+- [ ] Integration verified
+- [ ] Tests pass"
+```
+
+GitHub automatically tracks task list progress (checked/unchecked) and shows a progress bar on the epic.
+
+**Step 3 — Back-link sub-issues to parent**:
+
+Update each sub-issue body to replace `TBD` with the epic number:
+
+```bash
+# Update sub-issue body to reference parent
+gh issue edit 101 --body "$(gh issue view 101 --json body -q .body | \
+  python3 -c "import sys; print(sys.stdin.read().replace('**Parent**: TBD', '**Parent**: #100'))")"
+```
+
+### Epic Rules
+
+1. **Epic title prefix**: Use `epic(scope):` to distinguish from regular issues
+2. **Sub-issues are independent**: Each sub-issue must be completable and testable on its own
+3. **Epic has no implementation**: The epic only tracks, coordinates, and verifies — it never contains code changes itself
+4. **Close order**: Sub-issues close first, epic closes last after all sub-issues pass
+5. **Board placement**: Epic goes to In Progress when first sub-issue starts, To Be Tested when all sub-issues are done, Done after verification
+6. **Size label**: Epic gets `size:XL` regardless — the effort is in the sub-issues
+
+### Example
+
+```
+epic(certification): improve score from 913 to 950+ / 1000
+├── #87 — cert(D4): add batch processing skill (+14 pts)
+├── #88 — cert(D2): expose MCP server for Claude Code (+13 pts)
+├── #89 — cert(D5): formalize information provenance (+10 pts)
+└── #90 — cert(D1): strengthen session management (+8 pts)
+```
 
 ## Error Handling
 
