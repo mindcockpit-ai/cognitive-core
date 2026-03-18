@@ -46,7 +46,7 @@
 >
 > Das sind keine theoretischen Probleme. Das sind Dinge, die mir jede Woche passiert sind. Bei Kundenprojekten. Mit Deadlines.
 >
-> Mir ist klar: Halluzinationen sind keine Bugs — das ist die Natur von LLMs. Die sind stochastisch, nicht deterministisch. Man kann das nicht wegkonfigurieren.
+> Mir wurde klar: Halluzinationen sind keine Bugs — das ist die Natur von LLMs. Die sind stochastisch, nicht deterministisch. Man kann das nicht wegkonfigurieren.
 >
 > Aber man kann drumherum bauen. Deterministische Schichten um ein stochastisches System. Hooks, die gefaehrliche Befehle blockieren — egal was das Modell halluziniert. Quality Gates, die Code pruefen, bevor er committet wird. Ein Source Authority Model, das AI-generierte Quellen automatisch verwirft.
 >
@@ -99,7 +99,7 @@
 
 ### Show: multivac42.ai Governance section — click each card
 
-> Vier Features, die kein anderer Framework hat. Nicht "besser als" — sondern "als Einziger".
+> Vier Features, die wir in keinem vergleichbaren Framework gefunden haben. Wir haben das mit T1-T2 Quellen verifiziert.
 
 **1. Source Authority Model (T1-T5)** [click card → research paper]
 > Wenn ein AI-Agent im Internet recherchiert, sind nicht alle Quellen gleich. Offizielle Dokumentation (T1) wiegt mehr als ein Blog-Post (T4). AI-generierte Werbeinhalte (T5) werden automatisch verworfen.
@@ -146,9 +146,9 @@
 
 ### Show: Certification section (959/1000)
 
-> Das Framework wurde gegen Anthropics offizielles Claude Certified Architect Exam bewertet. 959 von 1000 Punkten, Grade A in allen 5 Domaenen.
+> Wir haben das Framework systematisch gegen Anthropics offizielles Claude Certified Architect Exam gemappt. 959 von 1000 Punkten, Grade A in allen 5 Domaenen.
 >
-> Das ist keine Selbstbewertung — jeder der 43 Exam-Subtasks ist mit Evidenz aus dem Codebase belegt.
+> Das ist eine Selbstbewertung gegen oeffentliche Kriterien — aber jeder der 43 Exam-Subtasks ist mit konkreter Evidenz aus dem Codebase belegt. Die gesamte Analyse liegt auf GitHub — jeder kann es nachpruefen.
 
 ---
 
@@ -167,7 +167,11 @@
 We have an open issue #78 on board. Please coordinate implementation, verify acceptance criteria, deploy, and provide evidence with screenshot.
 ```
 
-> [Wait ~2-3 min for coordinator to work]
+> [2-3 min — narrate what happens on screen:]
+> - "Jetzt sehen Sie, wie der Coordinator das Issue liest und die Akzeptanzkriterien parst..."
+> - "Er delegiert jetzt an den Solution Architect fuer die Implementierung..."
+> - "Jetzt laeuft der Build... und das Deployment auf Cloudflare..."
+> - "Und jetzt postet er den Verifikationskommentar mit PASS/FAIL pro Kriterium."
 >
 > Beobachten Sie:
 > 1. Der Coordinator liest das Issue automatisch
@@ -180,9 +184,10 @@ We have an open issue #78 on board. Please coordinate implementation, verify acc
 
 > Das war kein Skript. Das war ein AI-Agent, der einen echten Issue-Lifecycle durchlaeuft — mit Governance, Evidenz und Deployment.
 
-### Demo B (if time): Issue #77 — Health Endpoint
+### Demo B (fallback OR if time): Issue #77 — Health Endpoint
 
-> Falls Zeit: zweites Issue live implementieren lassen.
+> Falls Demo A fehlschlaegt oder Zeit bleibt: zweites Issue live implementieren lassen.
+> Bei technischen Problemen sofort pivoten: "Lassen Sie mich ein anderes Issue zeigen."
 
 ---
 
