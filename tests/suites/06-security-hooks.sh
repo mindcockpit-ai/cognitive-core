@@ -82,6 +82,52 @@ if [ -f "$VALIDATE_BASH" ]; then
         _skip "bash: structured error fields (jq not available)"
     fi
 
+    # --- Closure guard: gh issue close ---
+    assert_hook_denies \
+        "bash: gh issue close 42 → deny (closure guard)" \
+        "$VALIDATE_BASH" \
+        "$(mock_bash_json "gh issue close 42")"
+
+    assert_hook_allows \
+        "bash: gh issue close with Approved by @ → allow" \
+        "$VALIDATE_BASH" \
+        "$(mock_bash_json "gh issue close 42 --repo org/repo --comment \"Approved by @user\"")"
+
+    assert_hook_allows \
+        "bash: gh issue close with Canceled: → allow" \
+        "$VALIDATE_BASH" \
+        "$(mock_bash_json "gh issue close 42 --comment \"Canceled: no longer needed\"")"
+
+    assert_hook_allows \
+        "bash: gh issue close with Closed via /project-board → allow" \
+        "$VALIDATE_BASH" \
+        "$(mock_bash_json "gh issue close 42 --comment \"Closed via /project-board\"")"
+
+    # Closure guard disabled via config
+    output=$(echo "$(mock_bash_json "gh issue close 42")" | \
+        CLAUDE_PROJECT_DIR=/tmp CC_REQUIRE_CLOSURE_VERIFICATION=false CC_REQUIRE_HUMAN_APPROVAL=false \
+        bash "$VALIDATE_BASH" 2>/dev/null) || true
+    if [ -z "$output" ] || ! echo "$output" | grep -q '"deny"'; then
+        _pass "bash: closure guard disabled allows gh issue close"
+    else
+        _fail "bash: closure guard disabled should allow gh issue close"
+    fi
+
+    # Closure guard: structured error fields
+    if command -v jq &>/dev/null; then
+        output=$(echo "$(mock_bash_json "gh issue close 42")" | bash "$VALIDATE_BASH" 2>/dev/null) || true
+        cat_val=$(echo "$output" | jq -r '.hookSpecificOutput.errorCategory // ""' 2>/dev/null)
+        assert_eq "bash: closure guard has errorCategory=policy" "policy" "$cat_val"
+
+        retry_val=$(echo "$output" | jq -r '.hookSpecificOutput.isRetryable | tostring' 2>/dev/null)
+        assert_eq "bash: closure guard has isRetryable=true" "true" "$retry_val"
+
+        sug_val=$(echo "$output" | jq -r '.hookSpecificOutput.suggestion // ""' 2>/dev/null)
+        assert_contains "bash: closure guard has suggestion" "$sug_val" "/project-board close"
+    else
+        _skip "bash: closure guard structured fields (jq not available)"
+    fi
+
     # --- Safe commands should still pass ---
     assert_hook_allows \
         "bash: curl (no pipe) → allow" \

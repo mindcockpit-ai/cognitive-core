@@ -254,19 +254,59 @@ jobs:
             echo "Moved #$ISSUE_NUM: $CURRENT → In Progress (reopened)"
           fi
 
-  # ── Issue closed → move to Done ──
+  # ── Issue closed → verify acceptance criteria, then move to Done ──
   issue-closed:
     if: >
       github.event_name == 'issues' &&
       github.event.action == 'closed'
     runs-on: ubuntu-latest
     steps:
-      - name: Move closed issue to Done
+      - name: Check acceptance criteria and move to Done
         env:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          GH_REPO: ${{ github.repository }}
         run: |
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
           ISSUE_NUM=${{ github.event.issue.number }}
+
+          # --- Acceptance criteria verification ---
+          ISSUE_BODY=$(gh issue view "$ISSUE_NUM" --repo "$GH_REPO" --json body --jq '.body // ""')
+
+          # Check if issue has acceptance criteria (checkbox patterns)
+          HAS_CRITERIA="false"
+          if echo "$ISSUE_BODY" | grep -qE '- \[ \]|- \[x\]'; then
+            HAS_CRITERIA="true"
+          fi
+
+          if [ "$HAS_CRITERIA" = "true" ]; then
+            # Check comments for verification evidence
+            COMMENTS=$(gh issue view "$ISSUE_NUM" --repo "$GH_REPO" --json comments --jq '.comments[].body')
+            HAS_VERIFICATION="false"
+            if echo "$COMMENTS" | grep -qF "Acceptance Criteria Verification"; then
+              HAS_VERIFICATION="true"
+            fi
+            if echo "$COMMENTS" | grep -qE "Approved by @"; then
+              HAS_VERIFICATION="true"
+            fi
+
+            if [ "$HAS_VERIFICATION" = "false" ]; then
+              echo "Issue #$ISSUE_NUM has acceptance criteria but no verification found — reopening"
+              gh issue reopen "$ISSUE_NUM" --repo "$GH_REPO"
+              gh issue comment "$ISSUE_NUM" --repo "$GH_REPO" --body "$(cat <<'CIEOF'
+**Closure guard (CI)**: This issue was closed without acceptance criteria verification.
+
+The issue body contains acceptance criteria checkboxes, but no comment with
+"Acceptance Criteria Verification" or "Approved by @" was found.
+
+Please verify all acceptance criteria and close via `/project-board close` or
+add a verification comment before closing.
+CIEOF
+              )"
+              exit 0
+            fi
+          fi
+
+          # --- Move to Done on board ---
           ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500)
 
           ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
@@ -285,4 +325,4 @@ jobs:
               value: { singleSelectOptionId: "'"$DONE_ID"'" }
             }) { projectV2Item { id } }
           }'
-          echo "Moved #$ISSUE_NUM → Done (closed)"
+          echo "Moved #$ISSUE_NUM → Done (closed, criteria verified)"

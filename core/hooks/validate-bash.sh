@@ -109,6 +109,32 @@ if [ "$_SECURITY_LEVEL" != "minimal" ]; then
     fi
 fi
 
+# --- Closure guard: prevent direct gh issue close (policy) ---
+# Gate behind CC_REQUIRE_CLOSURE_VERIFICATION (default: follows CC_REQUIRE_HUMAN_APPROVAL)
+_CLOSURE_GUARD="${CC_REQUIRE_CLOSURE_VERIFICATION:-${CC_REQUIRE_HUMAN_APPROVAL:-true}}"
+
+if [ -z "$REASON" ] && [ "$_CLOSURE_GUARD" = "true" ]; then
+    if echo "$CMD_LOWER" | grep -qE 'gh[[:space:]]+issue[[:space:]]+close'; then
+        # Exempt legitimate skill paths
+        _CLOSURE_EXEMPT="false"
+        if echo "$CMD" | grep -qF "Approved by @"; then
+            _CLOSURE_EXEMPT="true"
+        fi
+        if echo "$CMD" | grep -qF "Canceled:"; then
+            _CLOSURE_EXEMPT="true"
+        fi
+        if echo "$CMD" | grep -qF "Closed via /project-board"; then
+            _CLOSURE_EXEMPT="true"
+        fi
+        if [ "$_CLOSURE_EXEMPT" = "false" ]; then
+            REASON="Blocked: direct gh issue close bypasses closure guard"
+            _cc_security_log "DENY" "closure-guard" "${REASON} | cmd=${CMD}"
+            _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Use /project-board close N instead"
+            exit 0
+        fi
+    fi
+fi
+
 # --- Project-specific blocked patterns (from config) ---
 if [ -z "$REASON" ] && [ -n "${CC_BLOCKED_PATTERNS:-}" ]; then
     for pattern in $CC_BLOCKED_PATTERNS; do

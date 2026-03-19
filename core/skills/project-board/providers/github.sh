@@ -183,8 +183,16 @@ pb_issue_close() {
         esac
     done
 
-    local close_args=(--repo "$CC_GITHUB_REPO")
-    [[ -n "$comment" ]] && close_args+=(--comment "$comment")
+    # Always include closure marker so the validate-bash hook recognizes
+    # skill-initiated closures (exemption pattern: "Closed via /project-board")
+    local marker="Closed via /project-board"
+    if [[ -n "$comment" ]]; then
+        comment="${comment} — ${marker}"
+    else
+        comment="$marker"
+    fi
+
+    local close_args=(--repo "$CC_GITHUB_REPO" --comment "$comment")
 
     gh issue close "$number" "${close_args[@]}" >/dev/null 2>&1
     _pb_success "Issue #$number closed"

@@ -55,6 +55,12 @@ When creating sprint plans:
 3. Assign to sprint iteration
 4. Set initial status (Todo for sprint items, Backlog/Roadmap for future work)
 
+### Issue Closure Rules
+
+**NEVER run `gh issue close` directly.** Always use `/project-board close N` which enforces
+acceptance criteria verification before closure. Direct `gh issue close` bypasses the closure
+guard and will be blocked by the validate-bash hook.
+
 ## Smart Delegation Framework
 
 **Parsimony first**: before delegating, apply the simplest-path test:

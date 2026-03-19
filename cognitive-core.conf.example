@@ -115,6 +115,9 @@ CC_PROJECT_BOARD_PROVIDER="github"
 CC_ISSUE_ATTACH_PLAN="false"
 CC_REQUIRE_HUMAN_APPROVAL="true"   # true = stop at To Be Tested (human reviews evidence before Done)
                                     # false = auto-close after verification passes
+CC_REQUIRE_CLOSURE_VERIFICATION="true"  # true = block direct gh issue close (must use /project-board close)
+                                         # false = allow direct gh issue close
+                                         # default: follows CC_REQUIRE_HUMAN_APPROVAL
 
 # --- GitHub provider (when CC_PROJECT_BOARD_PROVIDER=github) ---
 # CC_GITHUB_OWNER="owner"
