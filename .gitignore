@@ -111,3 +111,4 @@ htmlcov/
 *.tar.gz
 *.zip
 .claude/cognitive-core/last-check
+.claude/cognitive-core/version.json
