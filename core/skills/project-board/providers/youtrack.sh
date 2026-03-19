@@ -109,14 +109,15 @@ pb_issue_list() {
 }
 
 pb_issue_create() {
-    local title="" labels="" body=""
+    local title="" labels="" body="" assignee=""
     title="${1:-}"; shift 2>/dev/null || true
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --labels) labels="$2"; shift 2 ;;
-            --body)   body="$2"; shift 2 ;;
-            *)        shift ;;
+            --labels)   labels="$2"; shift 2 ;;
+            --body)     body="$2"; shift 2 ;;
+            --assignee) assignee="$2"; shift 2 ;;
+            *)          shift ;;
         esac
     done
 
@@ -147,6 +148,12 @@ print(json.dumps(data))
             _yt_api POST "/issues/${issue_id}/tags?fields=id" \
                 -d "{\"name\":\"$label\"}" 2>/dev/null || true
         done
+    fi
+
+    # Assign if provided
+    if [[ -n "$assignee" ]]; then
+        _yt_api POST "/issues/${issue_id}" \
+            -d "{\"customFields\":[{\"name\":\"Assignee\",\"\$type\":\"SingleUserIssueCustomField\",\"value\":{\"login\":\"$assignee\"}}]}" >/dev/null 2>&1 || true
     fi
 
     echo "{\"id\":\"$issue_id\",\"url\":\"${CC_YOUTRACK_URL}/issue/$issue_id\"}"
@@ -411,4 +418,5 @@ JSON
 
 _pb_load_config
 _yt_require_config
+_pb_validate_provider
 _pb_route "$@"

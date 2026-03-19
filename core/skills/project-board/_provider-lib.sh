@@ -125,6 +125,47 @@ _pb_validate_provider() {
     fi
 }
 
+# ---- Default Stubs for Optional Functions ----
+# Providers may override these. Default stubs return "not supported" cleanly
+# so the router never hits an undefined function error.
+
+pb_board_label_add() {
+    : "${1:?Issue identifier required}"
+    : "${2:?Label required}"
+    _pb_die "pb_board_label_add not supported by this provider"
+}
+
+pb_board_label_remove() {
+    : "${1:?Issue identifier required}"
+    : "${2:?Label required}"
+    _pb_die "pb_board_label_remove not supported by this provider"
+}
+
+pb_board_metrics() {
+    _pb_die "pb_board_metrics not supported by this provider"
+}
+
+pb_issue_timeline() {
+    : "${1:?Issue identifier required}"
+    _pb_die "pb_issue_timeline not supported by this provider"
+}
+
+pb_sprint_list() {
+    _pb_die "pb_sprint_list not supported by this provider (configure sprint settings)"
+}
+
+pb_sprint_assign() {
+    _pb_die "pb_sprint_assign not supported by this provider (configure sprint settings)"
+}
+
+pb_branch_create() {
+    _pb_die "pb_branch_create not supported by this provider"
+}
+
+pb_branch_list() {
+    _pb_die "pb_branch_list not supported by this provider"
+}
+
 # ---- Command Router ----
 # Routes CLI invocations to provider functions.
 # Usage: _pb_route <group> <command> [args...]

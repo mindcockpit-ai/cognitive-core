@@ -242,6 +242,9 @@ data = {
 desc = $description_json
 if desc:
     data['fields']['description'] = desc
+assignee = '''${assignee}'''
+if assignee:
+    data['fields']['assignee'] = {'accountId': assignee}
 print(json.dumps(data))
 ")
 
@@ -545,4 +548,5 @@ JSON
 
 _pb_load_config
 _jira_require_config
+_pb_validate_provider
 _pb_route "$@"

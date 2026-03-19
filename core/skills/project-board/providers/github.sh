@@ -516,4 +516,5 @@ JSON
 
 _pb_load_config
 _gh_require_config
+_pb_validate_provider
 _pb_route "$@"

@@ -35,6 +35,7 @@ suite_pretty_name() {
         08-workspace-monitor.sh) echo "Workspace Monitor" ;;
         09-adapter-interface.sh) echo "Adapter Interface" ;;
         10-aider-adapter.sh) echo "Aider Adapter" ;;
+        14-project-board-providers.sh) echo "Project Board Providers" ;;
         *) echo "$1" ;;
     esac
 }
