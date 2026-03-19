@@ -72,6 +72,8 @@ across layers. Parsimony applies *within* each security layer, never *across* th
 | **Enterprise architects** | Portable framework across 11 languages, 3 database packs, 3 platform adapters |
 | **Security-conscious organizations** | Defense-in-depth hooks that block dangerous commands, scan for secrets, audit external access |
 
+**Not for**: Single-file scripts, throwaway prototypes, or teams that want AI without governance. If you want uncontrolled AI code generation, use Copilot directly — cognitive-core adds structure, not speed.
+
 **Complements** (not replaces): Documentation tools like [Context7](https://context7.com) provide library docs — cognitive-core provides workflow safety, agent teams, and quality enforcement.
 
 ## Why cognitive-core?
