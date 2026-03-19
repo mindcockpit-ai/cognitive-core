@@ -86,15 +86,39 @@ A portable, vendor-agnostic AI-augmented development framework that governs the 
 
 ---
 
-## Enterprise — Planned (Premium)
+## Enterprise Customization — Available
+
+Your stack. Your rules. Your workflow. [Research paper](docs/research/enterprise-customization-model.md)
+
+### Available Now (Professional Services)
+
+| Offering | What You Get | Effort |
+|----------|-------------|--------|
+| **Stack Assessment** | Audit + config + custom rules for your standards | 1-2 days |
+| **Custom Language Pack** | pack.conf + rules + skills + fitness checks for your stack | 2-5 days |
+| **Custom Agents** | Specialist agents for proprietary APIs and frameworks | 1-3 days |
+| **Custom Skills** | Process automation for your deployment, review, testing workflows | 3-8 days |
+| **Custom Hooks** | Security policies specific to your organization | 1-3 days |
+| **Team Training** | Half-day or full-day workshop | 0.5-1 day |
+
+### In Development
+
+| # | Feature | Description |
+|---|---------|-------------|
+| [#110](https://github.com/mindcockpit-ai/cognitive-core/issues/110) | Enterprise Pack Manifest | Bundle custom components into installable, updateable packs |
+| | Private Pack Registry | Point update.sh to private git repo for enterprise-specific updates |
+| | Config Overlay | Enterprise defaults + project-specific overrides |
+
+### Planned (Premium)
 
 | Feature | Description |
 |---------|-------------|
 | Fleet management | Orchestrate framework updates across entire organizations |
 | Compliance dashboards | Audit artifacts for SOX, ISO 27001, ITIL |
-| Custom agent development | Proprietary technology stacks |
+| Custom adapters | VS Code, Eclipse, or any IDE your team uses |
 | On-premises deployment | Full data sovereignty |
 | EU AI Act alignment | Certification preparation for AI-augmented development |
+| Audit log export | Security events to external SIEM (Splunk, ELK) |
 
 ---
 
