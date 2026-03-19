@@ -796,15 +796,28 @@ info "Made all shell scripts executable."
 # ---- Ensure .gitignore covers runtime files ----
 GITIGNORE="${PROJECT_DIR}/.gitignore"
 SECURITY_LOG_PATTERN="${_ADAPTER_INSTALL_DIR}/cognitive-core/security.log"
+VERSION_JSON_PATTERN="${_ADAPTER_INSTALL_DIR}/cognitive-core/version.json"
+LAST_CHECK_PATTERN="${_ADAPTER_INSTALL_DIR}/cognitive-core/last-check"
 if [ -f "$GITIGNORE" ]; then
     # Check if security.log is already covered (exact entry or *.log glob)
     if ! grep -qE "^\*\.log$|${SECURITY_LOG_PATTERN//./\\.}" "$GITIGNORE" 2>/dev/null; then
-        printf "\n# cognitive-core runtime logs\n%s\n" "$SECURITY_LOG_PATTERN" >> "$GITIGNORE"
+        printf "\n# cognitive-core runtime files\n%s\n" "$SECURITY_LOG_PATTERN" >> "$GITIGNORE"
         info "Added ${SECURITY_LOG_PATTERN} to .gitignore"
     fi
+    # version.json is machine-local state — must not be tracked
+    if ! grep -qF "$VERSION_JSON_PATTERN" "$GITIGNORE" 2>/dev/null; then
+        printf "%s\n" "$VERSION_JSON_PATTERN" >> "$GITIGNORE"
+        info "Added ${VERSION_JSON_PATTERN} to .gitignore"
+    fi
+    # last-check is machine-local timestamp
+    if ! grep -qF "$LAST_CHECK_PATTERN" "$GITIGNORE" 2>/dev/null; then
+        printf "%s\n" "$LAST_CHECK_PATTERN" >> "$GITIGNORE"
+        info "Added ${LAST_CHECK_PATTERN} to .gitignore"
+    fi
 else
-    printf "# cognitive-core runtime logs\n%s\n" "$SECURITY_LOG_PATTERN" > "$GITIGNORE"
-    info "Created .gitignore with ${SECURITY_LOG_PATTERN}"
+    printf "# cognitive-core runtime files (machine-local, do not track)\n%s\n%s\n%s\n" \
+        "$SECURITY_LOG_PATTERN" "$VERSION_JSON_PATTERN" "$LAST_CHECK_PATTERN" > "$GITIGNORE"
+    info "Created .gitignore with runtime file patterns"
 fi
 
 # ---- Adapter post-install ----
