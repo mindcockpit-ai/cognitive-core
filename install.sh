@@ -793,31 +793,56 @@ if [ "${CC_ENABLE_CICD:-false}" = "true" ]; then
 fi
 info "Made all shell scripts executable."
 
-# ---- Ensure .gitignore covers runtime files ----
+# ---- Ensure .gitignore policy (base + language pack) ----
 GITIGNORE="${PROJECT_DIR}/.gitignore"
-SECURITY_LOG_PATTERN="${_ADAPTER_INSTALL_DIR}/cognitive-core/security.log"
-VERSION_JSON_PATTERN="${_ADAPTER_INSTALL_DIR}/cognitive-core/version.json"
-LAST_CHECK_PATTERN="${_ADAPTER_INSTALL_DIR}/cognitive-core/last-check"
-if [ -f "$GITIGNORE" ]; then
-    # Check if security.log is already covered (exact entry or *.log glob)
-    if ! grep -qE "^\*\.log$|${SECURITY_LOG_PATTERN//./\\.}" "$GITIGNORE" 2>/dev/null; then
-        printf "\n# cognitive-core runtime files\n%s\n" "$SECURITY_LOG_PATTERN" >> "$GITIGNORE"
-        info "Added ${SECURITY_LOG_PATTERN} to .gitignore"
+GITIGNORE_BASE="${SCRIPT_DIR}/core/templates/gitignore-base"
+GITIGNORE_LANG="${SCRIPT_DIR}/language-packs/${CC_LANGUAGE:-none}/gitignore"
+
+merge_gitignore_rules() {
+    # Merge rules from a template into .gitignore without duplicating entries.
+    # Preserves all existing user rules. Appends only lines not already present.
+    local template="$1" section_label="$2"
+    [ -f "$template" ] || return 0
+
+    local added=0
+    local tmpfile
+    tmpfile=$(mktemp)
+
+    # Collect lines to add (skip comments and blanks for dedup, but add them for structure)
+    local in_new_section=false
+    printf "\n# ---- %s (cognitive-core) ----\n" "$section_label" > "$tmpfile"
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        # Skip empty lines and comments for dedup check
+        if [[ "$line" =~ ^[[:space:]]*$ ]] || [[ "$line" =~ ^[[:space:]]*# ]]; then
+            echo "$line" >> "$tmpfile"
+            continue
+        fi
+        # Only add if not already in .gitignore
+        if ! grep -qxF "$line" "$GITIGNORE" 2>/dev/null; then
+            echo "$line" >> "$tmpfile"
+            added=$((added + 1))
+        fi
+    done < "$template"
+
+    if [ "$added" -gt 0 ]; then
+        cat "$tmpfile" >> "$GITIGNORE"
+        info "Added ${added} rules from ${section_label} to .gitignore"
+    else
+        info ".gitignore already covers ${section_label} rules"
     fi
-    # version.json is machine-local state — must not be tracked
-    if ! grep -qF "$VERSION_JSON_PATTERN" "$GITIGNORE" 2>/dev/null; then
-        printf "%s\n" "$VERSION_JSON_PATTERN" >> "$GITIGNORE"
-        info "Added ${VERSION_JSON_PATTERN} to .gitignore"
-    fi
-    # last-check is machine-local timestamp
-    if ! grep -qF "$LAST_CHECK_PATTERN" "$GITIGNORE" 2>/dev/null; then
-        printf "%s\n" "$LAST_CHECK_PATTERN" >> "$GITIGNORE"
-        info "Added ${LAST_CHECK_PATTERN} to .gitignore"
-    fi
-else
-    printf "# cognitive-core runtime files (machine-local, do not track)\n%s\n%s\n%s\n" \
-        "$SECURITY_LOG_PATTERN" "$VERSION_JSON_PATTERN" "$LAST_CHECK_PATTERN" > "$GITIGNORE"
-    info "Created .gitignore with runtime file patterns"
+    rm -f "$tmpfile"
+}
+
+if [ ! -f "$GITIGNORE" ]; then
+    touch "$GITIGNORE"
+    info "Created .gitignore"
+fi
+
+merge_gitignore_rules "$GITIGNORE_BASE" "base"
+
+if [ -n "${CC_LANGUAGE:-}" ] && [ "$CC_LANGUAGE" != "none" ] && [ -f "$GITIGNORE_LANG" ]; then
+    merge_gitignore_rules "$GITIGNORE_LANG" "${CC_LANGUAGE}"
 fi
 
 # ---- Adapter post-install ----

@@ -1,0 +1,17 @@
+# ---- Perl ----
+blib/
+.build/
+_build/
+cover_db/
+inc/
+Build
+Build.bat
+MYMETA.*
+MANIFEST.bak
+Makefile.old
+pm_to_blib
+*.bs
+*.o
+
+# Carton
+local/

@@ -334,13 +334,40 @@ info "Updated version manifest."
 # ---- Make scripts executable ----
 find "${CLAUDE_DIR}/hooks" -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
 
-# ---- Ensure .gitignore covers runtime files ----
+# ---- Ensure .gitignore policy (base + language pack) ----
 GITIGNORE="${PROJECT_DIR}/.gitignore"
-SECURITY_LOG_PATTERN=".claude/cognitive-core/security.log"
-if [ -f "$GITIGNORE" ]; then
-    if ! grep -qE "^\*\.log$|${SECURITY_LOG_PATTERN//./\\.}" "$GITIGNORE" 2>/dev/null; then
-        printf "\n# cognitive-core runtime logs\n%s\n" "$SECURITY_LOG_PATTERN" >> "$GITIGNORE"
-        info "Added ${SECURITY_LOG_PATTERN} to .gitignore"
+GITIGNORE_BASE="${FRAMEWORK_DIR}/core/templates/gitignore-base"
+GITIGNORE_LANG="${FRAMEWORK_DIR}/language-packs/${CC_LANGUAGE:-none}/gitignore"
+
+merge_gitignore_rules() {
+    local template="$1" section_label="$2"
+    [ -f "$template" ] || return 0
+    local added=0
+    local tmpfile
+    tmpfile=$(mktemp)
+    printf "\n# ---- %s (cognitive-core) ----\n" "$section_label" > "$tmpfile"
+    while IFS= read -r line || [ -n "$line" ]; do
+        if [[ "$line" =~ ^[[:space:]]*$ ]] || [[ "$line" =~ ^[[:space:]]*# ]]; then
+            echo "$line" >> "$tmpfile"
+            continue
+        fi
+        if ! grep -qxF "$line" "$GITIGNORE" 2>/dev/null; then
+            echo "$line" >> "$tmpfile"
+            added=$((added + 1))
+        fi
+    done < "$template"
+    if [ "$added" -gt 0 ]; then
+        cat "$tmpfile" >> "$GITIGNORE"
+        info "Added ${added} rules from ${section_label} to .gitignore"
+    fi
+    rm -f "$tmpfile"
+}
+
+if [ -f "$GITIGNORE" ] || [ -f "$GITIGNORE_BASE" ]; then
+    [ -f "$GITIGNORE" ] || touch "$GITIGNORE"
+    merge_gitignore_rules "$GITIGNORE_BASE" "base"
+    if [ -n "${CC_LANGUAGE:-}" ] && [ "$CC_LANGUAGE" != "none" ] && [ -f "$GITIGNORE_LANG" ]; then
+        merge_gitignore_rules "$GITIGNORE_LANG" "${CC_LANGUAGE}"
     fi
 fi
 
