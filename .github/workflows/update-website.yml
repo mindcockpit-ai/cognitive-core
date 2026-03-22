@@ -24,7 +24,7 @@ jobs:
           MULTIVAC_PAT: op://Development/GitHub-PAT/multivac-pat
 
       - name: Run test suite (JSON output)
-        run: bash tests/run-all.sh --json > framework-health.json
+        run: bash tests/run-all.sh --json > framework-health.json 2>&1
 
       - name: Validate JSON
         run: python3 -c "import json; json.load(open('framework-health.json'))"
