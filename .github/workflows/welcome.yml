@@ -13,23 +13,8 @@ jobs:
   welcome:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/first-interaction@v3
+      - uses: actions/first-interaction@v1
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          issue-message: |
-            Thanks for opening your first issue on cognitive-core.
-
-            A maintainer will review this shortly. In the meantime:
-            - Make sure you have filled in the issue template completely
-            - Check [CONTRIBUTING.md](https://github.com/mindcockpit-ai/cognitive-core/blob/main/CONTRIBUTING.md) for guidelines
-
-            If this is a bug, include your OS (macOS/Linux) and shell version.
-          pr-message: |
-            Thanks for your first pull request on cognitive-core.
-
-            Before review, please verify:
-            - [ ] `bash tests/run-all.sh` passes (all 13 suites)
-            - [ ] Commit messages follow `type(scope): subject` format
-            - [ ] No `\s`, `\b`, `\w` in regex (POSIX ERE only)
-
-            A maintainer will review within a few days. See [CONTRIBUTING.md](https://github.com/mindcockpit-ai/cognitive-core/blob/main/CONTRIBUTING.md) for the full process.
+          issue-message: "Welcome to cognitive-core! Thanks for opening your first issue. A maintainer will review shortly. Please check [CONTRIBUTING.md](https://github.com/mindcockpit-ai/cognitive-core/blob/main/CONTRIBUTING.md) for guidelines."
+          pr-message: "Thanks for your first PR on cognitive-core! Before review, please verify: `bash tests/run-all.sh` passes, commits follow `type(scope): subject` format, and regex uses POSIX ERE only. See [CONTRIBUTING.md](https://github.com/mindcockpit-ai/cognitive-core/blob/main/CONTRIBUTING.md)."
