@@ -5,12 +5,20 @@
 # =============================================================================
 
 # ---- OS generated files ----
+# macOS
 .DS_Store
 .DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
+.fseventsd
+.AppleDouble
+.LSOverride
+Icon?
+
+# Windows
 Thumbs.db
+Thumbs.db:encryptable
 ehthumbs.db
 ehthumbs_vista.db
 Desktop.ini
@@ -22,23 +30,32 @@ $RECYCLE.BIN/
 *.msp
 *.lnk
 
+# Linux
+*~
+.directory
+.Trash-*
+
 # ---- IDE / Editor files ----
+
 # VS Code
 .vscode/
 !.vscode/settings.json
 !.vscode/launch.json
 !.vscode/extensions.json
 !.vscode/tasks.json
+*.code-workspace
 
-# JetBrains (IntelliJ, WebStorm, PyCharm, etc.)
+# JetBrains (IntelliJ IDEA, WebStorm, PyCharm, GoLand, Rider, CLion, RubyMine, PhpStorm, DataGrip)
 .idea/
 *.iml
 *.iws
 *.ipr
 out/
 .idea_modules/
+cmake-build-*/
+.ijwb/
 
-# Eclipse
+# Eclipse / Spring Tool Suite (STS)
 .project
 .classpath
 .settings/
@@ -50,12 +67,45 @@ out/
 .factorypath
 .apt_generated/
 .apt_generated_tests/
+.sts4-cache/
+.springBeans
 
 # NetBeans
 nbproject/private/
 nbbuild/
 nbdist/
 .nb-gradle/
+nbactions.xml
+nb-configuration.xml
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.VisualState.xml
+[Dd]ebugPublic/
+
+# Xcode
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+DerivedData/
+build/
+
+# Android Studio
+.gradle/
+local.properties
+*.apk
+*.aab
+*.ap_
+*.dex
+captures/
+.cxx/
 
 # Sublime Text
 *.sublime-workspace
@@ -64,14 +114,14 @@ nbdist/
 # Vim / Neovim
 *.swp
 *.swo
-*~
+*.swn
 .netrwhist
 Session.vim
 .undodir/
 tags
+.lvimrc
 
 # Emacs
-*~
 \#*\#
 /.emacs.desktop
 /.emacs.desktop.lock
@@ -79,11 +129,33 @@ tags
 auto-save-list/
 tramp
 .\#*
+.projectile
+.dir-locals.el
 
 # TextMate
 *.tmproj
 *.tmproject
 tmtags
+
+# Atom
+.atom/
+*.cson
+
+# Notepad++
+nppBackup/
+
+# Kate / KDevelop
+.kdev4/
+*.kdev4
+
+# Fleet (JetBrains)
+.fleet/
+
+# Zed
+.zed/
+
+# Cursor
+.cursor/
 
 # ---- Secrets and credentials ----
 .env
@@ -104,16 +176,12 @@ service-account*.json
 **/secrets/
 .secret
 .secrets
+.htpasswd
 
 # ---- Logs ----
 *.log
 *.log.*
 logs/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
 # ---- Archives and binaries ----
 *.tar.gz
@@ -122,6 +190,7 @@ lerna-debug.log*
 *.rar
 *.7z
 *.gz
+!*.gz.md
 *.bz2
 *.xz
 *.iso
@@ -134,6 +203,8 @@ temp/
 *.bak
 *.orig
 *.rej
+*.pid
+*.seed
 
 # ---- Docker runtime ----
 docker-compose.override.yml
