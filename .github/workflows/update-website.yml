@@ -24,7 +24,13 @@ jobs:
           MULTIVAC_PAT: op://Development/GitHub-PAT/multivac-pat
 
       - name: Run test suite (JSON output)
-        run: bash tests/run-all.sh --json > framework-health.json 2>&1
+        run: |
+          bash tests/run-all.sh --json > framework-health.json 2> test-stderr.txt || true
+          if [ ! -s framework-health.json ]; then
+            echo "::error::Test suite produced no output. stderr:"
+            cat test-stderr.txt
+            exit 1
+          fi
 
       - name: Validate JSON
         run: python3 -c "import json; json.load(open('framework-health.json'))"
