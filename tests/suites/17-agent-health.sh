@@ -154,4 +154,141 @@ if grep -q 'set -euo pipefail' "$HYGIENE_SH"; then
 fi
 assert_eq "hygiene: no set -euo (sourced lib)" "$_has_set_e" "false"
 
+# ============================================================
+# Section 7: Live agent simulation (spawn → detect → log → kill)
+# ============================================================
+# Spawns 3 fake "stuck" agents as background processes whose command
+# lines match the grep pattern: claude.*(agent|subagent|background).
+# Uses CC_AGENT_TIMEOUT_MINUTES=0 so they are detected immediately
+# (etime 00:00 >= 0 = stuck). Proves the full pipeline end-to-end.
+
+_sim_dir="/tmp/cc-agent-sim-test-$$"
+mkdir -p "$_sim_dir/.claude/cognitive-core"
+_sim_log="$_sim_dir/.claude/cognitive-core/agent-health.log"
+_sim_pids=""
+
+# Spawn 3 fake stuck agents using temp scripts whose filenames contain
+# "claude" + "agent/subagent" + "background" — matching the health check
+# grep pattern in ps output. The "exit 0" after sleep prevents bash exec
+# optimization, keeping the script name visible in ps.
+for _agent_name in \
+    "claude-test-agent-explore-background" \
+    "claude-test-subagent-research-background" \
+    "claude-test-agent-implement-background"; do
+    _script="$_sim_dir/${_agent_name}.sh"
+    printf '#!/bin/bash\nsleep 300\nexit 0\n' > "$_script"
+    chmod +x "$_script"
+    "$_script" &
+    _sim_pids="$_sim_pids $!"
+done
+
+# Give processes a moment to register in the process table
+sleep 1
+
+# Verify all 3 are running
+_running=0
+for _p in $_sim_pids; do
+    if kill -0 "$_p" 2>/dev/null; then
+        _running=$((_running + 1))
+    fi
+done
+assert_eq "sim: 3 fake agents running" "3" "$_running"
+
+# ---- Detection test: timeout=0, auto_kill=false ----
+_detect_result=$(CC_AGENT_TIMEOUT_MINUTES=0 CC_AGENT_AUTO_KILL=false _cc_check_agent_health "$_sim_dir" 2>/dev/null)
+
+# Count how many of our 3 test PIDs appear in the output
+_detected_test_pids=0
+for _p in $_sim_pids; do
+    if echo "$_detect_result" | grep -q "PID ${_p}"; then
+        _detected_test_pids=$((_detected_test_pids + 1))
+    fi
+done
+assert_eq "sim: all 3 test agents detected" "3" "$_detected_test_pids"
+
+# Verify output mentions "background agent(s)"
+assert_contains "sim: output mentions background agent" "$_detect_result" "background agent"
+assert_contains "sim: output mentions timeout" "$_detect_result" "timeout"
+
+# Verify NO TaskStop recommendation (auto_kill=false)
+_has_taskstop=false
+if echo "$_detect_result" | grep -q "TaskStop"; then
+    _has_taskstop=true
+fi
+assert_eq "sim: no TaskStop when auto_kill=false" "$_has_taskstop" "false"
+
+# ---- Auto-kill test: timeout=0, auto_kill=true ----
+_kill_result=$(CC_AGENT_TIMEOUT_MINUTES=0 CC_AGENT_AUTO_KILL=true _cc_check_agent_health "$_sim_dir" 2>/dev/null)
+_has_taskstop_now=false
+if echo "$_kill_result" | grep -q "TaskStop"; then
+    _has_taskstop_now=true
+fi
+assert_eq "sim: TaskStop recommended when auto_kill=true" "$_has_taskstop_now" "true"
+
+# ---- Health log verification ----
+_log_exists=false
+if [ -f "$_sim_log" ]; then
+    _log_exists=true
+fi
+assert_eq "sim: agent-health.log created" "$_log_exists" "true"
+
+# Count STUCK entries for our specific test PIDs
+_log_test_entries=0
+if [ -f "$_sim_log" ]; then
+    for _p in $_sim_pids; do
+        if grep -q "pid=${_p}" "$_sim_log" 2>/dev/null; then
+            _log_test_entries=$((_log_test_entries + 1))
+        fi
+    done
+fi
+assert_eq "sim: log has STUCK entry for each test agent" "3" "$_log_test_entries"
+
+# Verify log format has all required fields
+if [ -f "$_sim_log" ]; then
+    _sample_line=$(head -1 "$_sim_log")
+    assert_contains "sim: log has pid=" "$_sample_line" "pid="
+    assert_contains "sim: log has elapsed=" "$_sample_line" "elapsed="
+    assert_contains "sim: log has threshold=" "$_sample_line" "threshold="
+    assert_contains "sim: log has auto_kill=" "$_sample_line" "auto_kill="
+else
+    _fail "sim: log has pid=" "log file missing"
+    _fail "sim: log has elapsed=" "log file missing"
+    _fail "sim: log has threshold=" "log file missing"
+    _fail "sim: log has auto_kill=" "log file missing"
+fi
+
+# ---- Kill fake agents and verify clean state ----
+for _p in $_sim_pids; do
+    kill "$_p" 2>/dev/null || true
+    pkill -P "$_p" 2>/dev/null || true
+done
+sleep 2
+
+_post_alive=0
+for _p in $_sim_pids; do
+    if kill -0 "$_p" 2>/dev/null; then
+        _post_alive=$((_post_alive + 1))
+    fi
+done
+assert_eq "sim: all test agents killed" "0" "$_post_alive"
+
+# ---- High timeout test: agents should NOT be detected ----
+# Spawn a fresh agent, check with timeout=9999 — must NOT be detected
+_fresh_script="$_sim_dir/claude-test-agent-fresh-background.sh"
+printf '#!/bin/bash\nsleep 300\nexit 0\n' > "$_fresh_script"
+chmod +x "$_fresh_script"
+"$_fresh_script" &
+_fresh_pid=$!
+sleep 1
+
+_high_result=$(CC_AGENT_TIMEOUT_MINUTES=9999 CC_AGENT_AUTO_KILL=false _cc_check_agent_health "$_sim_dir" 2>/dev/null)
+assert_eq "sim: high timeout = no detection" "$_high_result" ""
+
+kill "$_fresh_pid" 2>/dev/null || true
+pkill -P "$_fresh_pid" 2>/dev/null || true
+sleep 1
+
+# Cleanup
+rm -rf "$_sim_dir"
+
 suite_end
