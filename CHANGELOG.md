@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+### Features
+
+* **install:** gitignore policy — base template (16 IDEs, 3 OS families, IaC secrets) + 11 language-pack fragments, auto-merged on install/update ([docs](docs/GITIGNORE_POLICY.md))
+* **install:** add struts-jsp to language menu with lint/test case branch
+* **tests:** add test suite 15-gitignore-policy.sh (138 assertions across 8 test categories)
+* **tests:** total assertions now 809 across 16 suites (up from 528 across 13)
+
+### Bug Fixes
+
+* **install:** fix unbound variable in merge_gitignore_rules when 3rd parameter omitted
+* **install:** fix duplicate section headers on incremental update re-runs
+* **rust:** comment out Cargo.lock (commit for binaries, ignore for libraries per official guidance)
+* **csharp:** remove Visual Studio/Rider pattern duplicates already covered by base template
+
 ## [1.1.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.0.0...v1.1.0) (2026-03-18)
 
 

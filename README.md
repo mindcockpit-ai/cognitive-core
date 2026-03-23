@@ -139,6 +139,7 @@ Multi-agent peer review — where agents check each other's work — was impleme
 - **Hooks** — 9 security hooks: validate-bash/read/write/fetch, setup-env, compact-reminder, post-edit-lint, Angular + Spring Boot version guards
 - **Agents** — Hub-and-spoke team of 10 specialists with smart delegation and least-privilege tool restrictions
 - **Skills** — 47 composable skills: 20 core + 26 language-pack + 1 database-pack
+- **[Gitignore Policy](docs/GITIGNORE_POLICY.md)** — State-of-the-art `.gitignore` templates: base (16 IDEs, 3 OS families, IaC secrets) + 11 language-pack fragments, auto-merged on install/update
 - **Adapters** — Claude Code, Aider+Ollama, IntelliJ+DevoxxGenie (VS Code, Eclipse, Cursor planned)
 
 ### Enterprise Governance ([details](docs/research/board-workflow-governance.md))
@@ -152,7 +153,7 @@ Multi-agent peer review — where agents check each other's work — was impleme
 
 ### Quality
 
-- **13 test suites, 528 tests** — all passing
+- **16 test suites, 809 assertions** — all passing
 - **[Claude Certified Architect](docs/certification-report.md)** — 959/1000, Grade A across all 5 domains
 - **[Workflow Maturity Audit](docs/research/workflow-maturity-audit-v2.md)** — 4.79/5.0 (+63% above industry average)
 

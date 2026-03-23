@@ -9,7 +9,11 @@ Language packs extend cognitive-core with language-specific configuration, skill
 | Perl | `language-packs/perl/` | Active | perl-patterns |
 | Python | `language-packs/python/` | Active | python-patterns |
 | Node.js | `language-packs/node/` | Active | node-messaging |
+| React | `language-packs/react/` | Active | — |
+| Angular | `language-packs/angular/` | Active | angular-patterns |
 | Java | `language-packs/java/` | Active | java-messaging |
+| Spring Boot | `language-packs/spring-boot/` | Active | spring-boot-patterns |
+| Struts/JSP | `language-packs/struts-jsp/` | Active | — |
 | Go | `language-packs/go/` | Active | go-messaging |
 | Rust | `language-packs/rust/` | Active | rust-messaging |
 | C# | `language-packs/csharp/` | Active | csharp-messaging |
@@ -27,16 +31,21 @@ Database packs follow the same structure under `database-packs/`:
 ```
 language-packs/<language>/
 +-- pack.conf                    # CC_* variable defaults for this language
++-- gitignore                    # .gitignore rules merged during install/update
 +-- skills/
 |   +-- <language>-patterns/
 |       +-- SKILL.md             # Language-specific patterns and rules
 |       +-- references/          # Detailed reference material (optional)
++-- rules/
+|   +-- <language>-conventions.md # Path-scoped coding conventions (optional)
 +-- scripts/
 |   +-- fitness-check.sh         # Language-specific fitness checks (optional)
 +-- compact-rules.md             # Rules re-injected after compaction (optional)
 +-- monitor-patterns.conf        # Language-specific error patterns for workspace-monitor (optional)
 +-- lint-config/                 # Lint tool configuration files (optional)
 ```
+
+See [Gitignore Policy](GITIGNORE_POLICY.md) for full coverage details.
 
 ### pack.conf
 
