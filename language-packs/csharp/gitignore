@@ -1,6 +1,5 @@
 # ---- C# / .NET ----
-bin/
-obj/
+# Note: Visual Studio and Rider/JetBrains IDE files are covered by the base template.
 [Dd]ebug/
 [Rr]elease/
 x64/
@@ -13,16 +12,6 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
-# Visual Studio
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-.vs/
-*.rsuser
-*.userprefs
-*.VisualState.xml
-
 # NuGet
 *.nupkg
 *.snupkg
@@ -32,6 +21,6 @@ project.lock.json
 project.fragment.lock.json
 artifacts/
 
-# Rider
-.idea/
+# Visual Studio cache
+*.rsuser
 *.sln.iml

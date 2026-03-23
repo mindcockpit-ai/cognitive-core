@@ -801,16 +801,21 @@ GITIGNORE_LANG="${SCRIPT_DIR}/language-packs/${CC_LANGUAGE:-none}/gitignore"
 merge_gitignore_rules() {
     # Merge rules from a template into .gitignore without duplicating entries.
     # Preserves all existing user rules. Appends only lines not already present.
-    local template="$1" section_label="$2"
+    local template="$1" section_label="$2" target="$3"
+    target="${target:-$GITIGNORE}"
     [ -f "$template" ] || return 0
 
     local added=0
     local tmpfile
     tmpfile=$(mktemp)
 
-    # Collect lines to add (skip comments and blanks for dedup, but add them for structure)
-    local in_new_section=false
-    printf "\n# ---- %s (cognitive-core) ----\n" "$section_label" > "$tmpfile"
+    # Only add section header if it doesn't already exist
+    local section_marker="# ---- ${section_label} (cognitive-core) ----"
+    if ! grep -qF "$section_marker" "$target" 2>/dev/null; then
+        printf "\n%s\n" "$section_marker" > "$tmpfile"
+    else
+        printf "" > "$tmpfile"
+    fi
 
     while IFS= read -r line || [ -n "$line" ]; do
         # Skip empty lines and comments for dedup check
@@ -819,14 +824,14 @@ merge_gitignore_rules() {
             continue
         fi
         # Only add if not already in .gitignore
-        if ! grep -qxF "$line" "$GITIGNORE" 2>/dev/null; then
+        if ! grep -qxF "$line" "$target" 2>/dev/null; then
             echo "$line" >> "$tmpfile"
             added=$((added + 1))
         fi
     done < "$template"
 
     if [ "$added" -gt 0 ]; then
-        cat "$tmpfile" >> "$GITIGNORE"
+        cat "$tmpfile" >> "$target"
         info "Added ${added} rules from ${section_label} to .gitignore"
     else
         info ".gitignore already covers ${section_label} rules"

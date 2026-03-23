@@ -8,25 +8,21 @@ node_modules/
 
 # Build output
 dist/
-build/
 out/
 .next/
 
-# Debug logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
+# Tooling caches
+.turbo/
+.swc/
+.vercel/
+.cache/
+.parcel-cache/
 
 # TypeScript
 *.tsbuildinfo
 
 # Storybook
 storybook-static/
-
-# Parcel
-.cache/
-.parcel-cache/
 
 # ESLint / Stylelint
 .eslintcache

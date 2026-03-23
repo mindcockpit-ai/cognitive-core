@@ -35,6 +35,11 @@ $RECYCLE.BIN/
 .directory
 .Trash-*
 
+# ---- Build output (common) ----
+build/
+out/
+dist/
+
 # ---- IDE / Editor files ----
 
 # VS Code
@@ -50,7 +55,6 @@ $RECYCLE.BIN/
 *.iml
 *.iws
 *.ipr
-out/
 .idea_modules/
 cmake-build-*/
 .ijwb/
@@ -95,7 +99,6 @@ xcuserdata/
 *.xcworkspace/
 !*.xcworkspace/contents.xcworkspacedata
 DerivedData/
-build/
 
 # Android Studio
 .gradle/
@@ -177,6 +180,16 @@ service-account*.json
 .secret
 .secrets
 .htpasswd
+
+# IaC and cloud credentials
+terraform.tfstate
+terraform.tfstate.backup
+.terraform/
+# .terraform.lock.hcl — commit this (reproducible provider versions)
+.aws/credentials
+.kube/config
+.netrc
+vault-token
 
 # ---- Logs ----
 *.log

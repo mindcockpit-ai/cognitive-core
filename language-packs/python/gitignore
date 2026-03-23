@@ -6,7 +6,6 @@ __pycache__/
 *.egg
 .eggs/
 dist/
-build/
 sdist/
 wheels/
 *.whl
@@ -34,6 +33,12 @@ nosetests.xml
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Package managers (PDM, uv)
+__pypackages__/
+.pdm.toml
+.pdm-python
+.uv/
 
 # Celery
 celerybeat-schedule

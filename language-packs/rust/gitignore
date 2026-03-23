@@ -1,5 +1,6 @@
 # ---- Rust ----
 target/
-Cargo.lock
+# Cargo.lock — commit for binaries, ignore for libraries. Add manually if needed.
+# Cargo.lock
 **/*.rs.bk
 *.pdb

@@ -1,4 +1,5 @@
 # ---- Go ----
+bin/
 vendor/
 *.exe
 *.exe~

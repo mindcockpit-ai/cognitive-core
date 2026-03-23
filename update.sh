@@ -340,35 +340,39 @@ GITIGNORE_BASE="${FRAMEWORK_DIR}/core/templates/gitignore-base"
 GITIGNORE_LANG="${FRAMEWORK_DIR}/language-packs/${CC_LANGUAGE:-none}/gitignore"
 
 merge_gitignore_rules() {
-    local template="$1" section_label="$2"
+    local template="$1" section_label="$2" target="$3"
+    target="${target:-$GITIGNORE}"
     [ -f "$template" ] || return 0
     local added=0
     local tmpfile
     tmpfile=$(mktemp)
-    printf "\n# ---- %s (cognitive-core) ----\n" "$section_label" > "$tmpfile"
+    local section_marker="# ---- ${section_label} (cognitive-core) ----"
+    if ! grep -qF "$section_marker" "$target" 2>/dev/null; then
+        printf "\n%s\n" "$section_marker" > "$tmpfile"
+    else
+        printf "" > "$tmpfile"
+    fi
     while IFS= read -r line || [ -n "$line" ]; do
         if [[ "$line" =~ ^[[:space:]]*$ ]] || [[ "$line" =~ ^[[:space:]]*# ]]; then
             echo "$line" >> "$tmpfile"
             continue
         fi
-        if ! grep -qxF "$line" "$GITIGNORE" 2>/dev/null; then
+        if ! grep -qxF "$line" "$target" 2>/dev/null; then
             echo "$line" >> "$tmpfile"
             added=$((added + 1))
         fi
     done < "$template"
     if [ "$added" -gt 0 ]; then
-        cat "$tmpfile" >> "$GITIGNORE"
+        cat "$tmpfile" >> "$target"
         info "Added ${added} rules from ${section_label} to .gitignore"
     fi
     rm -f "$tmpfile"
 }
 
-if [ -f "$GITIGNORE" ] || [ -f "$GITIGNORE_BASE" ]; then
-    [ -f "$GITIGNORE" ] || touch "$GITIGNORE"
-    merge_gitignore_rules "$GITIGNORE_BASE" "base"
-    if [ -n "${CC_LANGUAGE:-}" ] && [ "$CC_LANGUAGE" != "none" ] && [ -f "$GITIGNORE_LANG" ]; then
-        merge_gitignore_rules "$GITIGNORE_LANG" "${CC_LANGUAGE}"
-    fi
+[ -f "$GITIGNORE" ] || touch "$GITIGNORE"
+merge_gitignore_rules "$GITIGNORE_BASE" "base"
+if [ -n "${CC_LANGUAGE:-}" ] && [ "$CC_LANGUAGE" != "none" ] && [ -f "$GITIGNORE_LANG" ]; then
+    merge_gitignore_rules "$GITIGNORE_LANG" "${CC_LANGUAGE}"
 fi
 
 # ---- Summary ----
