@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.2.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.1.0...v1.2.0) (2026-03-23)
 
 ### Features
 
