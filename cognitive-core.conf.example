@@ -204,6 +204,17 @@ CC_UPDATE_AUTO_CHECK="true"
 # Days between update checks (0 = every session)
 CC_UPDATE_CHECK_INTERVAL="7"
 
+# ===== AGENT HEALTH MONITORING =====
+# Default timeout for background agents (minutes). Agents running longer trigger a warning.
+CC_AGENT_TIMEOUT_MINUTES="30"
+# Auto-kill stuck agents: true|false (when true, recommends TaskStop for stuck agents)
+CC_AGENT_AUTO_KILL="false"
+# Per-type timeout overrides (minutes)
+CC_AGENT_TIMEOUT_EXPLORE="5"
+CC_AGENT_TIMEOUT_RESEARCH="15"
+CC_AGENT_TIMEOUT_PLAN="10"
+CC_AGENT_TIMEOUT_IMPLEMENT="30"
+
 # ===== EXPERIMENTAL =====
 # MCP servers (space-separated): context7
 CC_MCP_SERVERS="context7"
