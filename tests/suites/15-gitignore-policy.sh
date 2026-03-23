@@ -257,9 +257,7 @@ assert_contains "merged: version.json" "$gi_content" ".claude/cognitive-core/ver
 # ============================================================================
 
 # Run install again (simulating update)
-install_output2=$(bash "${ROOT_DIR}/install.sh" "$test_dir" 2>&1) || true
-
-gi_content2=$(cat "${test_dir}/.gitignore")
+bash "${ROOT_DIR}/install.sh" "$test_dir" >/dev/null 2>&1 || true
 
 # Count occurrences of .DS_Store — should be exactly 1
 ds_count=$(grep -cxF ".DS_Store" "${test_dir}/.gitignore" || echo 0)
@@ -295,7 +293,7 @@ USERGI
 cp "${test_dir}/cognitive-core.conf" "${test_dir2}/cognitive-core.conf"
 
 # Run install
-bash "${ROOT_DIR}/install.sh" "$test_dir2" 2>&1 >/dev/null || true
+bash "${ROOT_DIR}/install.sh" "$test_dir2" >/dev/null 2>&1 || true
 
 gi_content3=$(cat "${test_dir2}/.gitignore")
 
@@ -362,7 +360,7 @@ CC_AGENT_TEAMS="false"
 CC_MCP_SERVERS=""
 JAVACONF
 
-bash "${ROOT_DIR}/install.sh" "$test_dir3" 2>&1 >/dev/null || true
+bash "${ROOT_DIR}/install.sh" "$test_dir3" >/dev/null 2>&1 || true
 
 gi_java=$(cat "${test_dir3}/.gitignore")
 
