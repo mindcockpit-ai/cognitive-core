@@ -340,8 +340,7 @@ GITIGNORE_BASE="${FRAMEWORK_DIR}/core/templates/gitignore-base"
 GITIGNORE_LANG="${FRAMEWORK_DIR}/language-packs/${CC_LANGUAGE:-none}/gitignore"
 
 merge_gitignore_rules() {
-    local template="$1" section_label="$2" target="$3"
-    target="${target:-$GITIGNORE}"
+    local template="$1" section_label="$2" target="${3:-$GITIGNORE}"
     [ -f "$template" ] || return 0
     local added=0
     local tmpfile

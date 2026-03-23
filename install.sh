@@ -163,7 +163,7 @@ else
     prompt_default CC_ORG "Organization/owner" "$(git -C "$PROJECT_DIR" config user.name 2>/dev/null || echo 'my-org')"
 
     # Language
-    prompt_choice CC_LANGUAGE "Primary language" "perl|python|node|react|angular|spring-boot|java|go|rust|csharp" "python"
+    prompt_choice CC_LANGUAGE "Primary language" "perl|python|node|react|angular|spring-boot|struts-jsp|java|go|rust|csharp" "python"
     case "$CC_LANGUAGE" in
         perl)   CC_LINT_EXTENSIONS=".pl .pm .t"; CC_LINT_COMMAND='perlcritic $1'; CC_TEST_COMMAND="prove -l t/"; CC_TEST_PATTERN="t/**/*.t" ;;
         python) CC_LINT_EXTENSIONS=".py .pyi"; CC_LINT_COMMAND='ruff check $1'; CC_TEST_COMMAND="pytest"; CC_TEST_PATTERN="tests/**/*.py" ;;
@@ -171,6 +171,7 @@ else
         react)  CC_LINT_EXTENSIONS=".js .ts .jsx .tsx .css .scss"; CC_LINT_COMMAND='npx eslint $1'; CC_TEST_COMMAND="npx vitest run"; CC_TEST_PATTERN="**/*.test.{ts,tsx,js,jsx}" ;;
         angular) CC_LINT_EXTENSIONS=".ts .html .scss .css"; CC_LINT_COMMAND='npx ng lint'; CC_TEST_COMMAND="npx ng test --watch=false --browsers=ChromeHeadless"; CC_TEST_PATTERN="**/*.spec.ts" ;;
         spring-boot) CC_LINT_EXTENSIONS=".java .xml .yml .yaml .properties .gradle .kts"; CC_LINT_COMMAND='./mvnw checkstyle:check -q 2>/dev/null || ./gradlew checkstyleMain -q 2>/dev/null || echo no-lint'; CC_TEST_COMMAND="./mvnw test -q 2>/dev/null || ./gradlew test -q 2>/dev/null || echo no-tests"; CC_TEST_PATTERN="**/*Test.java **/*Tests.java **/*IT.java" ;;
+        struts-jsp) CC_LINT_EXTENSIONS=".java .jsp .xml .properties"; CC_LINT_COMMAND='checkstyle $1'; CC_TEST_COMMAND="mvn test"; CC_TEST_PATTERN="src/test/**/*.java" ;;
         java)   CC_LINT_EXTENSIONS=".java"; CC_LINT_COMMAND='checkstyle $1'; CC_TEST_COMMAND="mvn test"; CC_TEST_PATTERN="src/test/**/*.java" ;;
         go)     CC_LINT_EXTENSIONS=".go"; CC_LINT_COMMAND='golangci-lint run $1'; CC_TEST_COMMAND="go test ./..."; CC_TEST_PATTERN="**/*_test.go" ;;
         rust)   CC_LINT_EXTENSIONS=".rs"; CC_LINT_COMMAND='cargo clippy -- -D warnings'; CC_TEST_COMMAND="cargo test"; CC_TEST_PATTERN="tests/**/*.rs" ;;
@@ -801,8 +802,7 @@ GITIGNORE_LANG="${SCRIPT_DIR}/language-packs/${CC_LANGUAGE:-none}/gitignore"
 merge_gitignore_rules() {
     # Merge rules from a template into .gitignore without duplicating entries.
     # Preserves all existing user rules. Appends only lines not already present.
-    local template="$1" section_label="$2" target="$3"
-    target="${target:-$GITIGNORE}"
+    local template="$1" section_label="$2" target="${3:-$GITIGNORE}"
     [ -f "$template" ] || return 0
 
     local added=0

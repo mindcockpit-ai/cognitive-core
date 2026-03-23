@@ -36,6 +36,7 @@ suite_pretty_name() {
         09-adapter-interface.sh) echo "Adapter Interface" ;;
         10-aider-adapter.sh) echo "Aider Adapter" ;;
         14-project-board-providers.sh) echo "Project Board Providers" ;;
+        15-gitignore-policy.sh) echo "Gitignore Policy" ;;
         16-recursive-epic-structure.sh) echo "Recursive Epic Structure" ;;
         *) echo "$1" ;;
     esac
