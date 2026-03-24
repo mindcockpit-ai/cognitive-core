@@ -876,12 +876,16 @@ SPRINT TRENDS
 
 Generate a structured implementation prompt for an issue. Reads the issue, analyzes codebase impact, selects agents, loads conventions, and produces a ready-to-use Claude Code prompt.
 
-**Syntax**: `/project-board propose <number> [--all] [--dry-run]`
+**Syntax**: `/project-board propose <number> [--mode=technical|business] [--all] [--dry-run]`
 
 **Options**:
 
+- `--mode=technical`: (default) Developer prompt — agents, file impact, code conventions
+- `--mode=business`: Stakeholder prompt — business value, governance, roadmap, risk
 - `--all`: Include gitignored files in codebase scan (e.g., build artifacts, vendor)
 - `--dry-run`: Show analysis without posting comment
+
+**Template source**: `docs/recipes/recipe-multi-agent-implementation.md`
 
 **Technique basis** (peer-reviewed):
 
@@ -989,7 +993,7 @@ Include discovered evidence as context references in the generated prompt.
 
 #### Step 7: Generate Prompt
 
-Build the implementation prompt following the recipe template structure. Apply all five research-backed techniques.
+Build the implementation prompt following the structure from `docs/recipes/recipe-multi-agent-implementation.md`. Apply all five research-backed techniques.
 
 **Prompt template** (under 400 words of instruction, reference material excluded):
 
@@ -1049,6 +1053,97 @@ Implement GitHub issue #<N>: <TITLE>
 4. Every acceptance criterion from the issue appears in `<acceptance_criteria>`
 5. At least one agent in `<agents>` section (minimum: `@code-standards-reviewer`)
 
+#### Step 7b: Business Mode Prompt (when `--mode=business`)
+
+When `--mode=business` is specified, skip the technical prompt template (Step 7) and generate a stakeholder-oriented summary instead. This mode replaces code-level detail with business context, governance implications, and roadmap positioning.
+
+**What changes compared to technical mode**:
+- Steps 3-5 (codebase impact, agent selection, convention loading) are **skipped** — not relevant for stakeholders
+- Step 6 (evidence discovery) is **kept** — business decisions need supporting research
+- Complexity dispatch (Step 2) maps to **effort estimation** instead of phase boundaries
+
+**Business prompt template**:
+
+```text
+Issue #<N>: <TITLE>
+
+## Business Value
+
+[Why this matters — derive from issue body, labels, and linked epic:]
+- Problem being solved (from issue Summary/Problem section)
+- Who benefits (users, team, customers, compliance)
+- What happens if we don't do this (risk of inaction)
+
+## Roadmap Position
+
+- Status: <CURRENT_BOARD_STATUS> (Roadmap/Backlog/Todo/In Progress)
+- Priority: <PRIORITY_LABEL> — <justification from labels or epic>
+- Size: <SIZE_LABEL> (<criteria_count> acceptance criteria)
+- Epic: <PARENT_EPIC_TITLE> (if issue body references an epic)
+- Dependencies: <issues referenced in body with "blocked by" or "depends on">
+
+## Governance & Compliance
+
+[Auto-populated from labels — include section only if relevant signals exist:]
+
+IF labels contain "eu-ai-act" or "compliance" or "needs-human-review":
+  - Regulatory driver: <derived from label and issue body>
+  - Human review required: Yes/No (from "needs-human-review" label)
+  - Compliance area: <e.g., Art. 50 transparency, Art. 9 risk management>
+
+IF labels contain "security" or area:security:
+  - Security impact: <derived from issue body>
+  - Review gate: Security analyst sign-off required before merge
+
+IF issue is size:XL or epic:
+  - Phased delivery: <number of phases from acceptance criteria grouping>
+  - Approval checkpoints: After each phase
+
+[If no governance signals detected, omit this section entirely.]
+
+## Success Criteria (Non-Technical)
+
+[Rewrite acceptance criteria in business language:]
+- Instead of "validate-bash.sh handles edge case" → "Safety hooks cover all identified scenarios"
+- Instead of "tests pass in CI" → "Automated quality checks confirm correctness"
+- Instead of "SKILL.md updated" → "Documentation reflects new capability"
+
+[Group criteria by outcome, not by file or function:]
+1. Capability delivered: [what users/stakeholders can now do]
+2. Quality assured: [how we know it works]
+3. Documentation complete: [what's updated for future reference]
+
+## Risk Assessment
+
+| Risk | Impact | Likelihood | Mitigation |
+|------|--------|------------|------------|
+| [Derived from issue Risk section if present] | | | |
+| Scope creep (if Complex/L) | Medium | High | Phased delivery with gates |
+| [If no risks in issue body] | — | — | "No explicit risks identified — review with team" |
+
+## Evidence & Research
+
+[From Step 6 evidence discovery:]
+- <path_to_research_paper> (if found)
+- <related_issue_links> (if referenced)
+- "No supporting research found" (if none discovered)
+
+## Recommendation
+
+[One paragraph: should this proceed, be reprioritized, or needs more definition?]
+- HIGH confidence: "Ready for implementation. Acceptance criteria are clear, priority is justified."
+- MEDIUM confidence: "Proceed with clarification needed on: <missing_areas>"
+- LOW confidence: "Not ready — acceptance criteria missing. Define success criteria before starting."
+```
+
+**Business mode quality rules**:
+
+1. No file paths, function names, or code snippets in the output
+2. No agent names (replace with role descriptions: "security review" not "@security-analyst")
+3. Acceptance criteria rewritten in outcome language, not implementation language
+4. Governance section only appears when compliance/security labels are present
+5. Recommendation section always present — gives a clear go/no-go signal
+
 #### Step 8: Confidence Scoring
 
 | Score | Condition |
@@ -1059,10 +1154,38 @@ Implement GitHub issue #<N>: <TITLE>
 
 #### Step 9: Post as Issue Comment
 
-Post the generated prompt as a collapsible comment on the issue:
+Post the generated prompt as a comment on the issue. Format varies by provider and mode.
+
+**Common metadata block** (used by all providers):
+
+```text
+if [ "$MODE" = "business" ]; then
+  LABEL="Business Summary"
+  TECHNIQUES="Stakeholder-oriented analysis, governance-first framing"
+else
+  LABEL="Implementation Prompt"
+  TECHNIQUES="Zhou 2022 (decomposition), Liu 2024 (position), Yin 2024 (imperative), Della Porta 2025 (specification)"
+fi
+
+METADATA_BLOCK="$LABEL — Generated by /project-board propose
+
+Generated:  <TIMESTAMP_UTC>
+Mode:       <technical|business>
+Confidence: <HIGH/MEDIUM/LOW>
+Complexity: <S/M/L> (<criteria_count> criteria, <file_count> files)
+Techniques: $TECHNIQUES"
+```
+
+**Provider-specific formatting**:
 
 ```bash
-COMMENT_BODY=$(cat <<'COMMENT'
+PB_PROVIDER=$(grep 'CC_BOARD_PROVIDER=' cognitive-core.conf 2>/dev/null | cut -d'"' -f2)
+PB_PROVIDER="${PB_PROVIDER:-github}"
+
+case "$PB_PROVIDER" in
+  github)
+    # GitHub supports <details> for collapsible sections
+    COMMENT_BODY=$(cat <<COMMENT
 <details>
 <summary>Implementation Prompt — Generated by /project-board propose</summary>
 
@@ -1082,7 +1205,37 @@ COMMENT_BODY=$(cat <<'COMMENT'
 
 </details>
 COMMENT
-)
+    )
+    ;;
+  jira)
+    # Jira ADF renders markdown in comments but not HTML tags.
+    # Use a heading + code block to preserve prompt formatting.
+    COMMENT_BODY=$(cat <<COMMENT
+h2. Implementation Prompt — Generated by /project-board propose
+
+$METADATA_BLOCK
+
+{code:title=Prompt|language=none}
+<THE_GENERATED_PROMPT>
+{code}
+COMMENT
+    )
+    ;;
+  youtrack)
+    # YouTrack supports markdown in comments but not <details> HTML.
+    # Use a header + fenced code block.
+    COMMENT_BODY=$(cat <<COMMENT
+## Implementation Prompt — Generated by /project-board propose
+
+$METADATA_BLOCK
+
+\`\`\`
+<THE_GENERATED_PROMPT>
+\`\`\`
+COMMENT
+    )
+    ;;
+esac
 
 $PB_SCRIPT issue comment <N> "$COMMENT_BODY"
 ```
@@ -1093,9 +1246,9 @@ If `--dry-run` is specified, display the prompt in the terminal instead of posti
 
 | Provider | Status | Notes |
 |----------|--------|-------|
-| GitHub | Full | Uses `gh issue view` + `gh issue comment` |
-| Jira | Stub | TODO: Jira comment API uses different markdown (ADF). Post as plain text for now. |
-| YouTrack | Stub | TODO: YouTrack uses its own wiki markup. Post as plain text for now. |
+| GitHub | Full | Collapsible `<details>` with markdown metadata table |
+| Jira | Full | Jira wiki heading + `{code}` block for prompt formatting |
+| YouTrack | Full | Markdown heading + fenced code block |
 
 ## Epic Decomposition
 
