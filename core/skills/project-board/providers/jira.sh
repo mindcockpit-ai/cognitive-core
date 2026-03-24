@@ -87,6 +87,116 @@ _jira_agile_api() {
         "$url"
 }
 
+# ---- Markdown to ADF conversion ----
+# Converts markdown text to Jira Atlassian Document Format (ADF).
+# Supports: ## headings, - [ ] / - [x] task items, - bullet lists, paragraphs.
+# Plain text without markdown is wrapped in a single paragraph (backward compatible).
+
+_jira_md_to_adf() {
+    local text="$1"
+    python3 -c "
+import json, sys, re, uuid
+
+def local_id():
+    return uuid.uuid4().hex[:12]
+
+def parse_inline(text):
+    '''Parse inline markdown (bold, italic, code) into ADF marks.'''
+    nodes = []
+    # Split on **bold**, *italic*, and \`code\` patterns
+    parts = re.split(r'(\*\*[^*]+\*\*|\*[^*]+\*|\`[^\`]+\`)', text)
+    for part in parts:
+        if not part:
+            continue
+        if part.startswith('**') and part.endswith('**'):
+            nodes.append({'type': 'text', 'text': part[2:-2], 'marks': [{'type': 'strong'}]})
+        elif part.startswith('*') and part.endswith('*'):
+            nodes.append({'type': 'text', 'text': part[1:-1], 'marks': [{'type': 'em'}]})
+        elif part.startswith('\`') and part.endswith('\`'):
+            nodes.append({'type': 'text', 'text': part[1:-1], 'marks': [{'type': 'code'}]})
+        else:
+            nodes.append({'type': 'text', 'text': part})
+    return nodes if nodes else [{'type': 'text', 'text': text}]
+
+text = sys.stdin.read()
+lines = text.split('\n')
+content = []
+i = 0
+
+while i < len(lines):
+    line = lines[i]
+
+    # Heading (## or ###)
+    m = re.match(r'^(#{1,6})\s+(.*)', line)
+    if m:
+        level = len(m.group(1))
+        content.append({
+            'type': 'heading',
+            'attrs': {'level': level},
+            'content': parse_inline(m.group(2))
+        })
+        i += 1
+        continue
+
+    # Task item: - [ ] or - [x]
+    m = re.match(r'^[\s]*-\s*\[([ xX])\]\s*(.*)', line)
+    if m:
+        tasks = []
+        while i < len(lines):
+            tm = re.match(r'^[\s]*-\s*\[([ xX])\]\s*(.*)', lines[i])
+            if not tm:
+                break
+            state = 'DONE' if tm.group(1).lower() == 'x' else 'TODO'
+            tasks.append({
+                'type': 'taskItem',
+                'attrs': {'localId': local_id(), 'state': state},
+                'content': parse_inline(tm.group(2))
+            })
+            i += 1
+        content.append({
+            'type': 'taskList',
+            'attrs': {'localId': local_id()},
+            'content': tasks
+        })
+        continue
+
+    # Bullet list item: - text or * text
+    m = re.match(r'^[\s]*[-*]\s+(.*)', line)
+    if m:
+        items = []
+        while i < len(lines):
+            bm = re.match(r'^[\s]*[-*]\s+(.*)', lines[i])
+            if not bm:
+                break
+            items.append({
+                'type': 'listItem',
+                'content': [{'type': 'paragraph', 'content': parse_inline(bm.group(1))}]
+            })
+            i += 1
+        content.append({'type': 'bulletList', 'content': items})
+        continue
+
+    # Empty line — skip
+    if not line.strip():
+        i += 1
+        continue
+
+    # Regular paragraph
+    content.append({
+        'type': 'paragraph',
+        'content': parse_inline(line)
+    })
+    i += 1
+
+# Fallback: if no markdown detected, wrap entire text as single paragraph
+if not content:
+    content = [{'type': 'paragraph', 'content': [{'type': 'text', 'text': text}]}]
+
+doc = {'type': 'doc', 'version': 1, 'content': content}
+print(json.dumps(doc))
+" <<< "$text"
+}
+
 # ---- Status Mapping ----
 # Maps cognitive-core canonical status keys to Jira status names.
 # Override via CC_JIRA_STATUS_MAP in cognitive-core.conf.
@@ -215,17 +325,10 @@ print(json.dumps(labels))
 ")
     fi
 
-    # Build description in ADF format
+    # Build description in ADF format (with markdown-to-ADF conversion)
     local description_json="null"
     if [[ -n "$body" ]]; then
-        description_json=$(python3 -c "
-import json
-print(json.dumps({
-    'type': 'doc',
-    'version': 1,
-    'content': [{'type': 'paragraph', 'content': [{'type': 'text', 'text': '''$body'''}]}]
-}))
-")
+        description_json=$(_jira_md_to_adf "$body")
     fi
 
     local payload
@@ -302,17 +405,15 @@ pb_issue_comment() {
     local issue_key="${1:?Issue key required}"
     local body="${2:?Comment body required}"
 
+    local adf_doc
+    adf_doc=$(_jira_md_to_adf "$body")
+
     local payload
     payload=$(python3 -c "
-import json
-print(json.dumps({
-    'body': {
-        'type': 'doc',
-        'version': 1,
-        'content': [{'type': 'paragraph', 'content': [{'type': 'text', 'text': '''$body'''}]}]
-    }
-}))
-")
+import json, sys
+adf = json.loads(sys.stdin.read())
+print(json.dumps({'body': adf}))
+" <<< "$adf_doc")
 
     _jira_api POST "/issue/${issue_key}/comment" -d "$payload" >/dev/null
     _pb_success "Comment added to $issue_key"
