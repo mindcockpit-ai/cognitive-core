@@ -237,4 +237,6 @@ test-reports/
 .claude/cognitive-core/version.json
 .claude/cognitive-core/last-check
 .claude/cognitive-core/security.log
+.claude/session.lock.d/
+.claude/sessions.json
 .project-board.env
