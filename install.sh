@@ -126,6 +126,7 @@ case "$CC_PLATFORM" in
     claude)    _EARLY_INSTALL_DIR=".claude" ;;
     aider)     _EARLY_INSTALL_DIR=".cognitive-core" ;;
     intellij)  _EARLY_INSTALL_DIR=".cognitive-core" ;;
+    vscode)    _EARLY_INSTALL_DIR=".cognitive-core" ;;
     *)         _EARLY_INSTALL_DIR=".claude" ;;
 esac
 VERSION_FILE="${PROJECT_DIR}/${_EARLY_INSTALL_DIR}/cognitive-core/version.json"
@@ -875,6 +876,9 @@ if [ "$CC_PLATFORM" = "aider" ]; then
 elif [ "$CC_PLATFORM" = "intellij" ]; then
     echo "  1. Review and customize DEVOXXGENIE.md for your project"
     echo "     Configure your IDE plugin to load DEVOXXGENIE.md as context"
+elif [ "$CC_PLATFORM" = "vscode" ]; then
+    echo "  1. Review and customize .github/copilot-instructions.md for your project"
+    echo "     GitHub Copilot loads this file automatically as project context"
 else
     echo "  1. Review and customize CLAUDE.md for your project"
 fi

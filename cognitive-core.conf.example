@@ -9,7 +9,7 @@ CC_PROJECT_DESCRIPTION="Brief project description"
 CC_ORG="my-org"
 
 # ===== PLATFORM =====
-# Target platform adapter: claude|aider
+# Target platform adapter: claude|aider|intellij|vscode
 # Determines how hooks, agents, skills, and settings are installed
 CC_PLATFORM="claude"
 

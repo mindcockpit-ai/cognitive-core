@@ -1,0 +1,135 @@
+# cognitive-core tool mapping: VS Code
+# ====================================
+# Maps cognitive-core capabilities to VS Code extension equivalents.
+# Three-layer integration: convention file, MCP server, future Language Server.
+
+adapter: vscode
+platform: "VS Code (GitHub Copilot / Continue.dev / Cline)"
+install_dir: ".cognitive-core"
+project_readme: ".github/copilot-instructions.md"
+
+capabilities:
+  file_read:
+    tool: "IDE native / MCP cc_project_info"
+    native: true
+    description: "VS Code extensions have full file system access; MCP adds project-aware reads"
+
+  file_write:
+    tool: "IDE native"
+    native: true
+    description: "LLM extensions apply edits via VS Code's file system APIs"
+
+  file_edit:
+    tool: "IDE native"
+    native: true
+    description: "Diff-based editing through LLM extension (Copilot, Continue, Cline)"
+
+  shell_execute:
+    tool: "IDE terminal / MCP cc_lint_check"
+    native: true
+    description: "VS Code has integrated terminal; MCP wraps lint/test commands"
+
+  web_search:
+    tool: null
+    native: false
+    description: "Not natively supported — user must provide web content"
+
+  web_fetch:
+    tool: null
+    native: false
+    description: "Not natively supported by most LLM extensions"
+
+  file_glob:
+    tool: "IDE native"
+    native: true
+    description: "VS Code has project-wide file search"
+
+  file_grep:
+    tool: "IDE native"
+    native: true
+    description: "VS Code has project-wide text search"
+
+  agent_delegation:
+    tool: "MCP cc_agent_context"
+    native: false
+    translation: "Agent .md files loaded as read-only context; MCP provides agent lookup"
+    description: "No sub-agent delegation; agents serve as guidelines via context + MCP"
+
+  mcp_servers:
+    native: true
+    description: "GitHub Copilot (VS Code 1.99+), Continue.dev, and Cline support MCP via stdio transport"
+
+hooks:
+  pre_tool_use:
+    native: false
+    mechanism: "copilot-instructions.md safety rules + MCP cc_security_validate"
+    translation: >
+      Safety patterns from validate-bash.sh are converted to copilot-instructions.md
+      rules (Layer 1). The MCP server provides programmatic validation via
+      cc_security_validate tool (Layer 2).
+    limitations:
+      - "Layer 1 convention-based only — LLM may not always follow"
+      - "Layer 2 MCP requires extension that supports tool use before execution"
+
+  post_tool_use:
+    native: false
+    mechanism: "MCP cc_lint_check"
+    translation: >
+      post-edit-lint translated to MCP tool call. Extensions that support
+      auto-tool-invocation can call cc_lint_check after edits.
+
+  session_start:
+    native: false
+    mechanism: "copilot-instructions.md as context file"
+    translation: >
+      GitHub Copilot loads .github/copilot-instructions.md as project context
+      on every chat. No separate launcher script needed — extension handles
+      session lifecycle.
+
+  notification:
+    native: false
+    description: "VS Code extensions have no compaction/notification system"
+
+skills:
+  invocation: null
+  native: false
+  translation: "Skill docs loaded as read-only context for manual reference"
+
+agents:
+  definition: ".cognitive-core/agents/<name>.md"
+  delegation: "MCP cc_agent_context"
+  native: false
+  translation: "Agent docs via context + MCP cc_agent_context tool for retrieval"
+
+# VS Code-specific configuration
+vscode_config:
+  supported_extensions:
+    - name: "GitHub Copilot"
+      version: "VS Code 1.99+"
+      mcp_support: true
+      context_file: ".github/copilot-instructions.md"
+      settings_file: ".vscode/mcp.json"
+      url: "https://code.visualstudio.com/docs/copilot/overview"
+
+    - name: "Continue.dev"
+      version: "latest"
+      mcp_support: true
+      context_file: ".continue/config.json"
+      url: "https://continue.dev"
+
+    - name: "Cline"
+      version: "latest"
+      mcp_support: true
+      context_file: ".cline/config.json"
+      url: "https://cline.bot"
+
+  safety_approach:
+    description: "Two-layer safety: convention + MCP"
+    strategy: "convention_plus_mcp"
+    details: >
+      Layer 1 (Convention): All safety rules from validate-bash.sh are extracted
+      into .github/copilot-instructions.md as explicit instructions. GitHub Copilot
+      reads this file on every interaction.
+      Layer 2 (MCP): The cc_security_validate MCP tool provides programmatic
+      command validation. Extensions supporting MCP tool use can validate commands
+      before execution.

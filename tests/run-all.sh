@@ -38,6 +38,8 @@ suite_pretty_name() {
         14-project-board-providers.sh) echo "Project Board Providers" ;;
         15-gitignore-policy.sh) echo "Gitignore Policy" ;;
         16-recursive-epic-structure.sh) echo "Recursive Epic Structure" ;;
+        17-agent-health.sh) echo "Agent Health" ;;
+        18-vscode-adapter.sh) echo "VS Code Adapter" ;;
         *) echo "$1" ;;
     esac
 }
