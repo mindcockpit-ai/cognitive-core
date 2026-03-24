@@ -24,6 +24,17 @@ _adapter_install_skill() {
     local source_dir="$1" skill_name="$2"
     mkdir -p "${CC_INSTALL_DIR}/skills/${skill_name}"
     cp -R "${source_dir}/"* "${CC_INSTALL_DIR}/skills/${skill_name}/" 2>/dev/null || true
+
+    # Create slash command stub for user-invocable skills
+    local skill_md="${CC_INSTALL_DIR}/skills/${skill_name}/SKILL.md"
+    if grep -q 'user-invocable: true' "$skill_md" 2>/dev/null; then
+        mkdir -p "${CC_INSTALL_DIR}/commands"
+        cat > "${CC_INSTALL_DIR}/commands/${skill_name}.md" << CMDEOF
+Read and follow the instructions in .claude/skills/${skill_name}/SKILL.md
+
+Arguments: \$ARGUMENTS
+CMDEOF
+    fi
 }
 
 _adapter_generate_settings() {
