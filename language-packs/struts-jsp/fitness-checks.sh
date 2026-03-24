@@ -4,6 +4,11 @@
 # Focus: code quality, security, migration readiness assessment
 set -u
 
+# Source shared utilities for _cc_rg (ripgrep with grep fallback)
+_CC_COMMON="$(cd "$(dirname "$0")/.." && pwd)/_common.sh"
+# shellcheck disable=SC1090
+[ -f "$_CC_COMMON" ] && source "$_CC_COMMON"
+
 PROJECT_DIR="${1:-.}"
 TOTAL_CHECKS=0
 PASSED_CHECKS=0
@@ -41,15 +46,15 @@ done
 
 # Check for raw types (Map, List without generics)
 if [ -n "$SRC_DIR" ] && [ -d "$SRC_DIR" ]; then
-    raw_types=$(grep -rn 'Map[[:space:]]*[a-z]' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -v 'Map<' | grep -cv '^\s*//' || echo "0")
+    raw_types=$(_cc_rg -n 'Map[[:space:]]*[a-z]' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -v 'Map<' | grep -cv '^\s*//' || echo "0")
     add_check "No raw Map types" "$([ "$raw_types" -lt 5 ] && echo 1 || echo 0)" "${raw_types} raw Map usages"
 
     # Check for Object parameters
-    obj_params=$(grep -rn 'Object[[:space:]]\+[a-z]' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -cv '^\s*//' || echo "0")
+    obj_params=$(_cc_rg -n 'Object[[:space:]]\+[a-z]' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -cv '^\s*//' || echo "0")
     add_check "Minimal Object params" "$([ "$obj_params" -lt 10 ] && echo 1 || echo 0)" "${obj_params} Object params"
 
     # Check for @SuppressWarnings abuse
-    suppress_count=$(grep -rc '@SuppressWarnings' "$SRC_DIR" --include="*.java" 2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
+    suppress_count=$(_cc_rg -c '@SuppressWarnings' "$SRC_DIR" --include="*.java" 2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
     add_check "Minimal @SuppressWarnings" "$([ "$suppress_count" -lt 20 ] && echo 1 || echo 0)" "${suppress_count} suppressions"
 fi
 
@@ -57,19 +62,19 @@ fi
 
 if [ -n "$WEB_DIR" ] && [ -d "$WEB_DIR" ]; then
     # Count scriptlet usage
-    scriptlet_count=$(grep -rc '<%[^@=-]' "$WEB_DIR" --include="*.jsp" 2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
+    scriptlet_count=$(_cc_rg -c '<%[^@=-]' "$WEB_DIR" --include="*.jsp" 2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
     add_check "JSP scriptlet audit" "$([ "$scriptlet_count" -lt 50 ] && echo 1 || echo 0)" "${scriptlet_count} scriptlets"
 
     # Check for JSTL usage (good sign)
-    jstl_count=$(grep -rc 'taglib.*jstl\|<c:\|<fmt:' "$WEB_DIR" --include="*.jsp" 2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
+    jstl_count=$(_cc_rg -c 'taglib.*jstl\|<c:\|<fmt:' "$WEB_DIR" --include="*.jsp" 2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
     add_check "JSTL adoption" "$([ "$jstl_count" -gt 0 ] && echo 1 || echo 0)" "${jstl_count} JSTL usages"
 
     # Check for inline JavaScript in JSPs
-    inline_js=$(grep -rc '<script[^>]*>' "$WEB_DIR" --include="*.jsp" 2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
+    inline_js=$(_cc_rg -c '<script[^>]*>' "$WEB_DIR" --include="*.jsp" 2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
     add_check "Minimal inline JS in JSP" "$([ "$inline_js" -lt 20 ] && echo 1 || echo 0)" "${inline_js} inline scripts"
 
     # Check for inline SQL in JSPs (very bad)
-    inline_sql=$(grep -rci 'SELECT.*FROM\|INSERT.*INTO\|UPDATE.*SET\|DELETE.*FROM' "$WEB_DIR" --include="*.jsp" 2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
+    inline_sql=$(_cc_rg -ci 'SELECT.*FROM\|INSERT.*INTO\|UPDATE.*SET\|DELETE.*FROM' "$WEB_DIR" --include="*.jsp" 2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
     add_check "No SQL in JSPs" "$([ "$inline_sql" -eq 0 ] && echo 1 || echo 0)" "${inline_sql} SQL statements in JSPs"
 fi
 
@@ -113,19 +118,19 @@ fi
 
 if [ -n "$SRC_DIR" ] && [ -d "$SRC_DIR" ]; then
     # Check for SQL injection patterns (string concat in queries)
-    sql_concat=$(grep -rn 'createQuery\|createSQLQuery\|prepareStatement\|executeQuery' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -c '+' || echo "0")
+    sql_concat=$(_cc_rg -n 'createQuery\|createSQLQuery\|prepareStatement\|executeQuery' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -c '+' || echo "0")
     add_check "No SQL string concatenation" "$([ "$sql_concat" -eq 0 ] && echo 1 || echo 0)" "${sql_concat} potential SQL injections"
 
     # Check for hardcoded credentials
-    hardcoded_creds=$(grep -rni 'password\s*=\s*"[^"]\+"\|passwd\s*=\s*"' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -cv '^\s*//' || echo "0")
+    hardcoded_creds=$(_cc_rg -ni 'password\s*=\s*"[^"]\+"\|passwd\s*=\s*"' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -cv '^\s*//' || echo "0")
     add_check "No hardcoded credentials" "$([ "$hardcoded_creds" -eq 0 ] && echo 1 || echo 0)" "${hardcoded_creds} hardcoded credentials"
 
     # Check for System.out (should use logging)
-    sysout=$(grep -rc 'System\.out\.\|System\.err\.' "$SRC_DIR" --include="*.java" 2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
+    sysout=$(_cc_rg -c 'System\.out\.\|System\.err\.' "$SRC_DIR" --include="*.java" 2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
     add_check "No System.out (use logger)" "$([ "$sysout" -lt 10 ] && echo 1 || echo 0)" "${sysout} System.out calls"
 
     # Check for exception swallowing
-    empty_catch=$(grep -rn 'catch.*{' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -c '{}' || echo "0")
+    empty_catch=$(_cc_rg -n 'catch.*{' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -c '{}' || echo "0")
     add_check "No empty catch blocks" "$([ "$empty_catch" -eq 0 ] && echo 1 || echo 0)" "${empty_catch} empty catches"
 fi
 
@@ -144,7 +149,7 @@ if [ -n "$TEST_DIR" ] && [ -d "$TEST_DIR" ]; then
     add_check "Has test files" "$([ "$test_count" -gt 0 ] && echo 1 || echo 0)" "${test_count} test files"
 
     # Check for assertions (not just test methods)
-    assertions=$(grep -rc 'assert\|assertEquals\|assertTrue\|assertThat\|verify(' "$TEST_DIR" --include="*.java" 2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
+    assertions=$(_cc_rg -c 'assert\|assertEquals\|assertTrue\|assertThat\|verify(' "$TEST_DIR" --include="*.java" 2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
     add_check "Tests have assertions" "$([ "$assertions" -gt 5 ] && echo 1 || echo 0)" "${assertions} assertions"
 else
     add_check "Test directory exists" 0 "no test directory found"

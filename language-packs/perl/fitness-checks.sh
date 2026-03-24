@@ -4,6 +4,11 @@
 # Checks Perl-specific quality patterns.
 set -euo pipefail
 
+# Source shared utilities for _cc_rg (ripgrep with grep fallback)
+_CC_COMMON="$(cd "$(dirname "$0")/.." && pwd)/_common.sh"
+# shellcheck disable=SC1090
+[ -f "$_CC_COMMON" ] && source "$_CC_COMMON"
+
 PROJECT_DIR="${1:-.}"
 TOTAL_CHECKS=0
 PASSED_CHECKS=0
@@ -43,15 +48,15 @@ done < <(find "$PROJECT_DIR/lib" -name "*.pm" -type f 2>/dev/null)
 add_check "namespace::autoclean" "$( [ "$AUTOCLEAN_MISSING" -eq 0 ] && echo 1 || echo 0 )" "${AUTOCLEAN_MISSING} Moose modules missing autoclean"
 
 # --- Check 3: No HashRefInflator ---
-HRI_COUNT=$(grep -rl 'HashRefInflator' "$PROJECT_DIR/lib" 2>/dev/null | wc -l | tr -d ' ')
+HRI_COUNT=$(_cc_rg -l 'HashRefInflator' "$PROJECT_DIR/lib" 2>/dev/null | wc -l | tr -d ' ')
 add_check "No HashRefInflator" "$( [ "$HRI_COUNT" -eq 0 ] && echo 1 || echo 0 )" "${HRI_COUNT} files use HashRefInflator"
 
 # --- Check 4: Safe DateTime usage ---
-NOW_STRING_COUNT=$(grep -rn "now()" "$PROJECT_DIR/lib" --include="*.pm" 2>/dev/null | grep -v 'DateTime->now' | grep -c 'now()' || echo 0)
+NOW_STRING_COUNT=$(_cc_rg -n "now()" "$PROJECT_DIR/lib" --include="*.pm" 2>/dev/null | grep -v 'DateTime->now' | grep -c 'now()' || echo 0)
 add_check "Safe DateTime (no now() strings)" "$( [ "$NOW_STRING_COUNT" -eq 0 ] && echo 1 || echo 0 )" "${NOW_STRING_COUNT} unsafe now() calls"
 
 # --- Check 5: No bare eval ---
-EVAL_COUNT=$(grep -rn '\beval\s*{' "$PROJECT_DIR/lib" --include="*.pm" 2>/dev/null | grep -v 'Try::Tiny' | wc -l | tr -d ' ')
+EVAL_COUNT=$(_cc_rg -n '\beval\s*{' "$PROJECT_DIR/lib" --include="*.pm" 2>/dev/null | grep -v 'Try::Tiny' | wc -l | tr -d ' ')
 add_check "No bare eval (use Try::Tiny)" "$( [ "$EVAL_COUNT" -eq 0 ] && echo 1 || echo 0 )" "${EVAL_COUNT} bare eval blocks"
 
 # --- Check 6: strict/warnings ---
