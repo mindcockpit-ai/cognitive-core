@@ -3,7 +3,7 @@ name: project-board
 description: Manage project board — issues, sprints, status tracking, acceptance verification, and release management. Supports GitHub Projects, Jira, and YouTrack via pluggable providers.
 user-invocable: true
 allowed-tools: Bash, Read, Grep, Glob
-argument-hint: "[list|create|close|cancel|assign|sprint|sprint-plan|triage|board|move|verify|approve|blocked|unblock|metrics] [options]"
+argument-hint: "[list|create|close|cancel|assign|sprint|sprint-plan|triage|board|move|verify|approve|blocked|unblock|metrics|propose] [options]"
 catalog_description: Project board — issues, sprints, releases, and triage. Supports GitHub, Jira, YouTrack.
 ---
 
@@ -871,6 +871,376 @@ SPRINT TRENDS
   Sprint 6:  7 done, avg cycle 3.8d
   Sprint 7:  8 done, avg cycle 3.2d  ← improving
 ```
+
+### `propose`
+
+Generate a structured implementation prompt for an issue. Reads the issue, analyzes codebase impact, selects agents, loads conventions, and produces a ready-to-use Claude Code prompt.
+
+**Syntax**: `/project-board propose <number> [--mode=technical|business] [--all] [--dry-run]`
+
+**Options**:
+
+- `--mode=technical`: (default) Developer prompt — agents, file impact, code conventions
+- `--mode=business`: Stakeholder prompt — business value, governance, roadmap, risk
+- `--all`: Include gitignored files in codebase scan (e.g., build artifacts, vendor)
+- `--dry-run`: Show analysis without posting comment
+
+**Template source**: `docs/recipes/recipe-multi-agent-implementation.md`
+
+**Technique basis** (peer-reviewed):
+
+- Least-to-Most decomposition for acceptance criteria (Zhou et al. 2022, ICLR 2023)
+- XML structuring for Claude (Anthropic official documentation)
+- Position-aware layout: critical constraints at beginning AND end (Liu et al. 2024, TACL)
+- Direct imperative mood, no politeness tokens (Yin et al. 2024)
+- Specification quality over prompt cleverness (Della Porta et al. 2025, EASE)
+
+#### Step 1: Read the Issue
+
+```bash
+ISSUE_JSON=$($PB_SCRIPT issue view <N> --json "title,body,labels,assignees,state")
+TITLE=$(echo "$ISSUE_JSON" | jq -r '.title')
+BODY=$(echo "$ISSUE_JSON" | jq -r '.body')
+LABELS=$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | join(",")')
+STATE=$(echo "$ISSUE_JSON" | jq -r '.state')
+
+# Warn if issue is not open
+if [ "$STATE" != "OPEN" ]; then
+  echo "Warning: Issue #<N> is $STATE. Generating prompt anyway — verify this is intended."
+fi
+```
+
+All providers return equivalent JSON via the `issue view` contract.
+
+**Extract acceptance criteria**: Parse checkbox items from the issue body:
+
+```bash
+CRITERIA=$(echo "$BODY" | grep -cE '^[[:space:]]*-[[:space:]]*\[[ x]\]')
+```
+
+#### Step 2: Complexity Dispatch
+
+Determine prompt strategy from acceptance criteria count:
+
+| Criteria Count | Complexity | Prompt Strategy |
+|----------------|-----------|-----------------|
+| 0 | Unknown | Confidence: LOW — note "acceptance criteria needed" |
+| 1-3 | Simple (S) | Direct task, no decomposition, minimal agent list |
+| 4-7 | Moderate (M) | Least-to-Most decomposition, agent suggestions |
+| 8+ | Complex (L) | Phase boundaries auto-proposed, full agent team, scope guards |
+
+#### Step 3: Analyze Codebase Impact
+
+Search for files and patterns mentioned in the issue title, body, and labels:
+
+```bash
+# Extract keywords from issue title and body (filenames, paths, function names)
+# Search codebase for affected files
+AFFECTED_FILES=$(grep -rl "<keyword>" --include="*.md" --include="*.sh" --include="*.py" . 2>/dev/null | head -20)
+
+# If --all flag: add --no-ignore to include gitignored files
+# grep -rl --no-ignore "<keyword>" . 2>/dev/null
+
+# Count affected files for complexity adjustment
+FILE_COUNT=$(echo "$AFFECTED_FILES" | grep -c '.' || echo 0)
+```
+
+If `FILE_COUNT > 10` AND complexity is not already Complex, upgrade to Complex (L).
+
+#### Step 4: Select Agents
+
+Map issue labels and affected file types to agents:
+
+| Signal | Agent | Reason |
+|--------|-------|--------|
+| `security` label OR `hooks/` files touched | `@security-analyst` | Security review required |
+| `area:skills` OR `area:agents` label | `@code-standards-reviewer` | Framework convention compliance |
+| Acceptance criteria mention "test" | `@test-specialist` | Test creation/verification needed |
+| `research` label OR `docs/research/` files | `@research-analyst` | External research required |
+| Database files or SQL patterns in body | `@database-specialist` | Database changes |
+| Architecture decisions or new workflows | `@solution-architect` | Design review needed |
+| `area:cicd` label | `@project-coordinator` | CI/CD pipeline coordination |
+
+Always include `@code-standards-reviewer` for final review regardless of other selections.
+
+#### Step 5: Load Conventions
+
+Read project standards from:
+
+1. `CLAUDE.md` — commit format, naming rules, encoding standards
+2. `cognitive-core.conf` — language, lint command, test command, architecture
+
+```bash
+# Extract key conventions
+CC_LANGUAGE=$(grep 'CC_LANGUAGE=' cognitive-core.conf | cut -d'"' -f2)
+CC_LINT_COMMAND=$(grep 'CC_LINT_COMMAND=' cognitive-core.conf | cut -d'"' -f2)
+CC_TEST_COMMAND=$(grep 'CC_TEST_COMMAND=' cognitive-core.conf | cut -d'"' -f2)
+CC_COMMIT_FORMAT=$(grep 'CC_COMMIT_FORMAT=' cognitive-core.conf | cut -d'"' -f2)
+```
+
+#### Step 6: Search for Related Evidence
+
+Search `workspace/reports/` and `docs/research/` for references to the issue number or keywords from the title:
+
+```bash
+# Search by issue number
+grep -rlE "#<N>([^0-9]|$)" workspace/reports/ docs/research/ 2>/dev/null
+# Search by title keywords
+grep -rl "<keyword>" workspace/reports/ docs/research/ 2>/dev/null
+```
+
+Include discovered evidence as context references in the generated prompt.
+
+#### Step 7: Generate Prompt
+
+Build the implementation prompt following the structure from `docs/recipes/recipe-multi-agent-implementation.md`. Apply all five research-backed techniques.
+
+**Prompt template** (under 400 words of instruction, reference material excluded):
+
+```text
+Implement GitHub issue #<N>: <TITLE>
+
+<scope>
+[IF COMPLEX: "Phase 1 only — <phase_description>"]
+
+[Numbered list derived from acceptance criteria using Least-to-Most decomposition:
+ each item builds on the previous, ordered from foundational to integrative]
+</scope>
+
+<constraints>
+[CRITICAL — positioned first per Liu et al. 2024 "Lost in the Middle":]
+- Follow existing <ARCHITECTURE_PATTERN> architecture
+- <KEY_CONSTRAINT_FROM_ISSUE>
+[Additional constraints from CLAUDE.md and cognitive-core.conf:]
+- Commit format: <CC_COMMIT_FORMAT>
+- Language: <CC_LANGUAGE>
+[Phase boundaries if Complex:]
+- Do NOT implement <PHASE_2_ITEMS> (Phase 2)
+- Do NOT implement <PHASE_3_ITEMS> (Phase 3)
+[Total instruction word count target: under 400 words]
+</constraints>
+
+<agents>
+[Selected agents with one-line justification each:]
+- @<agent>: <reason based on label/file match>
+</agents>
+
+<acceptance_criteria>
+[Verbatim checkbox list from issue body — preserves user's exact wording]
+</acceptance_criteria>
+
+<context>
+[Auto-discovered evidence references:]
+- Research: <path> (if found)
+- Related issues: <links> (if referenced in body)
+- Affected files: <list from Step 3>
+</context>
+
+<after_implementation>
+[Verification steps — reiterate key constraints per position-aware layout:]
+- Run: <CC_TEST_COMMAND> (if configured)
+- Run: <CC_LINT_COMMAND> (if configured)
+- Verify: <CRITICAL_CONSTRAINT_REPEATED>
+- Commit to <branch>, push, open PR
+</after_implementation>
+```
+
+**Prompt quality rules** (machine-validatable):
+
+1. Total instruction word count < 400 (excludes quoted acceptance criteria and context references)
+2. Imperative mood throughout — no "please", "could you", "it would be nice"
+3. `<constraints>` section appears BOTH before `<context>` AND key constraints reiterated in `<after_implementation>`
+4. Every acceptance criterion from the issue appears in `<acceptance_criteria>`
+5. At least one agent in `<agents>` section (minimum: `@code-standards-reviewer`)
+
+#### Step 7b: Business Mode Prompt (when `--mode=business`)
+
+When `--mode=business` is specified, skip the technical prompt template (Step 7) and generate a stakeholder-oriented summary instead. This mode replaces code-level detail with business context, governance implications, and roadmap positioning.
+
+**What changes compared to technical mode**:
+- Steps 3-5 (codebase impact, agent selection, convention loading) are **skipped** — not relevant for stakeholders
+- Step 6 (evidence discovery) is **kept** — business decisions need supporting research
+- Complexity dispatch (Step 2) maps to **effort estimation** instead of phase boundaries
+
+**Business prompt template**:
+
+```text
+Issue #<N>: <TITLE>
+
+## Business Value
+
+[Why this matters — derive from issue body, labels, and linked epic:]
+- Problem being solved (from issue Summary/Problem section)
+- Who benefits (users, team, customers, compliance)
+- What happens if we don't do this (risk of inaction)
+
+## Roadmap Position
+
+- Status: <CURRENT_BOARD_STATUS> (Roadmap/Backlog/Todo/In Progress)
+- Priority: <PRIORITY_LABEL> — <justification from labels or epic>
+- Size: <SIZE_LABEL> (<criteria_count> acceptance criteria)
+- Epic: <PARENT_EPIC_TITLE> (if issue body references an epic)
+- Dependencies: <issues referenced in body with "blocked by" or "depends on">
+
+## Governance & Compliance
+
+[Auto-populated from labels — include section only if relevant signals exist:]
+
+IF labels contain "eu-ai-act" or "compliance" or "needs-human-review":
+  - Regulatory driver: <derived from label and issue body>
+  - Human review required: Yes/No (from "needs-human-review" label)
+  - Compliance area: <e.g., Art. 50 transparency, Art. 9 risk management>
+
+IF labels contain "security" or area:security:
+  - Security impact: <derived from issue body>
+  - Review gate: Security analyst sign-off required before merge
+
+IF issue is size:XL or epic:
+  - Phased delivery: <number of phases from acceptance criteria grouping>
+  - Approval checkpoints: After each phase
+
+[If no governance signals detected, omit this section entirely.]
+
+## Success Criteria (Non-Technical)
+
+[Rewrite acceptance criteria in business language:]
+- Instead of "validate-bash.sh handles edge case" → "Safety hooks cover all identified scenarios"
+- Instead of "tests pass in CI" → "Automated quality checks confirm correctness"
+- Instead of "SKILL.md updated" → "Documentation reflects new capability"
+
+[Group criteria by outcome, not by file or function:]
+1. Capability delivered: [what users/stakeholders can now do]
+2. Quality assured: [how we know it works]
+3. Documentation complete: [what's updated for future reference]
+
+## Risk Assessment
+
+| Risk | Impact | Likelihood | Mitigation |
+|------|--------|------------|------------|
+| [Derived from issue Risk section if present] | | | |
+| Scope creep (if Complex/L) | Medium | High | Phased delivery with gates |
+| [If no risks in issue body] | — | — | "No explicit risks identified — review with team" |
+
+## Evidence & Research
+
+[From Step 6 evidence discovery:]
+- <path_to_research_paper> (if found)
+- <related_issue_links> (if referenced)
+- "No supporting research found" (if none discovered)
+
+## Recommendation
+
+[One paragraph: should this proceed, be reprioritized, or needs more definition?]
+- HIGH confidence: "Ready for implementation. Acceptance criteria are clear, priority is justified."
+- MEDIUM confidence: "Proceed with clarification needed on: <missing_areas>"
+- LOW confidence: "Not ready — acceptance criteria missing. Define success criteria before starting."
+```
+
+**Business mode quality rules**:
+
+1. No file paths, function names, or code snippets in the output
+2. No agent names (replace with role descriptions: "security review" not "@security-analyst")
+3. Acceptance criteria rewritten in outcome language, not implementation language
+4. Governance section only appears when compliance/security labels are present
+5. Recommendation section always present — gives a clear go/no-go signal
+
+#### Step 8: Confidence Scoring
+
+| Score | Condition |
+|-------|-----------|
+| **HIGH** | Has acceptance criteria (>0) AND has labels AND scope is clear (body > 100 chars) |
+| **MEDIUM** | Has acceptance criteria but missing labels OR body is short |
+| **LOW** | No acceptance criteria (criteria count = 0) — append note: "Acceptance criteria needed — add checkbox items to the issue body before implementing" |
+
+#### Step 9: Post as Issue Comment
+
+Post the generated prompt as a comment on the issue. Format varies by provider and mode.
+
+**Common metadata block** (used by all providers):
+
+```text
+if [ "$MODE" = "business" ]; then
+  LABEL="Business Summary"
+  TECHNIQUES="Stakeholder-oriented analysis, governance-first framing"
+else
+  LABEL="Implementation Prompt"
+  TECHNIQUES="Zhou 2022 (decomposition), Liu 2024 (position), Yin 2024 (imperative), Della Porta 2025 (specification)"
+fi
+
+METADATA_BLOCK="$LABEL — Generated by /project-board propose
+
+Generated:  <TIMESTAMP_UTC>
+Mode:       <technical|business>
+Confidence: <HIGH/MEDIUM/LOW>
+Complexity: <S/M/L> (<criteria_count> criteria, <file_count> files)
+Techniques: $TECHNIQUES"
+```
+
+**Provider-specific formatting**:
+
+```bash
+PB_PROVIDER=$(grep 'CC_BOARD_PROVIDER=' cognitive-core.conf 2>/dev/null | cut -d'"' -f2)
+PB_PROVIDER="${PB_PROVIDER:-github}"
+
+case "$PB_PROVIDER" in
+  github)
+    # GitHub supports <details> for collapsible sections
+    COMMENT_BODY=$(cat <<COMMENT
+<details>
+<summary>$LABEL — Generated by /project-board propose</summary>
+
+$METADATA_BLOCK
+
+## Prompt
+
+<THE_GENERATED_PROMPT>
+
+</details>
+COMMENT
+    )
+    ;;
+  jira)
+    # Jira ADF renders markdown in comments but not HTML tags.
+    # Use a heading + code block to preserve prompt formatting.
+    COMMENT_BODY=$(cat <<COMMENT
+h2. Implementation Prompt — Generated by /project-board propose
+
+$METADATA_BLOCK
+
+{code:title=Prompt|language=none}
+<THE_GENERATED_PROMPT>
+{code}
+COMMENT
+    )
+    ;;
+  youtrack)
+    # YouTrack supports markdown in comments but not <details> HTML.
+    # Use a header + fenced code block.
+    COMMENT_BODY=$(cat <<COMMENT
+## Implementation Prompt — Generated by /project-board propose
+
+$METADATA_BLOCK
+
+\`\`\`
+<THE_GENERATED_PROMPT>
+\`\`\`
+COMMENT
+    )
+    ;;
+esac
+
+$PB_SCRIPT issue comment <N> "$COMMENT_BODY"
+```
+
+If `--dry-run` is specified, display the prompt in the terminal instead of posting.
+
+#### Provider Support
+
+| Provider | Status | Notes |
+|----------|--------|-------|
+| GitHub | Full | Collapsible `<details>` with markdown metadata table |
+| Jira | Full | Jira wiki heading + `{code}` block for prompt formatting |
+| YouTrack | Full | Markdown heading + fenced code block |
 
 ## Epic Decomposition
 
