@@ -61,4 +61,42 @@ if [ -f "$_UPDATE_CHECK" ] && [ -x "$_UPDATE_CHECK" ]; then
     fi
 fi
 
+# ---- Session hygiene (glymphatic cleanup) ----
+if [ -f "${SCRIPT_DIR}/_session-hygiene.sh" ]; then
+    # shellcheck source=_session-hygiene.sh
+    source "${SCRIPT_DIR}/_session-hygiene.sh"
+    _HYGIENE_NOTICE=$(_cc_session_hygiene "$CC_PROJECT_DIR") || true
+    if [ -n "$_HYGIENE_NOTICE" ]; then
+        STATUS="${STATUS} ${_HYGIENE_NOTICE}"
+    fi
+fi
+
+# ---- First-session onboarding ----
+_ONBOARD_MARKER="${CC_PROJECT_DIR}/.claude/cognitive-core/.session-started"
+if [ ! -f "$_ONBOARD_MARKER" ]; then
+    # Count installed agents
+    _agent_count=0
+    _agent_names=""
+    for _af in "${CC_PROJECT_DIR}/.claude/agents/"*.md; do
+        [ -f "$_af" ] || continue
+        _agent_count=$((_agent_count + 1))
+        _agent_names="${_agent_names} $(basename "$_af" .md)"
+    done
+
+    # Count installed skills
+    _skill_count=0
+    _skill_names=""
+    for _sd in "${CC_PROJECT_DIR}/.claude/skills/"*/; do
+        [ -d "$_sd" ] || continue
+        _skill_count=$((_skill_count + 1))
+        _skill_names="${_skill_names} $(basename "$_sd")"
+    done
+
+    STATUS="${STATUS} FIRST SESSION: Welcome to cognitive-core! Agents (${_agent_count}):${_agent_names}. Skills (${_skill_count}):${_skill_names}. Quick start: '@code-standards-reviewer review my code', '/code-review', '@test-specialist create tests'. Full guide: .claude/AGENTS_README.md"
+
+    # Create marker directory and file
+    mkdir -p "$(dirname "$_ONBOARD_MARKER")" 2>/dev/null || true
+    date +%s > "$_ONBOARD_MARKER" 2>/dev/null || true
+fi
+
 _cc_json_session_context "$STATUS"
