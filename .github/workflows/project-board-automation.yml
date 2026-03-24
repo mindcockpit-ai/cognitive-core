@@ -292,16 +292,12 @@ jobs:
             if [ "$HAS_VERIFICATION" = "false" ]; then
               echo "Issue #$ISSUE_NUM has acceptance criteria but no verification found — reopening"
               gh issue reopen "$ISSUE_NUM" --repo "$GH_REPO"
-              gh issue comment "$ISSUE_NUM" --repo "$GH_REPO" --body "$(cat <<'CIEOF'
-**Closure guard (CI)**: This issue was closed without acceptance criteria verification.
-
-The issue body contains acceptance criteria checkboxes, but no comment with
-"Acceptance Criteria Verification" or "Approved by @" was found.
-
-Please verify all acceptance criteria and close via `/project-board close` or
-add a verification comment before closing.
-CIEOF
-              )"
+              GUARD_MSG="**Closure guard (CI)**: This issue was closed without acceptance criteria verification."
+              GUARD_MSG="$GUARD_MSG"$'\n\n'"The issue body contains acceptance criteria checkboxes, but no comment with"
+              GUARD_MSG="$GUARD_MSG"$'\n'"\"Acceptance Criteria Verification\" or \"Approved by @\" was found."
+              GUARD_MSG="$GUARD_MSG"$'\n\n'"Please verify all acceptance criteria and close via \`/project-board close\` or"
+              GUARD_MSG="$GUARD_MSG"$'\n'"add a verification comment before closing."
+              gh issue comment "$ISSUE_NUM" --repo "$GH_REPO" --body "$GUARD_MSG"
               exit 0
             fi
           fi
