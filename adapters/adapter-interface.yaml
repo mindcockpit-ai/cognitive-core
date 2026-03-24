@@ -107,69 +107,81 @@ capability_matrix:
     claude_code: native
     aider: convention_based
     intellij: convention_plus_mcp
+    vscode: convention_plus_mcp
 
   post_tool_hooks:
     description: "Run actions after tool execution (e.g., auto-lint)"
     claude_code: native
     aider: auto_lint_config
     intellij: mcp_tool
+    vscode: mcp_tool
 
   session_start_hooks:
     description: "Run setup when a session starts"
     claude_code: native
     aider: launcher_script
     intellij: context_file
+    vscode: context_file
 
   agent_delegation:
     description: "Delegate tasks to specialized sub-agents"
     claude_code: native
     aider: read_only_context
     intellij: read_only_context_plus_mcp
+    vscode: read_only_context_plus_mcp
 
   skill_invocation:
     description: "Invoke skills via slash commands"
     claude_code: native
     aider: not_supported
     intellij: not_supported
+    vscode: not_supported
 
   settings_file:
     description: "Platform-specific settings/configuration"
     claude_code: ".claude/settings.json"
     aider: ".aider.conf.yml"
     intellij: ".devoxxgenie.yaml"
+    vscode: ".vscode/mcp.json"
 
   project_readme:
     description: "Project instructions always loaded into context"
     claude_code: "CLAUDE.md"
     aider: "CONVENTIONS.md"
     intellij: "DEVOXXGENIE.md"
+    vscode: ".github/copilot-instructions.md"
 
   file_read:
     description: "Read files from the filesystem"
     claude_code: "Read tool"
     aider: "read-only context / /read"
     intellij: "IDE native / MCP cc_project_info"
+    vscode: "IDE native / MCP cc_project_info"
 
   file_write:
     description: "Write/edit files"
     claude_code: "Write/Edit tools"
     aider: "architect/editor modes"
     intellij: "IDE native"
+    vscode: "IDE native"
 
   shell_execute:
     description: "Execute shell commands"
     claude_code: "Bash tool"
     aider: "/run command"
     intellij: "IDE terminal / MCP cc_lint_check"
+    vscode: "IDE terminal / MCP cc_lint_check"
 
   web_search:
     description: "Search the web"
     claude_code: "WebSearch tool"
     aider: "not_supported"
     intellij: "not_supported"
+    vscode: "not_supported"
 
   mcp_servers:
     description: "Model Context Protocol servers"
     claude_code: native
     aider: not_supported
     intellij: native
+    vscode: native
