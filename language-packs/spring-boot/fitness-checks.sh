@@ -36,7 +36,7 @@ add_check() {
 # === TYPE SAFETY CHECKS ===
 
 # --- Check 1: No raw type usage (List, Map, Set without generics) ---
-RAW_TYPES=$(_cc_rg -n '[[:space:]]List[[:space:]].*=[[:space:]]*new\|[[:space:]]Map[[:space:]].*=[[:space:]]*new\|[[:space:]]Set[[:space:]].*=[[:space:]]*new' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -v '/test/' | grep -vc 'node_modules' || true)
+RAW_TYPES=$(_cc_rg -n '[[:space:]]List[[:space:]].*=[[:space:]]*new\|[[:space:]]Map[[:space:]].*=[[:space:]]*new\|[[:space:]]Set[[:space:]].*=[[:space:]]*new' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -v '/test/' | wc -l | tr -d ' ')
 add_check "No raw types" "$( [ "$RAW_TYPES" -le 2 ] && echo 1 || echo 0 )" "${RAW_TYPES} raw type usages"
 
 # --- Check 2: No Object as parameter or return type (weak typing) ---

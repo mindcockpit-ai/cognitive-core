@@ -28,6 +28,72 @@ _cc_load_config() {
     fi
 }
 
+# Recursive grep using ripgrep when available, falling back to grep -r
+# Usage: _cc_rg [--all] [grep-compatible flags] "pattern" [path]
+#   --all   Search all files including gitignored (passes --no-ignore to rg)
+# Translates --include/--exclude to rg -g syntax. Strips -r/-E (rg defaults).
+# Follows _cc_compute_sha256 pattern: detect available tool, never auto-install.
+_cc_rg() {
+    local use_no_ignore=false
+    local rg_args=("--no-heading" "--color=never")
+    local grep_args=()
+
+    # Parse arguments
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --all)
+                use_no_ignore=true
+                shift
+                ;;
+            -r|-R)
+                grep_args+=("$1")
+                shift
+                ;;  # strip for rg (recursive by default)
+            -E)
+                grep_args+=("$1")
+                shift
+                ;;  # strip for rg (ERE by default)
+            --include=*)
+                rg_args+=("-g" "${1#--include=}")
+                grep_args+=("$1")
+                shift
+                ;;
+            --include)
+                shift
+                rg_args+=("-g" "$1")
+                grep_args+=("--include=$1")
+                shift
+                ;;
+            --exclude=*)
+                rg_args+=("-g" "!${1#--exclude=}")
+                grep_args+=("$1")
+                shift
+                ;;
+            --exclude)
+                shift
+                rg_args+=("-g" "!$1")
+                grep_args+=("--exclude=$1")
+                shift
+                ;;
+            *)
+                rg_args+=("$1")
+                grep_args+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    if [ "$use_no_ignore" = true ]; then
+        rg_args+=("--no-ignore")
+    fi
+
+    if command -v rg &>/dev/null; then
+        rg "${rg_args[@]}"
+    else
+        grep -r "${grep_args[@]}"
+    fi
+}
+
 # Output JSON using jq if available, otherwise fallback to printf
 # Usage: _cc_json_output "hookEventName" "fieldName" "fieldValue"
 _cc_json_session_context() {

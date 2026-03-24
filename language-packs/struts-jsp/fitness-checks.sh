@@ -74,7 +74,7 @@ if [ -n "$WEB_DIR" ] && [ -d "$WEB_DIR" ]; then
     add_check "Minimal inline JS in JSP" "$([ "$inline_js" -lt 20 ] && echo 1 || echo 0)" "${inline_js} inline scripts"
 
     # Check for inline SQL in JSPs (very bad)
-    inline_sql=$(_cc_rg -ci 'SELECT.*FROM\|INSERT.*INTO\|UPDATE.*SET\|DELETE.*FROM' "$WEB_DIR" --include="*.jsp" 2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
+    inline_sql=$(_cc_rg -c -i 'SELECT.*FROM\|INSERT.*INTO\|UPDATE.*SET\|DELETE.*FROM' "$WEB_DIR" --include="*.jsp" 2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
     add_check "No SQL in JSPs" "$([ "$inline_sql" -eq 0 ] && echo 1 || echo 0)" "${inline_sql} SQL statements in JSPs"
 fi
 
@@ -122,7 +122,7 @@ if [ -n "$SRC_DIR" ] && [ -d "$SRC_DIR" ]; then
     add_check "No SQL string concatenation" "$([ "$sql_concat" -eq 0 ] && echo 1 || echo 0)" "${sql_concat} potential SQL injections"
 
     # Check for hardcoded credentials
-    hardcoded_creds=$(_cc_rg -ni 'password\s*=\s*"[^"]\+"\|passwd\s*=\s*"' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -cv '^\s*//' || echo "0")
+    hardcoded_creds=$(_cc_rg -n -i 'password\s*=\s*"[^"]\+"\|passwd\s*=\s*"' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -cv '^\s*//' || echo "0")
     add_check "No hardcoded credentials" "$([ "$hardcoded_creds" -eq 0 ] && echo 1 || echo 0)" "${hardcoded_creds} hardcoded credentials"
 
     # Check for System.out (should use logging)

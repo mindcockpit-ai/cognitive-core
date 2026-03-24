@@ -30,11 +30,11 @@ add_check() {
 # === TYPE SAFETY CHECKS ===
 
 # --- Check 1: No 'any' type usage ---
-ANY_COUNT=$(_cc_rg -n ': any\b\|<any>\|as any' "$SRC_DIR" --include="*.ts" --include="*.tsx" 2>/dev/null | grep -v 'node_modules' | grep -v '\.d\.ts' | wc -l | tr -d ' ')
+ANY_COUNT=$(_cc_rg -n ': any\b\|<any>\|as any' "$SRC_DIR" --include="*.ts" --include="*.tsx" 2>/dev/null | grep -v node_modules | grep -v '\.d\.ts' | wc -l | tr -d ' ')
 add_check "No 'any' type" "$( [ "$ANY_COUNT" -le 3 ] && echo 1 || echo 0 )" "${ANY_COUNT} any usages"
 
 # --- Check 2: No @ts-ignore without explanation ---
-TS_IGNORE=$(_cc_rg -n '@ts-ignore\|@ts-nocheck' "$SRC_DIR" --include="*.ts" --include="*.tsx" 2>/dev/null | grep -v 'node_modules' | wc -l | tr -d ' ')
+TS_IGNORE=$(_cc_rg -n '@ts-ignore\|@ts-nocheck' "$SRC_DIR" --include="*.ts" --include="*.tsx" 2>/dev/null | grep -v node_modules | wc -l | tr -d ' ')
 add_check "No @ts-ignore/@ts-nocheck" "$( [ "$TS_IGNORE" -eq 0 ] && echo 1 || echo 0 )" "${TS_IGNORE} suppressions"
 
 # --- Check 3: TypeScript adoption (% of .tsx/.ts vs .jsx/.js) ---
@@ -51,33 +51,33 @@ add_check "TypeScript adoption >80%" "$( [ "$TS_PERCENT" -ge 80 ] && echo 1 || e
 # === REACT PATTERN CHECKS ===
 
 # --- Check 4: No class components ---
-CLASS_COMP=$(_cc_rg -n 'extends React\.Component\|extends Component\|extends PureComponent\|extends React\.PureComponent' "$SRC_DIR" --include="*.tsx" --include="*.jsx" --include="*.ts" --include="*.js" 2>/dev/null | grep -v 'node_modules' | wc -l | tr -d ' ')
+CLASS_COMP=$(_cc_rg -n 'extends React\.Component\|extends Component\|extends PureComponent\|extends React\.PureComponent' "$SRC_DIR" --include="*.tsx" --include="*.jsx" --include="*.ts" --include="*.js" 2>/dev/null | grep -v node_modules | wc -l | tr -d ' ')
 add_check "No class components" "$( [ "$CLASS_COMP" -eq 0 ] && echo 1 || echo 0 )" "${CLASS_COMP} class components"
 
 # --- Check 5: No PropTypes (use TypeScript interfaces instead) ---
-PROPTYPES=$(_cc_rg -n 'PropTypes\.\|\.propTypes\s*=' "$SRC_DIR" --include="*.tsx" --include="*.jsx" --include="*.ts" --include="*.js" 2>/dev/null | grep -v 'node_modules' | wc -l | tr -d ' ')
+PROPTYPES=$(_cc_rg -n 'PropTypes\.\|\.propTypes\s*=' "$SRC_DIR" --include="*.tsx" --include="*.jsx" --include="*.ts" --include="*.js" 2>/dev/null | grep -v node_modules | wc -l | tr -d ' ')
 add_check "No PropTypes (use TS types)" "$( [ "$PROPTYPES" -eq 0 ] && echo 1 || echo 0 )" "${PROPTYPES} PropTypes usages"
 
 # --- Check 6: No manual memoization (React Compiler handles it) ---
-MANUAL_MEMO=$(_cc_rg -n '\buseMemo\b\|\buseCallback\b\|React\.memo(' "$SRC_DIR" --include="*.tsx" --include="*.jsx" --include="*.ts" --include="*.js" 2>/dev/null | grep -v 'node_modules' | grep -v '\.test\.' | grep -v '\.spec\.' | wc -l | tr -d ' ')
+MANUAL_MEMO=$(_cc_rg -n '\buseMemo\b\|\buseCallback\b\|React\.memo(' "$SRC_DIR" --include="*.tsx" --include="*.jsx" --include="*.ts" --include="*.js" 2>/dev/null | grep -v node_modules | grep -v '\.test\.' | grep -v '\.spec\.' | wc -l | tr -d ' ')
 add_check "No manual memoization" "$( [ "$MANUAL_MEMO" -le 5 ] && echo 1 || echo 0 )" "${MANUAL_MEMO} useMemo/useCallback/React.memo"
 
 # --- Check 7: No useEffect for data fetching ---
-USE_EFFECT_FETCH=$(_cc_rg -n 'useEffect.*fetch\|useEffect.*axios\|useEffect.*api\.' "$SRC_DIR" --include="*.tsx" --include="*.jsx" --include="*.ts" --include="*.js" 2>/dev/null | grep -v 'node_modules' | wc -l | tr -d ' ')
+USE_EFFECT_FETCH=$(_cc_rg -n 'useEffect.*fetch\|useEffect.*axios\|useEffect.*api\.' "$SRC_DIR" --include="*.tsx" --include="*.jsx" --include="*.ts" --include="*.js" 2>/dev/null | grep -v node_modules | wc -l | tr -d ' ')
 add_check "No useEffect data fetching" "$( [ "$USE_EFFECT_FETCH" -eq 0 ] && echo 1 || echo 0 )" "${USE_EFFECT_FETCH} useEffect+fetch patterns"
 
 # --- Check 8: No direct DOM manipulation ---
-DIRECT_DOM=$(_cc_rg -n 'document\.getElementById\|document\.querySelector\|document\.getElementsBy\|\.innerHTML\s*=' "$SRC_DIR" --include="*.tsx" --include="*.jsx" --include="*.ts" --include="*.js" 2>/dev/null | grep -v 'node_modules' | grep -v '\.test\.' | wc -l | tr -d ' ')
+DIRECT_DOM=$(_cc_rg -n 'document\.getElementById\|document\.querySelector\|document\.getElementsBy\|\.innerHTML\s*=' "$SRC_DIR" --include="*.tsx" --include="*.jsx" --include="*.ts" --include="*.js" 2>/dev/null | grep -v node_modules | grep -v '\.test\.' | wc -l | tr -d ' ')
 add_check "No direct DOM manipulation" "$( [ "$DIRECT_DOM" -eq 0 ] && echo 1 || echo 0 )" "${DIRECT_DOM} document.* calls"
 
 # === CODE QUALITY CHECKS ===
 
 # --- Check 9: No var usage ---
-VAR_COUNT=$(_cc_rg -n '\bvar\s' "$SRC_DIR" --include="*.ts" --include="*.js" --include="*.tsx" --include="*.jsx" 2>/dev/null | grep -v 'node_modules' | grep -v '\.d\.ts' | wc -l | tr -d ' ')
+VAR_COUNT=$(_cc_rg -n '\bvar\s' "$SRC_DIR" --include="*.ts" --include="*.js" --include="*.tsx" --include="*.jsx" 2>/dev/null | grep -v node_modules | grep -v '\.d\.ts' | wc -l | tr -d ' ')
 add_check "No var usage" "$( [ "$VAR_COUNT" -eq 0 ] && echo 1 || echo 0 )" "${VAR_COUNT} var declarations"
 
 # --- Check 10: No console.log in production ---
-CONSOLE_COUNT=$(_cc_rg -n 'console\.\(log\|debug\|info\)' "$SRC_DIR" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" 2>/dev/null | grep -v 'node_modules' | grep -v '\.test\.' | grep -v '\.spec\.' | wc -l | tr -d ' ')
+CONSOLE_COUNT=$(_cc_rg -n 'console\.\(log\|debug\|info\)' "$SRC_DIR" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" 2>/dev/null | grep -v node_modules | grep -v '\.test\.' | grep -v '\.spec\.' | wc -l | tr -d ' ')
 add_check "No console.log in prod" "$( [ "$CONSOLE_COUNT" -eq 0 ] && echo 1 || echo 0 )" "${CONSOLE_COUNT} console statements"
 
 # --- Check 11: No barrel files (index.ts re-exports) ---
@@ -85,7 +85,7 @@ BARREL_COUNT=$(find "$SRC_DIR" \( -name "index.ts" -o -name "index.tsx" -o -name
 add_check "No barrel files" "$( [ "$BARREL_COUNT" -le 1 ] && echo 1 || echo 0 )" "${BARREL_COUNT} barrel index files"
 
 # --- Check 12: No inline styles ---
-INLINE_STYLE=$(_cc_rg -n 'style={{' "$SRC_DIR" --include="*.tsx" --include="*.jsx" 2>/dev/null | grep -v 'node_modules' | wc -l | tr -d ' ')
+INLINE_STYLE=$(_cc_rg -n 'style={{' "$SRC_DIR" --include="*.tsx" --include="*.jsx" 2>/dev/null | grep -v node_modules | wc -l | tr -d ' ')
 add_check "No inline styles" "$( [ "$INLINE_STYLE" -le 5 ] && echo 1 || echo 0 )" "${INLINE_STYLE} inline style objects"
 
 # === TOOLING CHECKS ===
@@ -124,11 +124,11 @@ CRA=${CRA:-0}
 add_check "No CRA (use Vite/Next)" "$( [ "$CRA" -eq 0 ] && echo 1 || echo 0 )" "$([ "$CRA" -gt 0 ] && echo 'react-scripts found in package.json')"
 
 # --- Check 17: No require() in TS/TSX ---
-REQUIRE_COUNT=$(_cc_rg -n '\brequire(' "$SRC_DIR" --include="*.ts" --include="*.tsx" 2>/dev/null | grep -v 'node_modules' | grep -v '\.d\.ts' | wc -l | tr -d ' ')
+REQUIRE_COUNT=$(_cc_rg -n '\brequire(' "$SRC_DIR" --include="*.ts" --include="*.tsx" 2>/dev/null | grep -v node_modules | grep -v '\.d\.ts' | wc -l | tr -d ' ')
 add_check "ES imports (no require)" "$( [ "$REQUIRE_COUNT" -eq 0 ] && echo 1 || echo 0 )" "${REQUIRE_COUNT} require() calls"
 
 # --- Check 18: No jQuery ---
-JQUERY=$(_cc_rg -n '\$(\|\bjQuery\b' "$SRC_DIR" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" 2>/dev/null | grep -v 'node_modules' | wc -l | tr -d ' ')
+JQUERY=$(_cc_rg -n '\$(\|\bjQuery\b' "$SRC_DIR" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" 2>/dev/null | grep -v node_modules | wc -l | tr -d ' ')
 add_check "No jQuery" "$( [ "$JQUERY" -eq 0 ] && echo 1 || echo 0 )" "${JQUERY} jQuery usages"
 
 # Calculate score
