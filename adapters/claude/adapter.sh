@@ -25,15 +25,12 @@ _adapter_install_skill() {
     mkdir -p "${CC_INSTALL_DIR}/skills/${skill_name}"
     cp -R "${source_dir}/"* "${CC_INSTALL_DIR}/skills/${skill_name}/" 2>/dev/null || true
 
-    # Create slash command stub for user-invocable skills
-    local skill_md="${CC_INSTALL_DIR}/skills/${skill_name}/SKILL.md"
-    if grep -q 'user-invocable: true' "$skill_md" 2>/dev/null; then
-        mkdir -p "${CC_INSTALL_DIR}/commands"
-        cat > "${CC_INSTALL_DIR}/commands/${skill_name}.md" << CMDEOF
-Read and follow the instructions in .claude/skills/${skill_name}/SKILL.md
-
-Arguments: \$ARGUMENTS
-CMDEOF
+    # Claude Code auto-discovers user-invocable skills from SKILL.md frontmatter.
+    # Do NOT create .claude/commands/ stubs — that causes duplicate entries.
+    # Clean up any orphaned command stubs from previous installations.
+    local orphan="${CC_INSTALL_DIR}/commands/${skill_name}.md"
+    if [ -f "$orphan" ]; then
+        rm -f "$orphan"
     fi
 }
 
