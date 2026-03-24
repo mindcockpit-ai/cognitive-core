@@ -98,6 +98,10 @@ _skip() {
     _junit_case "$1" "skip" ""
 }
 
+_note() {
+    printf "  ${_YELLOW}NOTE${_RESET} %s\n" "$1"
+}
+
 assert_eq() {
     local label="$1" expected="$2" actual="$3"
     if [ "$expected" = "$actual" ]; then
