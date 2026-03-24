@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.2.0...v1.3.0) (2026-03-24)
+
+
+### Features
+
+* **adapters:** add VS Code adapter — Copilot, Continue.dev, Cline ([#81](https://github.com/mindcockpit-ai/cognitive-core/issues/81)) ([b8710db](https://github.com/mindcockpit-ai/cognitive-core/commit/b8710db60641ce2fde9b7429fc73dd189862f343))
+* add _cc_rg() ripgrep wrapper with grep fallback ([#134](https://github.com/mindcockpit-ai/cognitive-core/issues/134)) ([bce9056](https://github.com/mindcockpit-ai/cognitive-core/commit/bce905668baa2489bcc0af6fd248c772614912f0))
+* **agents:** background agent timeout and health monitoring ([#74](https://github.com/mindcockpit-ai/cognitive-core/issues/74)) ([db33cce](https://github.com/mindcockpit-ai/cognitive-core/commit/db33cce13c741053e4f02d62e6f51d51795d3ad2))
+
+
+### Bug Fixes
+
+* **tests:** resolve ShellCheck warnings in suite 15 — unused vars, redirect order ([8d2e0e5](https://github.com/mindcockpit-ai/cognitive-core/commit/8d2e0e56a0f9e3ee5e92c2ab9fb8df007ff7264d))
+
 ## [1.2.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.1.0...v1.2.0) (2026-03-23)
 
 ### Features
