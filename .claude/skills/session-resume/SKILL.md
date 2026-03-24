@@ -65,6 +65,23 @@ Continuation point: [next planned task]
 Ready to continue with [next task], or would you prefer to work on something else?
 ```
 
+If the session context mentions "FIRST SESSION", provide an extended welcome:
+
+```
+Welcome to cognitive-core!
+
+Agents: [list from context]
+Top skills to try:
+  /code-review        — Review code against project standards
+  /pre-commit         — Lint staged files before committing
+  /fitness            — Check project quality metrics
+  @test-specialist    — Create or update tests
+
+See .claude/AGENTS_README.md for the full agent routing guide.
+```
+
+For subsequent sessions, use the standard brief greeting.
+
 Keep this brief (3-5 lines). Do not dump the entire session doc.
 
 ### Step 5: If User Asks to "Remember" or "Refresh"
@@ -75,6 +92,36 @@ If the user explicitly asks to refresh context:
 3. Check recent commit messages for work stream context
 4. Read any referenced implementation plans
 5. Provide a comprehensive summary
+
+## Session State Machine
+
+This skill is the entry point for the session lifecycle:
+
+```
+Fresh → Active → Compacted → Resumed → Ended
+```
+
+| Transition | Trigger | This Skill's Role |
+|-----------|---------|-------------------|
+| Fresh → Active | First user message | Loads context, greets, transitions to Active |
+| Compacted → Resumed | Context compaction + new message | Re-invoked to reconstruct context |
+| Ended → Fresh | New conversation | Auto-loads as Fresh state |
+
+### What Is Preserved vs Reconstructed
+
+| Context | Method | Reliability |
+|---------|--------|-------------|
+| Key Rules (CLAUDE.md) | `compact-reminder.sh` re-injects | Always preserved |
+| Cross-session notes | MEMORY.md (persistent file) | Always preserved |
+| Git state | Repository (immutable history) | Always preserved |
+| Last session summary | SESSION_*.md (persistent file) | Always preserved |
+| Conversation history | Context window only | Lost after compaction |
+| Agent delegation results | Context window only | Lost after compaction |
+| Intermediate reasoning | Context window only | Not recoverable |
+
+When resuming after compaction, prioritize **reconstructable** state (git, files)
+over conversation replay. Do not attempt to recover lost intermediate reasoning --
+re-derive from current state if needed.
 
 ## Notes
 

@@ -2,7 +2,9 @@
 name: code-review
 description: Language-agnostic code review skill. Reads project conventions from CLAUDE.md and applies parameterized quality checks.
 user-invocable: true
+context: fork
 allowed-tools: Read, Grep, Glob
+argument-hint: "File or directory to review"
 catalog_description: Language-agnostic code review with project-aware convention checks.
 ---
 
@@ -63,6 +65,8 @@ Flag any matches as ERROR.
 
 ### Step 4: Output Report
 
+Each finding must include its provenance source for traceability:
+
 ```
 CODE REVIEW
 ===========
@@ -72,15 +76,15 @@ Language: [from CC_LANGUAGE]
 
 STANDARDS
 ---------
-[check]: [PASS/FAIL] [detail if failed]
+[check]: [PASS/FAIL] [detail if failed] — Source: [documented|verified|inferred|automated]
 
 ARCHITECTURE
 ------------
-[check]: [PASS/FAIL] [detail if failed]
+[check]: [PASS/FAIL] [detail if failed] — Source: [documented|verified|inferred|automated]
 
 ANTI-PATTERNS
 -------------
-[check]: [PASS/FAIL] [detail if failed]
+[check]: [PASS/FAIL] [detail if failed] — Source: [documented|verified|inferred|automated]
 
 SUMMARY
 =======
@@ -90,8 +94,52 @@ Standards    |  N   |  N   |  N
 Architecture |  N   |  N   |  N
 Anti-patterns|  N   |  N   |  N
 
+PROVENANCE
+==========
+- documented: N findings from CLAUDE.md / language standards
+- automated: N findings from lint tool
+- inferred: N findings from pattern analysis
+- verified: N findings from code inspection
+
 VERDICT: [APPROVED | NEEDS_CHANGES]
 ```
+
+## Multi-Pass Review Strategy
+
+For reviews involving more than 5 changed files, use a multi-pass approach to prevent attention dilution:
+
+### Pass 1: Per-File Local Analysis
+Review each file individually for:
+- Code style and convention violations
+- Bugs and logic errors
+- Security issues
+- Missing error handling
+
+Output format per file:
+| File | Line | Severity | Issue | Fix | Source |
+|------|------|----------|-------|-----|--------|
+
+### Pass 2: Cross-File Integration Analysis
+After completing all per-file reviews, analyze cross-cutting concerns:
+- Data flow consistency across files
+- API contract alignment (are callers and implementations in sync?)
+- Dependency direction (no circular dependencies, proper layering)
+- Naming consistency across related files
+- Contradictory patterns (same logic handled differently in different files)
+
+### Pass 3: Consolidated Findings
+- Deduplicate findings: same pattern in multiple files → single finding with all locations
+- Resolve contradictions from Pass 1 (flagging pattern in file A but approving in file B)
+- Prioritize: critical → warning → info
+- Group by theme, not by file
+
+### When to Use
+- **>5 changed files**: Always use multi-pass
+- **<=5 changed files**: Single-pass is sufficient
+- **Single file**: Direct review, no passes needed
+
+### Independent Review
+Use `context: fork` to run the review in an isolated context. This prevents the reviewing agent from being influenced by its own prior generation reasoning — a fresh perspective catches issues that self-review misses.
 
 ## See Also
 

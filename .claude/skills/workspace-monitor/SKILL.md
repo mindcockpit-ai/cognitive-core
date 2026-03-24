@@ -2,6 +2,7 @@
 name: workspace-monitor
 description: Proactive log and build monitoring. Scans application logs, test results, build output, and CI artifacts with smart filtering to detect issues before users report them. Language-aware via CC_LANGUAGE — adapts error patterns per stack.
 user-invocable: true
+context: fork
 disable-model-invocation: true
 allowed-tools: Bash, Read, Write, Grep, Glob
 argument-hint: "--errors-only | --since=1h | --build | --tests | --runtime | --all"

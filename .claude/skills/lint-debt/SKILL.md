@@ -1,3 +1,8 @@
+---
+name: lint-debt
+description: Track, audit, and create GitHub issues for lint suppression comments across your codebase. Ensures every lint bypass has a corresponding tracking issue.
+---
+
 # Lint Debt Tracker — Suppression Audit & GitHub Issue Sync
 
 Track, audit, and create GitHub issues for lint suppression comments across your codebase.
@@ -179,6 +184,15 @@ Cross-reference suppressions with GitHub issues and show a comprehensive dashboa
 | java | `@SuppressWarnings\|//CHECKSTYLE:OFF` | Inside `("...")` |
 | rust | `#\[allow\(\|#!\[allow\(` | Inside `allow(...)` |
 | csharp | `#pragma warning disable\|// ReSharper disable` | After `disable ` |
+
+### Java / Spring Boot Examples
+
+| Suppression | Meaning | Remediation |
+|-------------|---------|-------------|
+| `@SuppressWarnings("unchecked")` | Raw type usage | Add proper generics |
+| `@SuppressWarnings("deprecation")` | Using deprecated API | Migrate to replacement |
+| `//CHECKSTYLE:OFF` | Checkstyle bypass | Fix the violation |
+| `//NOSONAR` | SonarQube suppression | Address the code smell |
 
 ## Integration
 

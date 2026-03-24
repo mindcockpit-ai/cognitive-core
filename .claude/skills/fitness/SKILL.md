@@ -2,6 +2,7 @@
 name: fitness
 description: Run quality fitness checks using configured thresholds and gates. Scores code against project standards.
 user-invocable: true
+context: fork
 disable-model-invocation: true
 allowed-tools: Bash, Read, Grep, Glob
 catalog_description: Quality fitness checks with configurable thresholds and gates.
