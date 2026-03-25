@@ -151,6 +151,16 @@ Multi-agent peer review — where agents check each other's work — was impleme
 - **Multi-Provider** — GitHub Projects, Jira, YouTrack through pluggable provider pattern
 - **PM Recipes** — 7 role-based workflows (Scrum Master, PM, QA, CTO, BA, Compliance, Release)
 
+### EU AI Act Compliance (Pipeline — [epic #120](https://github.com/mindcockpit-ai/cognitive-core/issues/120))
+
+No AI coding framework — commercial or open source — addresses EU AI Act compliance. cognitive-core is building it: 13 issues across 3 pillars.
+
+| Pillar | Articles | Planned Features |
+|--------|----------|-----------------|
+| **Transparency** | Art. 50 | AI interaction disclosure, identity markers in agent frontmatter, git trailers for provenance |
+| **Risk Management** | Art. 9-15 | Structured JSON Lines audit logs, SHA-256 integrity checksums, emergency stop, minimum security enforcement |
+| **Governance** | Art. 95 | System card (capabilities/limitations), Code of Conduct for voluntary adoption, SIEM integration |
+
 ### Quality
 
 - **16 test suites, 809 assertions** — all passing
