@@ -112,3 +112,247 @@ htmlcov/
 *.zip
 .claude/cognitive-core/last-check
 .claude/cognitive-core/version.json
+
+# ---- base (cognitive-core) ----
+# =============================================================================
+# .gitignore — cognitive-core base template
+# Applied automatically during install. Language-specific rules are appended
+# from the selected language pack.
+# =============================================================================
+
+# ---- OS generated files ----
+# macOS
+.fseventsd
+.AppleDouble
+.LSOverride
+Icon?
+
+# Windows
+Thumbs.db:encryptable
+ehthumbs_vista.db
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+.directory
+.Trash-*
+
+# ---- Build output (common) ----
+out/
+
+# ---- IDE / Editor files ----
+
+# VS Code
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+*.code-workspace
+
+# JetBrains (IntelliJ IDEA, WebStorm, PyCharm, GoLand, Rider, CLion, RubyMine, PhpStorm, DataGrip)
+*.iml
+*.iws
+*.ipr
+.idea_modules/
+cmake-build-*/
+.ijwb/
+
+# Eclipse / Spring Tool Suite (STS)
+.metadata/
+.recommenders/
+*.launch
+.externalToolBuilders/
+.buildpath
+.factorypath
+.apt_generated/
+.apt_generated_tests/
+.sts4-cache/
+.springBeans
+
+# NetBeans
+nbproject/private/
+nbbuild/
+nbdist/
+.nb-gradle/
+nbactions.xml
+nb-configuration.xml
+
+# Visual Studio
+.vs/
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.VisualState.xml
+[Dd]ebugPublic/
+
+# Xcode
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+DerivedData/
+
+# Android Studio
+.gradle/
+local.properties
+*.apk
+*.aab
+*.ap_
+*.dex
+captures/
+.cxx/
+
+# Sublime Text
+*.sublime-project
+
+# Vim / Neovim
+*.swn
+.netrwhist
+Session.vim
+.undodir/
+tags
+.lvimrc
+
+# Emacs
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list/
+tramp
+.\#*
+.projectile
+.dir-locals.el
+
+# TextMate
+*.tmproj
+*.tmproject
+tmtags
+
+# Atom
+.atom/
+*.cson
+
+# Notepad++
+nppBackup/
+
+# Kate / KDevelop
+.kdev4/
+*.kdev4
+
+# Fleet (JetBrains)
+.fleet/
+
+# Zed
+.zed/
+
+# Cursor
+.cursor/
+
+# ---- Secrets and credentials ----
+!.env.example
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.truststore
+credentials.json
+service-account*.json
+**/secrets/
+.secret
+.secrets
+.htpasswd
+
+# IaC and cloud credentials
+terraform.tfstate
+terraform.tfstate.backup
+.terraform/
+# .terraform.lock.hcl — commit this (reproducible provider versions)
+.aws/credentials
+.kube/config
+.netrc
+vault-token
+
+# ---- Logs ----
+*.log.*
+logs/
+
+# ---- Archives and binaries ----
+*.tgz
+*.rar
+*.7z
+*.gz
+!*.gz.md
+*.bz2
+*.xz
+*.iso
+*.dmg
+
+# ---- Temporary files ----
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
+*.rej
+*.pid
+*.seed
+
+# ---- Docker runtime ----
+
+# ---- Monitoring data (runtime, not config) ----
+
+# ---- Test artifacts ----
+test-results/
+test-reports/
+
+# ---- cognitive-core runtime (machine-local) ----
+.claude/cognitive-core/security.log
+
+# ---- python (cognitive-core) ----
+# ---- Python ----
+sdist/
+wheels/
+*.whl
+
+# Virtual environments
+ENV/
+.python-version
+
+# Type checkers / linters
+.pytype/
+.pyre/
+
+# Testing
+.tox/
+.nox/
+.coverage
+.coverage.*
+nosetests.xml
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Package managers (PDM, uv)
+__pypackages__/
+.pdm.toml
+.pdm-python
+.uv/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Scrapy
+.scrapy
+
+# Sphinx
+docs/_build/
+
+# Environments
+*.sage.py
