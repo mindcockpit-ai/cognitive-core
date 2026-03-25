@@ -29,12 +29,13 @@ env:
   STATUS_FIELD_ID: "PVTSSF_lADODLDmb84BPbGRzg91hL4"
   PROJECT_NUMBER: "9"
   PROJECT_OWNER: "mindcockpit-ai"
-  ROADMAP_ID: "e1a1534e"
-  BACKLOG_ID: "ab8ad40f"
-  TODO_ID: "5c51fa54"
-  IN_PROGRESS_ID: "7bbdf914"
-  IN_REVIEW_ID: "37acd237"
-  DONE_ID: "6d73efd3"
+  ROADMAP_ID: "bc4a7c19"
+  BACKLOG_ID: "0624174c"
+  TODO_ID: "711ddfb9"
+  IN_PROGRESS_ID: "e6a30b30"
+  TESTING_ID: "f8614c05"
+  DONE_ID: "28f9eecd"
+  CANCELED_ID: "95eda9a6"
 
 jobs:
   # ── PR opened → linked issues move to In Progress ──
@@ -65,7 +66,10 @@ jobs:
             exit 0
           fi
 
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500)
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1) || {
+            echo "::warning::Cannot access project board (ensure PROJECT_PAT has repo, project, and read:org scopes)"
+            exit 0
+          }
 
           for ISSUE_NUM in $ISSUES; do
             ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
@@ -119,7 +123,10 @@ jobs:
             exit 0
           fi
 
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500)
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1) || {
+            echo "::warning::Cannot access project board (ensure PROJECT_PAT has repo, project, and read:org scopes)"
+            exit 0
+          }
 
           for ISSUE_NUM in $ISSUES; do
             ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
@@ -154,7 +161,10 @@ jobs:
         run: |
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
           ISSUE_NUM=${{ github.event.issue.number }}
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500)
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1) || {
+            echo "::warning::Cannot access project board (ensure PROJECT_PAT has repo, project, and read:org scopes)"
+            exit 0
+          }
 
           ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
             '.items[] | select(.content.number == $n) | .id')
@@ -230,7 +240,10 @@ jobs:
         run: |
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
           ISSUE_NUM=${{ github.event.issue.number }}
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500)
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1) || {
+            echo "::warning::Cannot access project board (ensure PROJECT_PAT has repo, project, and read:org scopes)"
+            exit 0
+          }
 
           ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
             '.items[] | select(.content.number == $n) | .id')
@@ -303,7 +316,10 @@ jobs:
           fi
 
           # --- Move to Done on board ---
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500)
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1) || {
+            echo "::warning::Cannot access project board (ensure PROJECT_PAT has repo, project, and read:org scopes)"
+            exit 0
+          }
 
           ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
             '.items[] | select(.content.number == $n) | .id')
