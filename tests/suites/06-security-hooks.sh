@@ -155,6 +155,10 @@ fi
 VALIDATE_READ="${HOOKS_DIR}/validate-read.sh"
 
 if [ -f "$VALIDATE_READ" ]; then
+    # Isolate from repo config: CC_SKILLS may contain ctf-pentesting which
+    # triggers the CTF exception and bypasses all deny checks
+    export CLAUDE_PROJECT_DIR=/tmp
+
     assert_hook_denies \
         "read: /etc/shadow → deny" \
         "$VALIDATE_READ" \
@@ -179,6 +183,8 @@ if [ -f "$VALIDATE_READ" ]; then
         "read: ~/.gnupg/private → deny" \
         "$VALIDATE_READ" \
         "$(mock_read_json "${HOME}/.gnupg/private-keys-v1.d")"
+
+    unset CLAUDE_PROJECT_DIR
 
     # Safe read should pass
     assert_hook_allows \
@@ -252,6 +258,81 @@ if [ -f "$VALIDATE_FETCH" ]; then
     else
         _fail "fetch: minimal mode should allow all domains"
     fi
+
+    # ===== Session cache tests (#119) =====
+
+    # Session cache miss: unknown domain without cache should ask
+    _test_session_key="test-session-$$-$(date +%s)"
+    _test_cache_file="${TMPDIR:-/tmp}/cc-session-allowed-domains-${_test_session_key}"
+    rm -f "$_test_cache_file"
+
+    output=$(echo "$(mock_fetch_json "https://cached-test.example.org/page")" | \
+        CLAUDE_PROJECT_DIR=/tmp CLAUDE_SESSION_KEY="$_test_session_key" \
+        bash "$VALIDATE_FETCH" 2>/dev/null) || true
+    if echo "$output" | grep -q '"ask"'; then
+        _pass "fetch: session cache miss → ask"
+    else
+        _fail "fetch: session cache miss should ask" "$output"
+    fi
+
+    # Session cache hit: pre-populate cache, should allow silently
+    echo "cached-test.example.org" > "$_test_cache_file"
+
+    output=$(echo "$(mock_fetch_json "https://cached-test.example.org/page")" | \
+        CLAUDE_PROJECT_DIR=/tmp CLAUDE_SESSION_KEY="$_test_session_key" \
+        bash "$VALIDATE_FETCH" 2>/dev/null) || true
+    if [ -z "$output" ] || ! echo "$output" | grep -q '"ask"\|"deny"'; then
+        _pass "fetch: session cache hit → allow"
+    else
+        _fail "fetch: session cache hit should allow silently" "$output"
+    fi
+
+    # Session cache scoping: different session key should NOT see the cache
+    _other_session_key="other-session-$$-$(date +%s)"
+    output=$(echo "$(mock_fetch_json "https://cached-test.example.org/page")" | \
+        CLAUDE_PROJECT_DIR=/tmp CLAUDE_SESSION_KEY="$_other_session_key" \
+        bash "$VALIDATE_FETCH" 2>/dev/null) || true
+    if echo "$output" | grep -q '"ask"'; then
+        _pass "fetch: session cache scoped — other session still asks"
+    else
+        _fail "fetch: different session should not see cached domain" "$output"
+    fi
+
+    # Session cache does not affect strict mode
+    output=$(echo "$(mock_fetch_json "https://cached-test.example.org/page")" | \
+        CLAUDE_PROJECT_DIR=/tmp CLAUDE_SESSION_KEY="$_test_session_key" \
+        CC_SECURITY_LEVEL=strict CC_ALLOWED_DOMAINS="github.com" \
+        bash "$VALIDATE_FETCH" 2>/dev/null) || true
+    if echo "$output" | grep -q '"deny"'; then
+        _pass "fetch: session cache ignored in strict mode"
+    else
+        _fail "fetch: strict mode should deny even if domain is session-cached" "$output"
+    fi
+
+    # Post-fetch cache hook writes domain to session cache
+    POST_FETCH="${HOOKS_DIR}/post-fetch-cache.sh"
+    if [ -f "$POST_FETCH" ]; then
+        _pf_session_key="postfetch-test-$$-$(date +%s)"
+        _pf_cache_file="${TMPDIR:-/tmp}/cc-session-allowed-domains-${_pf_session_key}"
+        rm -f "$_pf_cache_file"
+
+        echo "$(mock_fetch_json "https://newdomain.example.com/data")" | \
+            CLAUDE_PROJECT_DIR=/tmp CLAUDE_SESSION_KEY="$_pf_session_key" \
+            bash "$POST_FETCH" 2>/dev/null
+
+        if [ -f "$_pf_cache_file" ] && grep -qxF "newdomain.example.com" "$_pf_cache_file"; then
+            _pass "post-fetch: caches domain to session file"
+        else
+            _fail "post-fetch: should write domain to session cache"
+        fi
+        rm -f "$_pf_cache_file"
+    else
+        _skip "post-fetch-cache.sh not found"
+    fi
+
+    # Cleanup session cache test files
+    rm -f "$_test_cache_file"
+    rm -f "${TMPDIR:-/tmp}/cc-session-allowed-domains-${_other_session_key}"
 else
     _skip "validate-fetch.sh not found"
 fi

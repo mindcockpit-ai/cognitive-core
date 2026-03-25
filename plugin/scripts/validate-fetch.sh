@@ -59,8 +59,13 @@ if [ "$_SECURITY_LEVEL" = "strict" ] && [ -n "${CC_ALLOWED_DOMAINS:-}" ]; then
 fi
 
 # Standard mode: escalate unknown domains to human (ask)
+# Session cache: domains allowed earlier in this session skip the prompt
 if [ "$_SECURITY_LEVEL" = "standard" ]; then
     if ! is_known_safe "$DOMAIN"; then
+        if _cc_session_cache_has "allowed-domains" "$DOMAIN"; then
+            _cc_security_log "INFO" "fetch-session-cached" "domain=${DOMAIN} url=${URL}"
+            exit 0
+        fi
         _cc_security_log "ASK" "fetch-unknown-domain" "domain=${DOMAIN} url=${URL}"
         _cc_json_pretool_ask "WebFetch to unknown domain '${DOMAIN}'. Allow this request?"
         exit 0
