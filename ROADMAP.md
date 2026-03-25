@@ -80,9 +80,28 @@ A portable, vendor-agnostic AI-augmented development framework that governs the 
 | [#84](https://github.com/mindcockpit-ai/cognitive-core/issues/84) | Windsurf adapter (Cascade + workflows) | P3-low | M | Feasibility complete |
 | [#85](https://github.com/mindcockpit-ai/cognitive-core/issues/85) | Neovim adapter (codecompanion + avante) | P3-low | L | Feasibility complete |
 | [#93](https://github.com/mindcockpit-ai/cognitive-core/issues/93) | Integration test suite — end-to-end verification | P1-high | XL | Planned |
-| [#95](https://github.com/mindcockpit-ai/cognitive-core/issues/95) | EU AI Act compliance research | P1-high | M | Research |
+| [#120](https://github.com/mindcockpit-ai/cognitive-core/issues/120) | **EU AI Act compliance — 13-issue epic** (Art. 50 + voluntary Art. 9-15) | P0-critical | XL | Epic planned |
 | [#100](https://github.com/mindcockpit-ai/cognitive-core/issues/100) | Step-by-step tutorials | P1-high | L | Planned |
 | [#97](https://github.com/mindcockpit-ai/cognitive-core/issues/97) | Introduction video + video course | P2-medium | L | Planned |
+
+### EU AI Act Compliance Epic ([#120](https://github.com/mindcockpit-ai/cognitive-core/issues/120))
+
+No AI coding framework — commercial or open source — addresses EU AI Act compliance. cognitive-core is building it.
+
+| # | Feature | Pillar | Status |
+|---|---------|--------|--------|
+| [#121](https://github.com/mindcockpit-ai/cognitive-core/issues/121) | AI interaction disclosure in session startup | Art. 50 Transparency | Planned |
+| [#122](https://github.com/mindcockpit-ai/cognitive-core/issues/122) | AI identity markers in agent YAML frontmatter | Art. 50 Transparency | Planned |
+| [#123](https://github.com/mindcockpit-ai/cognitive-core/issues/123) | Git trailers for AI provenance | Art. 50 Transparency | Planned |
+| [#124](https://github.com/mindcockpit-ai/cognitive-core/issues/124) | System card — capabilities, limitations, failure modes | Art. 9-15 Risk Mgmt | Planned |
+| [#125](https://github.com/mindcockpit-ai/cognitive-core/issues/125) | Structured JSON Lines audit log format | Art. 9-15 Risk Mgmt | Planned |
+| [#126](https://github.com/mindcockpit-ai/cognitive-core/issues/126) | Date-based non-destructive log rotation | Art. 9-15 Risk Mgmt | Planned |
+| [#127](https://github.com/mindcockpit-ai/cognitive-core/issues/127) | Per-file SHA-256 integrity checksums for audit logs | Art. 9-15 Risk Mgmt | Planned |
+| [#128](https://github.com/mindcockpit-ai/cognitive-core/issues/128) | Emergency stop mechanism via marker file | Art. 9-15 Risk Mgmt | Planned |
+| [#129](https://github.com/mindcockpit-ai/cognitive-core/issues/129) | Minimum security level enforcement | Art. 9-15 Risk Mgmt | Planned |
+| [#130](https://github.com/mindcockpit-ai/cognitive-core/issues/130) | Adversarial hook bypass testing suite | Art. 9-15 Risk Mgmt | Planned |
+| [#131](https://github.com/mindcockpit-ai/cognitive-core/issues/131) | Art. 95 Code of Conduct for voluntary adoption | Art. 95 Governance | Planned |
+| [#132](https://github.com/mindcockpit-ai/cognitive-core/issues/132) | Audit log schema + SIEM integration guide | Art. 95 Governance | Planned |
 
 ---
 
@@ -117,7 +136,7 @@ Your stack. Your rules. Your workflow. [Research paper](docs/research/enterprise
 | Compliance dashboards | Audit artifacts for SOX, ISO 27001, ITIL |
 | Custom adapters | VS Code, Eclipse, or any IDE your team uses |
 | On-premises deployment | Full data sovereignty |
-| EU AI Act alignment | Certification preparation for AI-augmented development |
+| EU AI Act alignment | 13-issue compliance epic in pipeline — see [#120](https://github.com/mindcockpit-ai/cognitive-core/issues/120) |
 | Audit log export | Security events to external SIEM (Splunk, ELK) |
 
 ---
@@ -135,7 +154,7 @@ Your stack. Your rules. Your workflow. [Research paper](docs/research/enterprise
 | DNA-Inspired Skill Storage | [docs/research/dna-inspired-storage.md](docs/research/dna-inspired-storage.md) | Theoretical |
 | IP Protection Strategy | [#98](https://github.com/mindcockpit-ai/cognitive-core/issues/98) | Planned |
 | Consultant Model Feasibility | [#96](https://github.com/mindcockpit-ai/cognitive-core/issues/96) | Planned |
-| EU AI Act Compliance | [#95](https://github.com/mindcockpit-ai/cognitive-core/issues/95) | Planned |
+| EU AI Act Compliance | [Epic #120](https://github.com/mindcockpit-ai/cognitive-core/issues/120) — 13 issues, 3 pillars | In Pipeline |
 
 ---
 
@@ -149,4 +168,4 @@ Your stack. Your rules. Your workflow. [Research paper](docs/research/enterprise
 
 ---
 
-*Last updated: 2026-03-19*
+*Last updated: 2026-03-25*

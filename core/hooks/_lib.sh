@@ -255,6 +255,35 @@ _cc_guard_run() {
     rm -f "$err_file"
 }
 
+# Session-scoped domain cache for hooks (e.g., validate-fetch "don't ask again")
+# Cache file is scoped to the Claude session to prevent cross-session leakage.
+# Uses CLAUDE_SESSION_KEY (set by Claude Code) or falls back to parent PID.
+_cc_session_cache_file() {
+    local namespace="${1:-domains}"
+    local session_key="${CLAUDE_SESSION_KEY:-ppid_$$}"
+    local cache_dir="${TMPDIR:-/tmp}"
+    echo "${cache_dir}/cc-session-${namespace}-${session_key}"
+}
+
+# Add a value to the session cache (one entry per line, deduped)
+_cc_session_cache_add() {
+    local namespace="$1" value="$2"
+    local cache_file
+    cache_file=$(_cc_session_cache_file "$namespace")
+    # Append only if not already present
+    if [ ! -f "$cache_file" ] || ! grep -qxF "$value" "$cache_file" 2>/dev/null; then
+        echo "$value" >> "$cache_file"
+    fi
+}
+
+# Check if a value exists in the session cache
+_cc_session_cache_has() {
+    local namespace="$1" value="$2"
+    local cache_file
+    cache_file=$(_cc_session_cache_file "$namespace")
+    [ -f "$cache_file" ] && grep -qxF "$value" "$cache_file" 2>/dev/null
+}
+
 # Extract field from stdin JSON
 # Usage: echo "$JSON" | _cc_json_get ".tool_input.command"
 _cc_json_get() {

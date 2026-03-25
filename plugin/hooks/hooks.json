@@ -75,6 +75,15 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/scripts/validate-write.sh"
           }
         ]
+      },
+      {
+        "matcher": "WebFetch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/post-fetch-cache.sh"
+          }
+        ]
       }
     ]
   }

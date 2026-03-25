@@ -110,53 +110,6 @@ security-analyst finds systemic vulnerability     → project-coordinator
 Any agent blocked or needs cross-cutting work     → project-coordinator
 ```
 
-## Timeout & Health Monitoring
-
-Background agents can get stuck on unreachable endpoints or infinite loops.
-The session hygiene system detects and warns about stuck agents at session start.
-
-### Recommended Timeouts by Agent Type
-
-| Agent Type | Default Timeout | Config Variable |
-|-----------|----------------|-----------------|
-| Explore | 5 min | `CC_AGENT_TIMEOUT_EXPLORE` |
-| Plan | 10 min | `CC_AGENT_TIMEOUT_PLAN` |
-| Research (web) | 15 min | `CC_AGENT_TIMEOUT_RESEARCH` |
-| Implementation | 30 min | `CC_AGENT_TIMEOUT_IMPLEMENT` |
-| General (fallback) | 30 min | `CC_AGENT_TIMEOUT_MINUTES` |
-
-### Configuration
-
-```bash
-# cognitive-core.conf
-CC_AGENT_TIMEOUT_MINUTES="30"    # Default timeout for all agents
-CC_AGENT_AUTO_KILL="false"       # When true, recommends TaskStop for stuck agents
-CC_AGENT_TIMEOUT_EXPLORE="5"     # Override per agent type
-CC_AGENT_TIMEOUT_RESEARCH="15"
-CC_AGENT_TIMEOUT_PLAN="10"
-CC_AGENT_TIMEOUT_IMPLEMENT="30"
-```
-
-### Killing Stuck Background Agents
-
-When a background agent is stuck:
-
-1. **Check status**: Look for the agent in Claude Code status bar or use `TaskList`
-2. **Stop the agent**: Use `TaskStop` with the agent's task ID
-3. **Retry**: Re-launch the agent with a narrower scope or different approach
-
-The session hygiene system (`_session-hygiene.sh`) automatically detects agents
-exceeding their timeout at every session start and logs warnings to
-`.claude/cognitive-core/agent-health.log`.
-
-### Known Stuck Patterns
-
-| Pattern | Cause | Fix |
-|---------|-------|-----|
-| Web fetch to institutional sites | Slow/blocked responses | Use specific URLs, avoid broad crawling |
-| Recursive research loops | Agent retries same query | Set narrower scope, limit tool calls |
-| Large codebase exploration | Too many files to scan | Use targeted glob/grep patterns |
-
 ## Mandatory Quality Gate
 
 Every code change MUST include a code-standards-reviewer pass before completion:
