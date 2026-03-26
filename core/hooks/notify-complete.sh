@@ -12,8 +12,15 @@ _cc_load_config
 INPUT=$(cat)
 EVENT=$(echo "$INPUT" | _cc_json_get ".hook_event_name")
 
+# [E4] Guard: empty or missing event name — exit silently
+if [ -z "$EVENT" ]; then
+    exit 0
+fi
+
 # ---- Master switch ----
-if [ "${CC_NOTIFY_ENABLED:-false}" != "true" ]; then
+# [C1] Normalise to lowercase for case-insensitive comparison
+_NOTIFY_ENABLED=$(echo "${CC_NOTIFY_ENABLED:-false}" | tr '[:upper:]' '[:lower:]')
+if [ "$_NOTIFY_ENABLED" != "true" ]; then
     exit 0
 fi
 
@@ -25,14 +32,25 @@ fi
 
 # ---- Min-duration gate ----
 MIN_DURATION="${CC_NOTIFY_MIN_DURATION:-30}"
-SESSION_MARKER="${CC_PROJECT_DIR}/.claude/cognitive-core/.session-started"
-if [ -f "$SESSION_MARKER" ]; then
-    SESSION_START=$(cat "$SESSION_MARKER" 2>/dev/null || echo "0")
-    NOW=$(date +%s)
-    ELAPSED=$((NOW - SESSION_START))
-    if [ "$ELAPSED" -lt "$MIN_DURATION" ]; then
-        _cc_security_log "INFO" "notify-skipped" "${EVENT}: session too short (${ELAPSED}s < ${MIN_DURATION}s)"
-        exit 0
+# [C2] Validate MIN_DURATION is an integer
+if ! [[ "$MIN_DURATION" =~ ^[0-9]+$ ]]; then
+    MIN_DURATION=30
+fi
+# [E1] Guard: CC_PROJECT_DIR must be set
+if [ -n "${CC_PROJECT_DIR:-}" ]; then
+    SESSION_MARKER="${CC_PROJECT_DIR}/.claude/cognitive-core/.session-started"
+    if [ -f "$SESSION_MARKER" ]; then
+        # [S4] Validate session marker content is an integer
+        SESSION_START=$(cat "$SESSION_MARKER" 2>/dev/null || echo "0")
+        if [[ "$SESSION_START" =~ ^[0-9]+$ ]]; then
+            NOW=$(date +%s)
+            ELAPSED=$((NOW - SESSION_START))
+            # [C4] Negative elapsed (clock skew) — treat as valid session
+            if [ "$ELAPSED" -ge 0 ] && [ "$ELAPSED" -lt "$MIN_DURATION" ]; then
+                _cc_security_log "INFO" "notify-skipped" "${EVENT}: session too short (${ELAPSED}s < ${MIN_DURATION}s)"
+                exit 0
+            fi
+        fi
     fi
 fi
 
@@ -54,8 +72,17 @@ case "$EVENT" in
         ;;
 esac
 
+# [S1] Sanitise message: strip characters that could inject into osascript or shell
+# shellcheck disable=SC1003
+MSG=$(echo "$MSG" | tr -d '"`$\\' | cut -c1-200)
+
 # ---- Dispatch to enabled channels ----
 CHANNELS="${CC_NOTIFY_CHANNELS:-bell desktop ntfy}"
+
+# [E5] Skip dispatch and logging if no channels configured
+if [ -z "$CHANNELS" ]; then
+    exit 0
+fi
 
 for channel in $CHANNELS; do
     case "$channel" in
@@ -64,21 +91,38 @@ for channel in $CHANNELS; do
             ;;
         desktop)
             if [[ "$OSTYPE" == darwin* ]]; then
+                # [S1] Use osascript with sanitised MSG (dangerous chars already stripped)
                 osascript -e "display notification \"${MSG}\" with title \"Claude Code\"" 2>/dev/null &
             elif command -v notify-send &>/dev/null; then
-                notify-send "Claude Code" "$MSG" 2>/dev/null &
+                # [P2] Use timeout to prevent D-Bus stalls on headless Linux
+                timeout 3 notify-send "Claude Code" "$MSG" 2>/dev/null &
             fi
             ;;
         ntfy)
             TOPIC="${CC_NOTIFY_NTFY_TOPIC:-}"
-            if [ -n "$TOPIC" ] && command -v curl &>/dev/null; then
-                curl -s -d "$MSG" "https://ntfy.sh/${TOPIC}" 2>/dev/null &
+            # [S2] Validate topic: alphanumeric, hyphens, underscores only
+            if [[ "$TOPIC" =~ ^[a-zA-Z0-9_-]+$ ]] && command -v curl &>/dev/null; then
+                # [E2] Bounded timeout: 5s connect, 10s total
+                # [S3] Send truncated message (first 200 chars, already enforced above)
+                curl -s -m 10 --connect-timeout 5 -d "$MSG" "https://ntfy.sh/${TOPIC}" 2>/dev/null &
             fi
             ;;
     esac
 done
 
-# Wait for backgrounded dispatches (max 5s)
+# [E2] Wait with bounded timeout — kill any stalled dispatches after 5s
+_wait_start=$(date +%s)
+while jobs -p 2>/dev/null | grep -q .; do
+    _wait_now=$(date +%s)
+    if [ $((_wait_now - _wait_start)) -ge 5 ]; then
+        # Kill any remaining background jobs
+        jobs -p 2>/dev/null | xargs kill 2>/dev/null || true
+        break
+    fi
+    sleep 0.2 2>/dev/null || sleep 1
+done
 wait 2>/dev/null || true
 
-_cc_security_log "INFO" "notify-sent" "${EVENT}: channels=[${CHANNELS}] msg=[${MSG}]"
+# [S3] Log truncated message (max 100 chars) to prevent secret leakage
+LOG_MSG=$(echo "$MSG" | cut -c1-100)
+_cc_security_log "INFO" "notify-sent" "${EVENT}: channels=[${CHANNELS}] msg=[${LOG_MSG}]"
