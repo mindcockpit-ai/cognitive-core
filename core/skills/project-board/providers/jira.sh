@@ -297,7 +297,7 @@ pb_issue_list() {
     fi
     jql+=" ORDER BY priority ASC, created DESC"
 
-    _jira_api GET "/search?jql=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$jql'))")&fields=summary,status,priority,assignee,labels&maxResults=50"
+    _jira_api GET "/search/jql?jql=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$jql'))")&fields=summary,status,priority,assignee,labels&maxResults=50"
 }
 
 pb_issue_create() {
@@ -440,7 +440,7 @@ pb_issue_assign() {
 pb_board_summary() {
     local jql="project = ${CC_JIRA_PROJECT} AND statusCategory != Done"
     local result
-    result=$(_jira_api GET "/search?jql=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$jql'))")&fields=status&maxResults=200")
+    result=$(_jira_api GET "/search/jql?jql=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$jql'))")&fields=status&maxResults=200")
 
     echo "$result" | python3 -c "
 import json, sys
