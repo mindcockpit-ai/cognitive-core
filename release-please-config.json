@@ -5,6 +5,11 @@
       "release-type": "simple",
       "bump-minor-pre-major": true,
       "include-v-in-tag": true,
+      "exclude-commits-from-changelog": [
+        "merge conflict",
+        "Merge pull request",
+        "Merge branch"
+      ],
       "changelog-sections": [
         { "type": "feat", "section": "Features", "hidden": false },
         { "type": "fix", "section": "Bug Fixes", "hidden": false },
