@@ -334,6 +334,28 @@ info "Updated version manifest."
 # ---- Make scripts executable ----
 find "${CLAUDE_DIR}/hooks" -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
 
+# ---- Adapter-specific cleanup ----
+# Remove orphaned .claude/commands/ stubs that cause duplicate skill entries (#147).
+# Claude Code auto-discovers skills from SKILL.md frontmatter; command stubs are redundant.
+if [ -d "${CLAUDE_DIR}/commands" ]; then
+    ORPHANS_REMOVED=0
+    for stub in "${CLAUDE_DIR}/commands/"*.md; do
+        [ -f "$stub" ] || continue
+        stub_name="$(basename "$stub" .md)"
+        # Only remove if a matching skill exists (avoid removing user-created commands)
+        if [ -d "${CLAUDE_DIR}/skills/${stub_name}" ]; then
+            rm -f "$stub"
+            info "  CLEANUP: removed orphaned command stub ${stub_name}.md (#147)"
+            ORPHANS_REMOVED=$((ORPHANS_REMOVED + 1))
+        fi
+    done
+    # Remove commands/ dir if empty
+    rmdir "${CLAUDE_DIR}/commands" 2>/dev/null || true
+    if [ "$ORPHANS_REMOVED" -gt 0 ]; then
+        info "Removed ${ORPHANS_REMOVED} orphaned command stub(s). Restart session to take effect."
+    fi
+fi
+
 # ---- Ensure .gitignore policy (base + language pack) ----
 GITIGNORE="${PROJECT_DIR}/.gitignore"
 GITIGNORE_BASE="${FRAMEWORK_DIR}/core/templates/gitignore-base"
