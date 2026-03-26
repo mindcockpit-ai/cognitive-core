@@ -232,6 +232,15 @@ _jira_priority_name() {
     esac
 }
 
+# ---- Input validation ----
+
+_jira_validate_key() {
+    local key="$1"
+    if [[ ! "$key" =~ ^[A-Za-z][A-Za-z0-9_]+-[0-9]+$ ]]; then
+        _pb_die "Invalid Jira issue key format: $key (expected PROJECT-123)"
+    fi
+}
+
 # ---- URL helpers ----
 
 _jira_issue_url() { echo "${CC_JIRA_URL}/browse/$1"; }
@@ -250,10 +259,10 @@ _jira_do_transition() {
     transitions=$(_jira_get_transitions "$issue_key") || return 1
 
     local transition_id
-    transition_id=$(echo "$transitions" | python3 -c "
-import json, sys
+    transition_id=$(echo "$transitions" | _CC_TARGET="$target_status" python3 -c "
+import json, sys, os
 data = json.load(sys.stdin)
-target = '$target_status'
+target = os.environ['_CC_TARGET']
 for t in data.get('transitions', []):
     if t['to']['name'].lower() == target.lower():
         print(t['id'])
@@ -301,7 +310,7 @@ pb_issue_list() {
     fi
     jql+=" ORDER BY priority ASC, created DESC"
 
-    _jira_api GET "/search?jql=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$jql'))")&fields=summary,status,priority,assignee,labels&maxResults=50"
+    _jira_api GET "/search?jql=$(_CC_JQL="$jql" python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ['_CC_JQL']))")&fields=summary,status,priority,assignee,labels&maxResults=50"
 }
 
 pb_issue_create() {
@@ -336,20 +345,20 @@ print(json.dumps(labels))
     fi
 
     local payload
-    payload=$(python3 -c "
-import json
+    payload=$(_CC_PROJECT="$CC_JIRA_PROJECT" _CC_TITLE="$title" _CC_ASSIGNEE="$assignee" _CC_LABELS="$labels_json" _CC_DESC="$description_json" python3 -c "
+import json, os
 data = {
     'fields': {
-        'project': {'key': '${CC_JIRA_PROJECT}'},
-        'summary': '''$title''',
+        'project': {'key': os.environ['_CC_PROJECT']},
+        'summary': os.environ['_CC_TITLE'],
         'issuetype': {'name': 'Task'},
-        'labels': $labels_json
+        'labels': json.loads(os.environ['_CC_LABELS'])
     }
 }
-desc = $description_json
-if desc:
-    data['fields']['description'] = desc
-assignee = '''${assignee}'''
+desc_raw = os.environ['_CC_DESC']
+if desc_raw != 'null':
+    data['fields']['description'] = json.loads(desc_raw)
+assignee = os.environ['_CC_ASSIGNEE']
 if assignee:
     data['fields']['assignee'] = {'accountId': assignee}
 print(json.dumps(data))
@@ -404,10 +413,10 @@ pb_issue_view() {
 
     local url
     url=$(_jira_issue_url "$issue_key")
-    _jira_api GET "/issue/${issue_key}?fields=${fields}" | python3 -c "
-import json, sys
+    _jira_api GET "/issue/${issue_key}?fields=${fields}" | _CC_URL="$url" python3 -c "
+import json, sys, os
 data = json.load(sys.stdin)
-data['url'] = '$url'
+data['url'] = os.environ['_CC_URL']
 json.dump(data, sys.stdout, indent=2)
 "
 }
@@ -475,11 +484,10 @@ pb_board_status() {
     local result
     result=$(_jira_api GET "/issue/${issue_key}?fields=status,assignee")
 
-    local base_url="${CC_JIRA_URL}"
-    echo "$result" | python3 -c "
-import json, sys
+    echo "$result" | _CC_BASE_URL="${CC_JIRA_URL}" python3 -c "
+import json, sys, os
 data = json.load(sys.stdin)
-base_url = '${base_url}'
+base_url = os.environ['_CC_BASE_URL']
 key = data['key']
 json.dump({
     'key': key,
@@ -589,11 +597,12 @@ pb_sprint_assign() {
     local sprints
     sprints=$(pb_sprint_list --all)
     local sprint_id
-    sprint_id=$(echo "$sprints" | python3 -c "
-import json, sys
+    sprint_id=$(echo "$sprints" | _CC_SPRINT="$sprint_name" python3 -c "
+import json, sys, os
 data = json.load(sys.stdin)
+target = os.environ['_CC_SPRINT']
 for s in data.get('values', []):
-    if s['name'] == '$sprint_name':
+    if s['name'] == target:
         print(s['id'])
         sys.exit(0)
 sys.exit(1)

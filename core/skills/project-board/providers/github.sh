@@ -83,6 +83,15 @@ _gh_set_field() {
         }" --jq '.data.updateProjectV2ItemFieldValue.projectV2Item.id'
 }
 
+# ---- Input validation ----
+
+_gh_validate_number() {
+    local num="$1"
+    if [[ ! "$num" =~ ^[0-9]+$ ]]; then
+        _pb_die "Invalid issue number: $num (must be numeric)"
+    fi
+}
+
 # ---- Helper: Set iteration field value ----
 
 _gh_set_iteration() {
@@ -239,13 +248,15 @@ pb_issue_assign() {
 pb_board_summary() {
     local items
     items=$(_gh_get_items)
-    echo "$items" | python3 -c "
-import json, sys
+    echo "$items" | _CC_OWNER="$CC_GITHUB_OWNER" _CC_PROJ_NUM="$CC_PROJECT_NUMBER" python3 -c "
+import json, sys, os
 from collections import Counter
 items = json.load(sys.stdin)
 counts = Counter(item.get('status', 'Unknown') for item in items.get('items', []))
+owner = os.environ['_CC_OWNER']
+proj_num = os.environ['_CC_PROJ_NUM']
 result = {
-    'url': 'https://github.com/users/$CC_GITHUB_OWNER/projects/$CC_PROJECT_NUMBER',
+    'url': f'https://github.com/users/{owner}/projects/{proj_num}',
     'columns': {status: count for status, count in sorted(counts.items())},
     'total': sum(counts.values())
 }
@@ -257,23 +268,23 @@ pb_board_status() {
     local number="${1:?Issue number required}"
     local items
     items=$(_gh_get_items)
-    local repo="${CC_GITHUB_REPO}"
-    echo "$items" | python3 -c "
-import json, sys
+    echo "$items" | _CC_REPO="$CC_GITHUB_REPO" _CC_NUM="$number" python3 -c "
+import json, sys, os
 items = json.load(sys.stdin)
-repo = '${repo}'
+repo = os.environ['_CC_REPO']
+number = int(os.environ['_CC_NUM'])
 for item in items.get('items', []):
-    if item.get('content', {}).get('number') == $number:
+    if item.get('content', {}).get('number') == number:
         json.dump({
-            'number': $number,
+            'number': number,
             'status': item.get('status', 'Unknown'),
             'item_id': item.get('id', ''),
             'sprint': item.get('sprint', ''),
             'assignees': item.get('content', {}).get('assignees', []),
-            'url': f'https://github.com/{repo}/issues/{$number}'
+            'url': f'https://github.com/{repo}/issues/{number}'
         }, sys.stdout, indent=2)
         sys.exit(0)
-print(json.dumps({'error': 'Issue #$number not found on board'}))
+print(json.dumps({'error': f'Issue #{number} not found on board'}))
 sys.exit(1)
 "
 }
@@ -427,10 +438,11 @@ pb_sprint_assign() {
     local iterations
     iterations=$(pb_sprint_list)
     local iteration_id
-    iteration_id=$(echo "$iterations" | python3 -c "
-import json, sys
+    iteration_id=$(echo "$iterations" | _CC_SPRINT="$sprint_title" python3 -c "
+import json, sys, os
+target = os.environ['_CC_SPRINT']
 for it in json.load(sys.stdin):
-    if it['title'] == '$sprint_title':
+    if it['title'] == target:
         print(it['id'])
         sys.exit(0)
 sys.exit(1)

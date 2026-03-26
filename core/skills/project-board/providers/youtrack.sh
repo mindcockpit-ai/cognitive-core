@@ -77,6 +77,15 @@ _yt_status_name() {
     echo "$key"
 }
 
+# ---- Input validation ----
+
+_yt_validate_id() {
+    local id="$1"
+    if [[ ! "$id" =~ ^[A-Za-z][A-Za-z0-9_]+-[0-9]+$ ]]; then
+        _pb_die "Invalid YouTrack issue ID format: $id (expected PROJECT-123)"
+    fi
+}
+
 # ---- URL helpers ----
 
 _yt_issue_url() { echo "${CC_YOUTRACK_URL}/issue/$1"; }
@@ -128,12 +137,12 @@ pb_issue_create() {
     [[ -z "$title" ]] && _pb_die "Title required"
 
     local payload
-    payload=$(python3 -c "
-import json
+    payload=$(_CC_PROJECT="$CC_YOUTRACK_PROJECT" _CC_TITLE="$title" _CC_BODY="${body:-}" python3 -c "
+import json, os
 data = {
-    'project': {'id': '${CC_YOUTRACK_PROJECT}'},
-    'summary': '''$title''',
-    'description': '''${body:-}'''
+    'project': {'id': os.environ['_CC_PROJECT']},
+    'summary': os.environ['_CC_TITLE'],
+    'description': os.environ['_CC_BODY']
 }
 print(json.dumps(data))
 ")
@@ -198,10 +207,10 @@ pb_issue_view() {
     local issue_id="${1:?Issue ID required}"
     local url
     url=$(_yt_issue_url "$issue_id")
-    _yt_api GET "/issues/${issue_id}?fields=idReadable,summary,description,customFields(name,value(name)),reporter(login),tags(name)" | python3 -c "
-import json, sys
+    _yt_api GET "/issues/${issue_id}?fields=idReadable,summary,description,customFields(name,value(name)),reporter(login),tags(name)" | _CC_URL="$url" python3 -c "
+import json, sys, os
 data = json.load(sys.stdin)
-data['url'] = '$url'
+data['url'] = os.environ['_CC_URL']
 json.dump(data, sys.stdout, indent=2)
 "
 }
@@ -234,8 +243,8 @@ pb_board_summary() {
     local result
     result=$(pb_issue_list --state open)
 
-    echo "$result" | python3 -c "
-import json, sys
+    echo "$result" | _CC_BASE_URL="${CC_YOUTRACK_URL}" _CC_PROJECT="${CC_YOUTRACK_PROJECT}" python3 -c "
+import json, sys, os
 from collections import Counter
 data = json.load(sys.stdin)
 counts = Counter()
@@ -245,8 +254,10 @@ for issue in data:
         if cf.get('name') == 'State' and cf.get('value'):
             state = cf['value'].get('name', 'Unknown')
     counts[state] += 1
+base_url = os.environ['_CC_BASE_URL']
+project = os.environ['_CC_PROJECT']
 result = {
-    'url': '${CC_YOUTRACK_URL}/issues/${CC_YOUTRACK_PROJECT}',
+    'url': f'{base_url}/issues/{project}',
     'columns': dict(sorted(counts.items())),
     'total': sum(counts.values())
 }
@@ -259,11 +270,10 @@ pb_board_status() {
     local result
     result=$(pb_issue_view "$issue_id")
 
-    local base_url="${CC_YOUTRACK_URL}"
-    echo "$result" | python3 -c "
-import json, sys
+    echo "$result" | _CC_BASE_URL="${CC_YOUTRACK_URL}" python3 -c "
+import json, sys, os
 data = json.load(sys.stdin)
-base_url = '${base_url}'
+base_url = os.environ['_CC_BASE_URL']
 state = 'Unknown'
 assignee = 'Unassigned'
 for cf in data.get('customFields', []):
@@ -365,10 +375,11 @@ pb_sprint_assign() {
     local sprints
     sprints=$(pb_sprint_list)
     local sprint_id
-    sprint_id=$(echo "$sprints" | python3 -c "
-import json, sys
+    sprint_id=$(echo "$sprints" | _CC_SPRINT="$sprint_name" python3 -c "
+import json, sys, os
+target = os.environ['_CC_SPRINT']
 for s in json.load(sys.stdin):
-    if s['name'] == '$sprint_name':
+    if s['name'] == target:
         print(s['id'])
         sys.exit(0)
 sys.exit(1)

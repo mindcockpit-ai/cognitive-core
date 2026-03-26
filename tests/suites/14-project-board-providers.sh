@@ -568,7 +568,7 @@ jira_url_test=$(bash -c "
     _jira_issue_url 'TEST-42'
 " 2>&1) || true
 
-if echo "$jira_url_test" | grep -qE 'https://.*browse/[A-Z]+-[0-9]+'; then
+if echo "$jira_url_test" | grep -qE 'https://.*browse/[A-Za-z]+-[0-9]+'; then
     _pass "jira: URL matches pattern https://.*browse/KEY-123"
 else
     _fail "jira: URL format mismatch — got: $jira_url_test"
@@ -583,11 +583,250 @@ yt_url_test=$(bash -c "
     _yt_issue_url 'TEST-42'
 " 2>&1) || true
 
-if echo "$yt_url_test" | grep -qE 'https://.*issue/[A-Z]+-[0-9]+'; then
+if echo "$yt_url_test" | grep -qE 'https://.*issue/[A-Za-z]+-[0-9]+'; then
     _pass "youtrack: URL matches pattern https://.*issue/KEY-123"
 else
     _fail "youtrack: URL format mismatch — got: $yt_url_test"
 fi
+
+# Also fix jira regex to support lowercase keys
+# (already tested above with uppercase — test lowercase explicitly)
+jira_lc_url_test=$(bash -c "
+    set -euo pipefail
+    export CC_JIRA_URL='https://test.atlassian.net'
+    export CC_JIRA_PROJECT='test'
+    export CC_JIRA_TOKEN='test-token'
+    source '${MOCK_PROVIDERS_DIR}/jira.sh'
+    _jira_issue_url 'myproject-42'
+" 2>&1) || true
+
+if echo "$jira_lc_url_test" | grep -qE 'https://.*browse/[A-Za-z]+-[0-9]+'; then
+    _pass "jira: URL supports lowercase project keys"
+else
+    _fail "jira: URL rejects lowercase project keys — got: $jira_lc_url_test"
+fi
+
+yt_lc_url_test=$(bash -c "
+    set -euo pipefail
+    export CC_YOUTRACK_URL='https://test.youtrack.cloud'
+    export CC_YOUTRACK_PROJECT='test'
+    export CC_YOUTRACK_TOKEN='perm:test-token'
+    source '${MOCK_PROVIDERS_DIR}/youtrack.sh'
+    _yt_issue_url 'myproject-42'
+" 2>&1) || true
+
+if echo "$yt_lc_url_test" | grep -qE 'https://.*issue/[A-Za-z]+-[0-9]+'; then
+    _pass "youtrack: URL supports lowercase project keys"
+else
+    _fail "youtrack: URL rejects lowercase project keys — got: $yt_lc_url_test"
+fi
+
+# =============================================================================
+# Section 26: Runtime url field in pb_issue_view (Jira + YouTrack)
+# =============================================================================
+
+# Jira pb_issue_view url via mock _jira_api
+jira_view_test=$(bash -c "
+    set -euo pipefail
+    export CC_JIRA_URL='https://test.atlassian.net'
+    export CC_JIRA_PROJECT='TEST'
+    export CC_JIRA_TOKEN='test-token'
+    source '${MOCK_PROVIDERS_DIR}/jira.sh'
+    # Mock _jira_api to return minimal JSON
+    _jira_api() { echo '{\"key\":\"TEST-42\",\"fields\":{\"summary\":\"test\"}}'; }
+    pb_issue_view 'TEST-42'
+" 2>&1) || true
+
+if echo "$jira_view_test" | grep -q '"url"'; then
+    _pass "jira: pb_issue_view output contains url field"
+else
+    _fail "jira: pb_issue_view output missing url field — got: $jira_view_test"
+fi
+
+if echo "$jira_view_test" | grep -qE 'https://test.atlassian.net/browse/TEST-42'; then
+    _pass "jira: pb_issue_view url has correct value"
+else
+    _fail "jira: pb_issue_view url value mismatch — got: $jira_view_test"
+fi
+
+# YouTrack pb_issue_view url via mock _yt_api
+yt_view_test=$(bash -c "
+    set -euo pipefail
+    export CC_YOUTRACK_URL='https://test.youtrack.cloud'
+    export CC_YOUTRACK_PROJECT='TEST'
+    export CC_YOUTRACK_TOKEN='perm:test-token'
+    source '${MOCK_PROVIDERS_DIR}/youtrack.sh'
+    # Mock _yt_api to return minimal JSON
+    _yt_api() { echo '{\"idReadable\":\"TEST-42\",\"summary\":\"test\"}'; }
+    pb_issue_view 'TEST-42'
+" 2>&1) || true
+
+if echo "$yt_view_test" | grep -q '"url"'; then
+    _pass "youtrack: pb_issue_view output contains url field"
+else
+    _fail "youtrack: pb_issue_view output missing url field — got: $yt_view_test"
+fi
+
+if echo "$yt_view_test" | grep -qE 'https://test.youtrack.cloud/issue/TEST-42'; then
+    _pass "youtrack: pb_issue_view url has correct value"
+else
+    _fail "youtrack: pb_issue_view url value mismatch — got: $yt_view_test"
+fi
+
+# =============================================================================
+# Section 27: Runtime url field in pb_issue_create (Jira + YouTrack)
+# =============================================================================
+
+# Jira pb_issue_create url via mock
+jira_create_test=$(bash -c "
+    set -euo pipefail
+    export CC_JIRA_URL='https://test.atlassian.net'
+    export CC_JIRA_PROJECT='TEST'
+    export CC_JIRA_TOKEN='test-token'
+    source '${MOCK_PROVIDERS_DIR}/jira.sh'
+    # Mock _jira_api to return created issue
+    _jira_api() { echo '{\"key\":\"TEST-99\",\"id\":\"12345\"}'; }
+    pb_issue_create 'Test issue'
+" 2>&1) || true
+
+if echo "$jira_create_test" | grep -q '"url"'; then
+    _pass "jira: pb_issue_create output contains url field"
+else
+    _fail "jira: pb_issue_create output missing url field — got: $jira_create_test"
+fi
+
+if echo "$jira_create_test" | grep -qE 'https://test.atlassian.net/browse/TEST-99'; then
+    _pass "jira: pb_issue_create url has correct value"
+else
+    _fail "jira: pb_issue_create url value mismatch — got: $jira_create_test"
+fi
+
+# YouTrack pb_issue_create url via mock
+yt_create_test=$(bash -c "
+    set -euo pipefail
+    export CC_YOUTRACK_URL='https://test.youtrack.cloud'
+    export CC_YOUTRACK_PROJECT='TEST'
+    export CC_YOUTRACK_TOKEN='perm:test-token'
+    source '${MOCK_PROVIDERS_DIR}/youtrack.sh'
+    # Mock _yt_api to return created issue
+    _yt_api() { echo '{\"idReadable\":\"TEST-99\",\"id\":\"12345\"}'; }
+    pb_issue_create 'Test issue'
+" 2>&1) || true
+
+if echo "$yt_create_test" | grep -q '"url"'; then
+    _pass "youtrack: pb_issue_create output contains url field"
+else
+    _fail "youtrack: pb_issue_create output missing url field — got: $yt_create_test"
+fi
+
+if echo "$yt_create_test" | grep -qE 'https://test.youtrack.cloud/issue/TEST-99'; then
+    _pass "youtrack: pb_issue_create url has correct value"
+else
+    _fail "youtrack: pb_issue_create url value mismatch — got: $yt_create_test"
+fi
+
+# =============================================================================
+# Section 28: Runtime GitHub pb_board_status url
+# =============================================================================
+
+gh_status_test=$(bash -c "
+    set -euo pipefail
+    export CC_GITHUB_OWNER='test-owner'
+    export CC_GITHUB_REPO='test-owner/test-repo'
+    export CC_PROJECT_ID='PVT_test'
+    export CC_PROJECT_NUMBER='1'
+    export CC_STATUS_FIELD_ID='PVTSSF_test'
+    source '${MOCK_PROVIDERS_DIR}/github.sh'
+    # Mock _gh_get_items to return a board item
+    _gh_get_items() { echo '{\"items\":[{\"id\":\"item1\",\"status\":\"Todo\",\"sprint\":\"\",\"content\":{\"number\":42,\"assignees\":[]}}]}'; }
+    pb_board_status 42
+" 2>&1) || true
+
+if echo "$gh_status_test" | grep -q '"url"'; then
+    _pass "github: pb_board_status runtime output contains url field"
+else
+    _fail "github: pb_board_status runtime output missing url field — got: $gh_status_test"
+fi
+
+if echo "$gh_status_test" | grep -qE 'https://github.com/test-owner/test-repo/issues/42'; then
+    _pass "github: pb_board_status url has correct value"
+else
+    _fail "github: pb_board_status url value mismatch — got: $gh_status_test"
+fi
+
+# =============================================================================
+# Section 29: Empty-config edge case for URL helpers
+# =============================================================================
+
+# Empty-config: providers should reject missing URL at validation time
+jira_empty_url=$(bash -c "
+    set -euo pipefail
+    export CC_JIRA_URL=''
+    export CC_JIRA_PROJECT='TEST'
+    export CC_JIRA_TOKEN='test-token'
+    source '${MOCK_PROVIDERS_DIR}/jira.sh' 2>&1
+    echo 'sourced-ok'
+" 2>&1) || true
+
+if echo "$jira_empty_url" | grep -qE 'Missing|error'; then
+    _pass "jira: empty CC_JIRA_URL rejected at config validation"
+else
+    _fail "jira: empty CC_JIRA_URL was not rejected — got: $jira_empty_url"
+fi
+
+yt_empty_url=$(bash -c "
+    set -euo pipefail
+    export CC_YOUTRACK_URL=''
+    export CC_YOUTRACK_PROJECT='TEST'
+    export CC_YOUTRACK_TOKEN='perm:test-token'
+    source '${MOCK_PROVIDERS_DIR}/youtrack.sh' 2>&1
+    echo 'sourced-ok'
+" 2>&1) || true
+
+if echo "$yt_empty_url" | grep -qE 'Missing|error'; then
+    _pass "youtrack: empty CC_YOUTRACK_URL rejected at config validation"
+else
+    _fail "youtrack: empty CC_YOUTRACK_URL was not rejected — got: $yt_empty_url"
+fi
+
+# =============================================================================
+# Section 30: Input validation functions exist
+# =============================================================================
+
+if grep -qE '^_jira_validate_key\(\)' "${PROVIDERS_DIR}/jira.sh"; then
+    _pass "jira: _jira_validate_key function exists"
+else
+    _fail "jira: _jira_validate_key function missing"
+fi
+
+if grep -qE '^_yt_validate_id\(\)' "${PROVIDERS_DIR}/youtrack.sh"; then
+    _pass "youtrack: _yt_validate_id function exists"
+else
+    _fail "youtrack: _yt_validate_id function missing"
+fi
+
+if grep -qE '^_gh_validate_number\(\)' "${PROVIDERS_DIR}/github.sh"; then
+    _pass "github: _gh_validate_number function exists"
+else
+    _fail "github: _gh_validate_number function missing"
+fi
+
+# =============================================================================
+# Section 31: Security — no direct shell-to-Python interpolation
+# =============================================================================
+
+# Check that providers use os.environ instead of '$variable' in Python
+# Look for the anti-pattern: single-quoted shell var in Python source
+for provider in jira youtrack github; do
+    # Count remaining unsafe patterns: = '$varname' (shell var in Python string)
+    # Use single-quoted pattern to avoid shell expansion of $
+    if grep -qE '= '"'"'[$][A-Za-z_]' "${PROVIDERS_DIR}/${provider}.sh" 2>/dev/null; then
+        unsafe_count=$(grep -cE '= '"'"'[$][A-Za-z_]' "${PROVIDERS_DIR}/${provider}.sh")
+        _fail "${provider}: ${unsafe_count} direct shell-to-Python interpolation(s) found"
+    else
+        _pass "${provider}: no direct shell-to-Python interpolation (uses os.environ)"
+    fi
+done
 
 # Cleanup
 rm -rf "$MOCK_DIR"
