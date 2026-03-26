@@ -514,6 +514,81 @@ else
     _fail "youtrack: pb_issue_create missing --assignee support"
 fi
 
+# =============================================================================
+# Section 23: URL helper functions exist
+# =============================================================================
+
+if grep -qE '^_jira_issue_url\(\)' "${PROVIDERS_DIR}/jira.sh"; then
+    _pass "jira: _jira_issue_url function exists"
+else
+    _fail "jira: _jira_issue_url function missing"
+fi
+
+if grep -qE '^_yt_issue_url\(\)' "${PROVIDERS_DIR}/youtrack.sh"; then
+    _pass "youtrack: _yt_issue_url function exists"
+else
+    _fail "youtrack: _yt_issue_url function missing"
+fi
+
+# =============================================================================
+# Section 24: url field present in pb_board_status output construction
+# =============================================================================
+
+# GitHub pb_board_status includes url
+if grep -A 20 '^pb_board_status()' "${PROVIDERS_DIR}/github.sh" | grep -q "'url'"; then
+    _pass "github: pb_board_status includes url in output"
+else
+    _fail "github: pb_board_status missing url in output"
+fi
+
+# Jira pb_board_status includes url
+if grep -A 20 '^pb_board_status()' "${PROVIDERS_DIR}/jira.sh" | grep -q "'url'"; then
+    _pass "jira: pb_board_status includes url in output"
+else
+    _fail "jira: pb_board_status missing url in output"
+fi
+
+# YouTrack pb_board_status includes url
+if grep -A 25 '^pb_board_status()' "${PROVIDERS_DIR}/youtrack.sh" | grep -q "'url'"; then
+    _pass "youtrack: pb_board_status includes url in output"
+else
+    _fail "youtrack: pb_board_status missing url in output"
+fi
+
+# =============================================================================
+# Section 25: URL format validation (via mock sourcing)
+# =============================================================================
+
+jira_url_test=$(bash -c "
+    set -euo pipefail
+    export CC_JIRA_URL='https://test.atlassian.net'
+    export CC_JIRA_PROJECT='TEST'
+    export CC_JIRA_TOKEN='test-token'
+    source '${MOCK_PROVIDERS_DIR}/jira.sh'
+    _jira_issue_url 'TEST-42'
+" 2>&1) || true
+
+if echo "$jira_url_test" | grep -qE 'https://.*browse/[A-Z]+-[0-9]+'; then
+    _pass "jira: URL matches pattern https://.*browse/KEY-123"
+else
+    _fail "jira: URL format mismatch — got: $jira_url_test"
+fi
+
+yt_url_test=$(bash -c "
+    set -euo pipefail
+    export CC_YOUTRACK_URL='https://test.youtrack.cloud'
+    export CC_YOUTRACK_PROJECT='TEST'
+    export CC_YOUTRACK_TOKEN='perm:test-token'
+    source '${MOCK_PROVIDERS_DIR}/youtrack.sh'
+    _yt_issue_url 'TEST-42'
+" 2>&1) || true
+
+if echo "$yt_url_test" | grep -qE 'https://.*issue/[A-Z]+-[0-9]+'; then
+    _pass "youtrack: URL matches pattern https://.*issue/KEY-123"
+else
+    _fail "youtrack: URL format mismatch — got: $yt_url_test"
+fi
+
 # Cleanup
 rm -rf "$MOCK_DIR"
 

@@ -77,6 +77,10 @@ _yt_status_name() {
     echo "$key"
 }
 
+# ---- URL helpers ----
+
+_yt_issue_url() { echo "${CC_YOUTRACK_URL}/issue/$1"; }
+
 # =============================================================================
 # ISSUE COMMANDS
 # =============================================================================
@@ -156,7 +160,7 @@ print(json.dumps(data))
             -d "{\"customFields\":[{\"name\":\"Assignee\",\"\$type\":\"SingleUserIssueCustomField\",\"value\":{\"login\":\"$assignee\"}}]}" >/dev/null 2>&1 || true
     fi
 
-    echo "{\"id\":\"$issue_id\",\"url\":\"${CC_YOUTRACK_URL}/issue/$issue_id\"}"
+    echo "{\"id\":\"$issue_id\",\"url\":\"$(_yt_issue_url "$issue_id")\"}"
 }
 
 pb_issue_close() {
@@ -192,7 +196,14 @@ pb_issue_reopen() {
 
 pb_issue_view() {
     local issue_id="${1:?Issue ID required}"
-    _yt_api GET "/issues/${issue_id}?fields=idReadable,summary,description,customFields(name,value(name)),reporter(login),tags(name)"
+    local url
+    url=$(_yt_issue_url "$issue_id")
+    _yt_api GET "/issues/${issue_id}?fields=idReadable,summary,description,customFields(name,value(name)),reporter(login),tags(name)" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+data['url'] = '$url'
+json.dump(data, sys.stdout, indent=2)
+"
 }
 
 pb_issue_comment() {
@@ -248,9 +259,11 @@ pb_board_status() {
     local result
     result=$(pb_issue_view "$issue_id")
 
+    local base_url="${CC_YOUTRACK_URL}"
     echo "$result" | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
+base_url = '${base_url}'
 state = 'Unknown'
 assignee = 'Unassigned'
 for cf in data.get('customFields', []):
@@ -258,10 +271,12 @@ for cf in data.get('customFields', []):
         state = cf['value'].get('name', 'Unknown')
     if cf.get('name') == 'Assignee' and cf.get('value'):
         assignee = cf['value'].get('name', cf['value'].get('login', 'Unassigned'))
+issue_id = data.get('idReadable', '')
 json.dump({
-    'id': data.get('idReadable', ''),
+    'id': issue_id,
     'status': state,
-    'assignee': assignee
+    'assignee': assignee,
+    'url': f'{base_url}/issue/{issue_id}'
 }, sys.stdout, indent=2)
 "
 }

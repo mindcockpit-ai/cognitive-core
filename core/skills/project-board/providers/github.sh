@@ -257,9 +257,11 @@ pb_board_status() {
     local number="${1:?Issue number required}"
     local items
     items=$(_gh_get_items)
+    local repo="${CC_GITHUB_REPO}"
     echo "$items" | python3 -c "
 import json, sys
 items = json.load(sys.stdin)
+repo = '${repo}'
 for item in items.get('items', []):
     if item.get('content', {}).get('number') == $number:
         json.dump({
@@ -267,7 +269,8 @@ for item in items.get('items', []):
             'status': item.get('status', 'Unknown'),
             'item_id': item.get('id', ''),
             'sprint': item.get('sprint', ''),
-            'assignees': item.get('content', {}).get('assignees', [])
+            'assignees': item.get('content', {}).get('assignees', []),
+            'url': f'https://github.com/{repo}/issues/{$number}'
         }, sys.stdout, indent=2)
         sys.exit(0)
 print(json.dumps({'error': 'Issue #$number not found on board'}))

@@ -232,6 +232,10 @@ _jira_priority_name() {
     esac
 }
 
+# ---- URL helpers ----
+
+_jira_issue_url() { echo "${CC_JIRA_URL}/browse/$1"; }
+
 # ---- Transition helpers ----
 
 _jira_get_transitions() {
@@ -359,7 +363,7 @@ print(json.dumps(data))
     local issue_id
     issue_id=$(echo "$result" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
 
-    echo "{\"key\":\"$issue_key\",\"id\":\"$issue_id\",\"url\":\"${CC_JIRA_URL}/browse/$issue_key\"}"
+    echo "{\"key\":\"$issue_key\",\"id\":\"$issue_id\",\"url\":\"$(_jira_issue_url "$issue_key")\"}"
 }
 
 pb_issue_close() {
@@ -398,7 +402,14 @@ pb_issue_view() {
         esac
     done
 
-    _jira_api GET "/issue/${issue_key}?fields=${fields}"
+    local url
+    url=$(_jira_issue_url "$issue_key")
+    _jira_api GET "/issue/${issue_key}?fields=${fields}" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+data['url'] = '$url'
+json.dump(data, sys.stdout, indent=2)
+"
 }
 
 pb_issue_comment() {
@@ -464,14 +475,18 @@ pb_board_status() {
     local result
     result=$(_jira_api GET "/issue/${issue_key}?fields=status,assignee")
 
+    local base_url="${CC_JIRA_URL}"
     echo "$result" | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
+base_url = '${base_url}'
+key = data['key']
 json.dump({
-    'key': data['key'],
+    'key': key,
     'status': data['fields']['status']['name'],
     'status_category': data['fields']['status']['statusCategory']['name'],
-    'assignee': data['fields'].get('assignee', {}).get('displayName', 'Unassigned')
+    'assignee': data['fields'].get('assignee', {}).get('displayName', 'Unassigned'),
+    'url': f'{base_url}/browse/{key}'
 }, sys.stdout, indent=2)
 "
 }

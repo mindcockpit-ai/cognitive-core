@@ -88,10 +88,12 @@ _pb_status_display_name() {
 #   pb_issue_close NUMBER [--comment C]
 #   pb_issue_reopen NUMBER
 #   pb_issue_view NUMBER [--json FIELDS]
+#       → JSON output MUST include a "url" field with the browse URL for the issue
 #   pb_issue_comment NUMBER BODY
 #   pb_issue_assign NUMBER USER
 #   pb_board_summary
 #   pb_board_status NUMBER
+#       → JSON output MUST include a "url" field with the browse URL for the issue
 #   pb_board_move NUMBER STATUS_KEY
 #   pb_board_add NUMBER [--area A]
 #   pb_board_approve NUMBER [--comment C]
