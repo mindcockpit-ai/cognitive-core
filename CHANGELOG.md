@@ -1,5 +1,48 @@
 # Changelog
 
+## [1.4.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.3.0...v1.4.0) (2026-03-28)
+
+
+### Features
+
+* **adapters:** add VS Code adapter — Copilot, Continue.dev, Cline ([#81](https://github.com/mindcockpit-ai/cognitive-core/issues/81)) ([b8710db](https://github.com/mindcockpit-ai/cognitive-core/commit/b8710db60641ce2fde9b7429fc73dd189862f343))
+* add _cc_rg() ripgrep wrapper with grep fallback ([#134](https://github.com/mindcockpit-ai/cognitive-core/issues/134)) ([bce9056](https://github.com/mindcockpit-ai/cognitive-core/commit/bce905668baa2489bcc0af6fd248c772614912f0))
+* **hooks:** add inter-session coordination guard ([#144](https://github.com/mindcockpit-ai/cognitive-core/issues/144)) ([20c8fe6](https://github.com/mindcockpit-ai/cognitive-core/commit/20c8fe6c80655e2e971e5b12624f5622eb4e15cc))
+* **hooks:** add session-scoped domain cache for fetch hook ([60670e0](https://github.com/mindcockpit-ai/cognitive-core/commit/60670e080549628c63aa6b4f15e7aad53296a4d9))
+* **hooks:** inter-session coordination guard ([#144](https://github.com/mindcockpit-ai/cognitive-core/issues/144)) ([e6a6786](https://github.com/mindcockpit-ai/cognitive-core/commit/e6a6786cf40af6614b57ebae6bb10bda13983ed9))
+* **hooks:** notification system for agent completion events ([#158](https://github.com/mindcockpit-ai/cognitive-core/issues/158)) ([5c6342a](https://github.com/mindcockpit-ai/cognitive-core/commit/5c6342af77a749ae28866311f0c4cad3e35cec93))
+* **hooks:** register post-fetch-cache in settings template and installer ([9d40e62](https://github.com/mindcockpit-ai/cognitive-core/commit/9d40e629c853d76880d502597d83816a7d611b39))
+* **skills:** add codebase grounding to validate-prompt.sh (Layer 2) ([#184](https://github.com/mindcockpit-ai/cognitive-core/issues/184)) ([d5f16d0](https://github.com/mindcockpit-ai/cognitive-core/commit/d5f16d0f416143d040cfe4de9906fe14ed12893a)), closes [#169](https://github.com/mindcockpit-ai/cognitive-core/issues/169)
+* **skills:** add validate-prompt.sh — deterministic prompt linter ([#181](https://github.com/mindcockpit-ai/cognitive-core/issues/181)) ([3178c3f](https://github.com/mindcockpit-ai/cognitive-core/commit/3178c3f9fd0c28ae65a0a82115670152e837970d)), closes [#163](https://github.com/mindcockpit-ai/cognitive-core/issues/163)
+* **skills:** project-board propose — smart implementation prompt generator ([#140](https://github.com/mindcockpit-ai/cognitive-core/issues/140)) ([87b925d](https://github.com/mindcockpit-ai/cognitive-core/commit/87b925db5bfe8e0d37c2b6cfb681e9c724990b51))
+* **skills:** project-board propose — smart implementation prompt generator ([#140](https://github.com/mindcockpit-ai/cognitive-core/issues/140)) ([1084485](https://github.com/mindcockpit-ai/cognitive-core/commit/1084485962fc48f787e4476dea61a2694a488690))
+
+
+### Bug Fixes
+
+* **adapters:** remove duplicate skill registration in Claude adapter ([f275832](https://github.com/mindcockpit-ai/cognitive-core/commit/f2758323628b89edf6fb26060b324898c89891f7))
+* **adapters:** remove duplicate skill registration in Claude adapter ([9577a2e](https://github.com/mindcockpit-ai/cognitive-core/commit/9577a2ec5758e8c3d8d858bdad3e09d0680a1e7c)), closes [#147](https://github.com/mindcockpit-ai/cognitive-core/issues/147)
+* **adapters:** resolve merge conflict with main ([ccd141d](https://github.com/mindcockpit-ai/cognitive-core/commit/ccd141d2b6b1bee3d7fbafac4b854ab47fe8cf23))
+* **cicd:** migrate board automation to GitHub App token ([#180](https://github.com/mindcockpit-ai/cognitive-core/issues/180)) ([8c42dd4](https://github.com/mindcockpit-ai/cognitive-core/commit/8c42dd48b6d71505e94e2e070e93fee29c875fe7))
+* **cicd:** replace heredoc with string concat in closure guard comment ([35b6a21](https://github.com/mindcockpit-ai/cognitive-core/commit/35b6a211f4ae722e0dd238f830aa87000d49d872))
+* **ci:** resolve security hook test failures and board automation errors ([1b25b53](https://github.com/mindcockpit-ai/cognitive-core/commit/1b25b531ea787f750811662edb34caca424cfd33))
+* **claude-adapter:** create .claude/commands/ stubs for user-invocable skills ([b8952f5](https://github.com/mindcockpit-ai/cognitive-core/commit/b8952f55b6403548496728313cba27bfbee7fb3d)), closes [#146](https://github.com/mindcockpit-ai/cognitive-core/issues/146)
+* **claude-adapter:** create .claude/commands/ stubs for user-invocable skills ([36b8a22](https://github.com/mindcockpit-ai/cognitive-core/commit/36b8a22b10807082bd9741fa673792146625df6f)), closes [#146](https://github.com/mindcockpit-ai/cognitive-core/issues/146)
+* **hooks:** harden notify-complete against regex injection + ANSI injection ([#193](https://github.com/mindcockpit-ai/cognitive-core/issues/193)) ([7b61a0a](https://github.com/mindcockpit-ai/cognitive-core/commit/7b61a0a9a45b8fbdd04a62aa9422dc89e4731cc4))
+* **install:** add security + AI tooling patterns to gitignore template ([#194](https://github.com/mindcockpit-ai/cognitive-core/issues/194)) ([411f78d](https://github.com/mindcockpit-ai/cognitive-core/commit/411f78d798905f7d99f6de522a20538e15474ab0))
+* **install:** add session-started, MCP server, gitignore to template ([#185](https://github.com/mindcockpit-ai/cognitive-core/issues/185)) ([67ae1e0](https://github.com/mindcockpit-ai/cognitive-core/commit/67ae1e047578ff0bbef3ea73c7b2d5aa49414969))
+* **install:** clean orphaned command stubs during update ([#147](https://github.com/mindcockpit-ai/cognitive-core/issues/147)) ([2035cd2](https://github.com/mindcockpit-ai/cognitive-core/commit/2035cd24dd071b9cb94d23e665f2243007d7f8d6))
+* **jira:** convert markdown to proper ADF in issue create and comment ([2364d76](https://github.com/mindcockpit-ai/cognitive-core/commit/2364d765b300ba6544557f56599bd1dacc8d07d3)), closes [#145](https://github.com/mindcockpit-ai/cognitive-core/issues/145)
+* **jira:** migrate to /rest/api/3/search/jql endpoint ([#160](https://github.com/mindcockpit-ai/cognitive-core/issues/160)) ([29b5f5a](https://github.com/mindcockpit-ai/cognitive-core/commit/29b5f5a5796c14ad106991e4a057b2e3bd517663)), closes [#150](https://github.com/mindcockpit-ai/cognitive-core/issues/150)
+* **plugin,docs:** sync missing hooks + agent health docs ([#164](https://github.com/mindcockpit-ai/cognitive-core/issues/164), [#165](https://github.com/mindcockpit-ai/cognitive-core/issues/165)) ([#179](https://github.com/mindcockpit-ai/cognitive-core/issues/179)) ([26167be](https://github.com/mindcockpit-ai/cognitive-core/commit/26167be05ea301e3f1f63892967888f8abf58f30))
+* **security:** closure guard review fixes — uppercase X, audit log, test gaps ([#182](https://github.com/mindcockpit-ai/cognitive-core/issues/182)) ([#186](https://github.com/mindcockpit-ai/cognitive-core/issues/186)) ([5f23cc0](https://github.com/mindcockpit-ai/cognitive-core/commit/5f23cc0ed459e1e3265bf2922476f82ef4cb11a8))
+* **security:** deterministic closure guard for pb_issue_close ([#182](https://github.com/mindcockpit-ai/cognitive-core/issues/182)) ([#183](https://github.com/mindcockpit-ai/cognitive-core/issues/183)) ([ea31144](https://github.com/mindcockpit-ai/cognitive-core/commit/ea311444db6af62b79e2a5d8b3ee6e8db01ea015))
+* **skills:** provider browse URLs + security hardening ([#161](https://github.com/mindcockpit-ai/cognitive-core/issues/161)) ([#166](https://github.com/mindcockpit-ai/cognitive-core/issues/166)) ([b950559](https://github.com/mindcockpit-ai/cognitive-core/commit/b950559cb403cc9196dc209645c861c573f5bb1d))
+* **skills:** resolve code review findings — POSIX regex, provider consistency ([08b2cde](https://github.com/mindcockpit-ai/cognitive-core/commit/08b2cdeee16cb26ff9cd60b18c11bb615571ffe2))
+* **skills:** resolve propose verification gaps — recipe ref, provider support, business mode ([764f6cd](https://github.com/mindcockpit-ai/cognitive-core/commit/764f6cdbe2ff59add288def4e5c7b7794ed4fb17))
+* **tests:** clean Section 32 grep pipeline ([#182](https://github.com/mindcockpit-ai/cognitive-core/issues/182)) ([#191](https://github.com/mindcockpit-ai/cognitive-core/issues/191)) ([d5a83f5](https://github.com/mindcockpit-ai/cognitive-core/commit/d5a83f5094df8514ec5bcc5a1bc4dedd05d29e60))
+* **tests:** replace vacuous ADF assertion with real exit-code check ([#182](https://github.com/mindcockpit-ai/cognitive-core/issues/182)) ([#190](https://github.com/mindcockpit-ai/cognitive-core/issues/190)) ([35ced3f](https://github.com/mindcockpit-ai/cognitive-core/commit/35ced3f71430cac05851d7067662379bf882fc33))
+
 ## [1.3.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.2.0...v1.3.0) (2026-03-28)
 
 
