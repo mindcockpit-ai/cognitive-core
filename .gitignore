@@ -313,6 +313,11 @@ test-reports/
 
 # ---- cognitive-core runtime (machine-local) ----
 .claude/cognitive-core/security.log
+.claude/cognitive-core/.session-started
+.claude/gitignore
+.claude/sessions.json
+.cognitive-core/
+.mcp.json
 
 # ---- python (cognitive-core) ----
 # ---- Python ----
