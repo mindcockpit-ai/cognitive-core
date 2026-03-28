@@ -1059,7 +1059,10 @@ Implement GitHub issue #<N>: <TITLE>
 After generating the prompt in Step 7, run the deterministic prompt linter:
 
 ```bash
-echo "$GENERATED_PROMPT" | timeout 5 bash core/skills/project-board/validate-prompt.sh
+_vp_script=$(find . -path "*/project-board/validate-prompt.sh" -type f 2>/dev/null | head -1)
+if [ -n "$_vp_script" ]; then
+  echo "$GENERATED_PROMPT" | timeout 5 bash "$_vp_script"
+fi
 ```
 
 The linter checks for stochastic vulnerability patterns: hedging language, politeness tokens, vague terms, escape clauses, open-ended lists, temporal vagueness, ambiguous quantifiers, and structural issues (missing sections, word count, constraint positioning). Advisory only — warnings do not block prompt generation. See #163 for the full pattern table.
