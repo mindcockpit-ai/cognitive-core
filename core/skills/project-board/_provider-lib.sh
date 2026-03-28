@@ -105,8 +105,11 @@ _pb_closure_guard() {
         is_cancel="true"
     fi
 
-    # Force flag: bypass all guards (logged)
+    # Force flag: bypass all guards (audit logged)
     if [[ "$force" == "true" ]]; then
+        if declare -f _cc_security_log >/dev/null 2>&1; then
+            _cc_security_log "WARN" "closure-guard-force" "Issue #$number force-closed by override"
+        fi
         echo '{"warning":"Closure guard bypassed with --force"}' >&2
         return 0
     fi
@@ -119,7 +122,7 @@ import json, sys, os
 try:
     data = json.load(sys.stdin)
     print(data.get(os.environ['_CC_FIELD'], 'Unknown'))
-except:
+except Exception:
     print('Unknown')
 " 2>/dev/null || echo "Unknown")
 
@@ -149,8 +152,8 @@ data = json.load(sys.stdin)
 body = data.get('body', '') or data.get('description', '') or ''
 if isinstance(body, dict):
     body = json.dumps(body)
-total = len(re.findall(r'-\s*\[[ x]\]', body))
-checked = len(re.findall(r'-\s*\[x\]', body))
+total = len(re.findall(r'-\s*\[[ xX]\]', body))
+checked = len(re.findall(r'-\s*\[[xX]\]', body))
 unchecked = total - checked
 if total > 0 and unchecked > 0:
     print(f'{unchecked} of {total} acceptance criteria unchecked')
