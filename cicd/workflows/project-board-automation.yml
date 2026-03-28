@@ -10,7 +10,9 @@
 #   - Issue closed → moves to Done
 #
 # Prerequisites:
-#   - Repository secret PROJECT_PAT (classic PAT with repo + project scopes)
+#   - GitHub App "mindcockpit-reviewer" (or similar) with organization_projects:write
+#   - Repository/org secrets: REVIEWER_APP_ID, REVIEWER_APP_PRIVATE_KEY
+#   - Fallback: Repository secret PROJECT_PAT (classic or fine-grained PAT)
 #   - GitHub Project V2 with Status field configured via setup.sh
 #
 # Replace these placeholders with your project's actual values:
@@ -53,9 +55,16 @@ jobs:
       (github.event.action == 'opened' || github.event.action == 'ready_for_review')
     runs-on: ubuntu-latest
     steps:
+      - name: Generate token
+        id: token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.REVIEWER_APP_ID }}
+          private-key: ${{ secrets.REVIEWER_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
       - name: Move linked issues to In Progress
         env:
-          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
         run: |
           PR_BODY=$(cat <<'PREOF'
           ${{ github.event.pull_request.body }}
@@ -107,9 +116,16 @@ jobs:
       github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
+      - name: Generate token
+        id: token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.REVIEWER_APP_ID }}
+          private-key: ${{ secrets.REVIEWER_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
       - name: Move linked issues (respects approval gate)
         env:
-          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
           # Set to "true" to require human approval before Done.
           # When true: PR merge → To Be Tested (human must /project-board approve).
           # When false: PR merge → Done (fully autonomous).
@@ -166,9 +182,16 @@ jobs:
       github.event.action == 'assigned'
     runs-on: ubuntu-latest
     steps:
+      - name: Generate token
+        id: token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.REVIEWER_APP_ID }}
+          private-key: ${{ secrets.REVIEWER_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
       - name: Move assigned issue to Todo if in Backlog/Roadmap
         env:
-          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
         run: |
           ISSUE_NUM=${{ github.event.issue.number }}
           ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500)
@@ -204,9 +227,16 @@ jobs:
       github.event.action == 'opened'
     runs-on: ubuntu-latest
     steps:
+      - name: Generate token
+        id: token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.REVIEWER_APP_ID }}
+          private-key: ${{ secrets.REVIEWER_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
       - name: Add new issue to board in Backlog
         env:
-          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
         run: |
           ISSUE_NUM=${{ github.event.issue.number }}
           ISSUE_NODE_ID="${{ github.event.issue.node_id }}"
@@ -237,9 +267,16 @@ jobs:
       github.event.action == 'reopened'
     runs-on: ubuntu-latest
     steps:
+      - name: Generate token
+        id: token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.REVIEWER_APP_ID }}
+          private-key: ${{ secrets.REVIEWER_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
       - name: Move reopened issue to In Progress
         env:
-          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
         run: |
           ISSUE_NUM=${{ github.event.issue.number }}
           ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500)
@@ -273,9 +310,16 @@ jobs:
       github.event.action == 'closed'
     runs-on: ubuntu-latest
     steps:
+      - name: Generate token
+        id: token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.REVIEWER_APP_ID }}
+          private-key: ${{ secrets.REVIEWER_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
       - name: Move closed issue (respects approval gate)
         env:
-          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
           REQUIRE_HUMAN_APPROVAL: "true"
         run: |
           ISSUE_NUM=${{ github.event.issue.number }}
