@@ -1122,13 +1122,14 @@ guard_adf_test=$(bash -c "
     pb_board_status() { echo '{\"status\":\"In Progress\"}'; }
     pb_issue_view() { echo '{\"fields\":{\"description\":{\"type\":\"doc\",\"content\":[{\"type\":\"taskList\",\"content\":[{\"type\":\"taskItem\",\"attrs\":{\"state\":\"TODO\"}}]}]}},\"body\":null,\"description\":{\"type\":\"doc\"}}'; }
     _pb_closure_guard TEST-42 2>&1
-" 2>&1) || true
+" 2>&1)
+guard_adf_exit=$?
 
 # ADF body becomes a dict → json.dumps → no checkbox regex match → allowed (no criteria found)
-if [[ $? -eq 0 ]] || echo "$guard_adf_test" | grep -q 'ok'; then
+if [[ $guard_adf_exit -eq 0 ]]; then
     _pass "closure guard: Jira ADF dict body handled (isinstance branch)"
 else
-    _fail "closure guard: Jira ADF body crashed — got: $guard_adf_test"
+    _fail "closure guard: Jira ADF body crashed (exit $guard_adf_exit) — got: $guard_adf_test"
 fi
 
 # T3: YouTrack description field fallback
