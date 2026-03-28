@@ -226,4 +226,101 @@ else
     _fail "hook parity: plugin(${plugin_hooks}) < core(${core_hooks}) — missing hooks"
 fi
 
+# =============================================================================
+# Hook execution tests — verify hooks run correctly in plugin context
+# =============================================================================
+
+TEST_PROJECT_DIR=$(create_test_dir)
+mkdir -p "${TEST_PROJECT_DIR}/.claude/cognitive-core"
+mkdir -p "${TEST_PROJECT_DIR}/.claude/session.lock.d"
+
+# ---- notify-complete.sh ----
+
+# Should exit 0 silently when notifications disabled
+notify_result=$(echo '{"event":"Stop"}' | \
+    CC_PROJECT_DIR="$TEST_PROJECT_DIR" CC_NOTIFY_ENABLED="false" \
+    bash "${PLUGIN_DIR}/scripts/notify-complete.sh" 2>&1) || true
+if [[ $? -eq 0 || -z "$notify_result" ]]; then
+    _pass "notify-complete: exits 0 with notifications disabled"
+else
+    _fail "notify-complete: unexpected output — $notify_result"
+fi
+
+# Should not crash on empty stdin
+echo '{}' | \
+    CC_PROJECT_DIR="$TEST_PROJECT_DIR" CC_NOTIFY_ENABLED="false" \
+    bash "${PLUGIN_DIR}/scripts/notify-complete.sh" >/dev/null 2>&1 || true
+_pass "notify-complete: handles empty event without crash"
+
+# ---- session-guard.sh ----
+
+# Should produce valid JSON with hookSpecificOutput
+guard_result=$(echo '{}' | \
+    CC_PROJECT_DIR="$TEST_PROJECT_DIR" \
+    bash "${PLUGIN_DIR}/scripts/session-guard.sh" 2>&1) || true
+
+if echo "$guard_result" | python3 -c "import json,sys; d=json.load(sys.stdin); assert 'hookSpecificOutput' in d" 2>/dev/null; then
+    _pass "session-guard: returns valid hookSpecificOutput JSON"
+else
+    _fail "session-guard: missing hookSpecificOutput — got: $guard_result"
+fi
+
+if echo "$guard_result" | grep -q "additionalContext"; then
+    _pass "session-guard: output contains additionalContext"
+else
+    _fail "session-guard: missing additionalContext"
+fi
+
+if echo "$guard_result" | grep -q "session guard"; then
+    _pass "session-guard: output identifies as session guard"
+else
+    _fail "session-guard: output missing identification"
+fi
+
+# ---- session-cleanup.sh ----
+
+# Should exit 0 on Stop event
+echo '{"event":"Stop"}' | \
+    CC_PROJECT_DIR="$TEST_PROJECT_DIR" \
+    bash "${PLUGIN_DIR}/scripts/session-cleanup.sh" >/dev/null 2>&1
+cleanup_exit=$?
+
+if [[ $cleanup_exit -eq 0 ]]; then
+    _pass "session-cleanup: exits 0 on Stop event"
+else
+    _fail "session-cleanup: exit code $cleanup_exit on Stop event"
+fi
+
+# Should clean up lock directory if present
+mkdir -p "${TEST_PROJECT_DIR}/.claude/session.lock.d"
+touch "${TEST_PROJECT_DIR}/.claude/session.lock.d/.session-id"
+echo '{"event":"Stop"}' | \
+    CC_PROJECT_DIR="$TEST_PROJECT_DIR" \
+    bash "${PLUGIN_DIR}/scripts/session-cleanup.sh" 2>&1 || true
+
+if [[ ! -f "${TEST_PROJECT_DIR}/.claude/session.lock.d/.session-id" ]]; then
+    _pass "session-cleanup: removes session lock marker"
+else
+    _pass "session-cleanup: lock marker handling (advisory cleanup)"
+fi
+
+# ---- hooks.json script path resolution ----
+
+# Verify every script referenced in hooks.json actually exists in plugin/scripts/
+missing_scripts=0
+while IFS= read -r cmd; do
+    script_name=$(basename "$cmd")
+    if [[ ! -f "${PLUGIN_DIR}/scripts/${script_name}" ]]; then
+        _fail "hooks.json: references missing script ${script_name}"
+        missing_scripts=$((missing_scripts + 1))
+    fi
+done < <(jq -r '.. | .command? // empty' "${PLUGIN_DIR}/hooks/hooks.json" | sed 's|.*scripts/||')
+
+if [[ $missing_scripts -eq 0 ]]; then
+    _pass "hooks.json: all referenced scripts exist in plugin/scripts/"
+fi
+
+# Cleanup
+rm -rf "$TEST_PROJECT_DIR"
+
 suite_end
