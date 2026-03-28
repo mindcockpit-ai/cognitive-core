@@ -54,6 +54,10 @@ pb_branch_create() { :; }
 pb_branch_list() { :; }
 MOCKEOF
 
+# Append the real _pb_closure_guard from _provider-lib.sh into the mock
+# Extract the function (from definition to closing brace) so tests can exercise it
+sed -n '/^_pb_closure_guard()/,/^}/p' "${PB_DIR}/_provider-lib.sh" >> "${MOCK_PB_DIR}/_provider-lib.sh"
+
 # Create provider symlinks that point to mock _provider-lib.sh
 for p in github jira youtrack; do
     # Copy provider but patch SCRIPT_DIR to use mock dir
@@ -827,6 +831,290 @@ for provider in jira youtrack github; do
         _pass "${provider}: no direct shell-to-Python interpolation (uses os.environ)"
     fi
 done
+
+# =============================================================================
+# Section 32: Closure guard — _pb_closure_guard exists and router invokes it
+# =============================================================================
+
+if grep -qE '^_pb_closure_guard\(\)' "${PB_DIR}/_provider-lib.sh"; then
+    _pass "closure guard: _pb_closure_guard function exists in _provider-lib.sh"
+else
+    _fail "closure guard: _pb_closure_guard function missing from _provider-lib.sh"
+fi
+
+if grep -q '_pb_closure_guard.*&&.*pb_issue_close' "${PB_DIR}/_provider-lib.sh"; then
+    _pass "closure guard: router calls guard before pb_issue_close"
+else
+    _fail "closure guard: router does not call guard before pb_issue_close"
+fi
+
+# Verify no guard logic in providers (separation of concerns)
+for provider in jira youtrack github; do
+    if grep -q '_pb_closure_guard\|CC_REQUIRE_HUMAN_APPROVAL' "${PROVIDERS_DIR}/${provider}.sh" 2>/dev/null | grep -v '^#' | grep -v 'marker' | head -1 | grep -q 'CC_REQUIRE_HUMAN_APPROVAL'; then
+        _fail "${provider}: contains guard logic (should be in _provider-lib.sh only)"
+    else
+        _pass "${provider}: no closure guard logic in provider (correct — lives in _provider-lib.sh)"
+    fi
+done
+
+# =============================================================================
+# Section 33: Closure guard — status precondition (runtime mock)
+# =============================================================================
+
+# Mock: close from Done → blocked
+guard_done_test=$(bash -c "
+    set -euo pipefail
+    export CC_GITHUB_OWNER='test-owner'
+    export CC_GITHUB_REPO='test-owner/test-repo'
+    export CC_PROJECT_ID='PVT_test'
+    export CC_PROJECT_NUMBER='1'
+    export CC_STATUS_FIELD_ID='PVTSSF_test'
+    export CC_REQUIRE_HUMAN_APPROVAL='false'
+    source '${MOCK_PROVIDERS_DIR}/github.sh'
+    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"Done\",\"content\":{\"number\":42}}]}'; }
+    pb_issue_view() { echo '{\"body\":\"\"}'; }
+    _pb_closure_guard 42 2>&1
+" 2>&1) || true
+
+if echo "$guard_done_test" | grep -qi 'already Done'; then
+    _pass "closure guard: blocks close from Done status"
+else
+    _fail "closure guard: did not block close from Done — got: $guard_done_test"
+fi
+
+# Mock: close from To Be Tested with approval=true → blocked
+guard_testing_test=$(bash -c "
+    set -euo pipefail
+    export CC_GITHUB_OWNER='test-owner'
+    export CC_GITHUB_REPO='test-owner/test-repo'
+    export CC_PROJECT_ID='PVT_test'
+    export CC_PROJECT_NUMBER='1'
+    export CC_STATUS_FIELD_ID='PVTSSF_test'
+    export CC_REQUIRE_HUMAN_APPROVAL='true'
+    source '${MOCK_PROVIDERS_DIR}/github.sh'
+    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"To Be Tested\",\"content\":{\"number\":42}}]}'; }
+    pb_issue_view() { echo '{\"body\":\"\"}'; }
+    _pb_closure_guard 42 2>&1
+" 2>&1) || true
+
+if echo "$guard_testing_test" | grep -qi 'approve'; then
+    _pass "closure guard: blocks close from To Be Tested when approval required"
+else
+    _fail "closure guard: did not block To Be Tested close — got: $guard_testing_test"
+fi
+
+# Mock: close from In Progress with approval=false → allowed
+guard_progress_test=$(bash -c "
+    set -euo pipefail
+    export CC_GITHUB_OWNER='test-owner'
+    export CC_GITHUB_REPO='test-owner/test-repo'
+    export CC_PROJECT_ID='PVT_test'
+    export CC_PROJECT_NUMBER='1'
+    export CC_STATUS_FIELD_ID='PVTSSF_test'
+    export CC_REQUIRE_HUMAN_APPROVAL='false'
+    source '${MOCK_PROVIDERS_DIR}/github.sh'
+    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"In Progress\",\"content\":{\"number\":42}}]}'; }
+    pb_issue_view() { echo '{\"body\":\"\"}'; }
+    _pb_closure_guard 42 2>&1
+" 2>&1)
+guard_progress_exit=$?
+
+if [[ $guard_progress_exit -eq 0 ]]; then
+    _pass "closure guard: allows close from In Progress when approval not required"
+else
+    _fail "closure guard: blocked close from In Progress — got: $guard_progress_test"
+fi
+
+# =============================================================================
+# Section 34: Closure guard — cancel exemption
+# =============================================================================
+
+# Cancel with "Canceled:" prefix → allowed even from To Be Tested
+guard_cancel_test=$(bash -c "
+    set -euo pipefail
+    export CC_GITHUB_OWNER='test-owner'
+    export CC_GITHUB_REPO='test-owner/test-repo'
+    export CC_PROJECT_ID='PVT_test'
+    export CC_PROJECT_NUMBER='1'
+    export CC_STATUS_FIELD_ID='PVTSSF_test'
+    export CC_REQUIRE_HUMAN_APPROVAL='true'
+    source '${MOCK_PROVIDERS_DIR}/github.sh'
+    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"To Be Tested\",\"content\":{\"number\":42}}]}'; }
+    pb_issue_view() { echo '{\"body\":\"\"}'; }
+    _pb_closure_guard 42 --comment 'Canceled: duplicate' 2>&1
+" 2>&1)
+guard_cancel_exit=$?
+
+if [[ $guard_cancel_exit -eq 0 ]]; then
+    _pass "closure guard: cancel path bypasses approval gate"
+else
+    _fail "closure guard: cancel path was blocked — got: $guard_cancel_test"
+fi
+
+# "Was canceled" (no prefix) → blocked
+guard_nocancelprefix_test=$(bash -c "
+    set -euo pipefail
+    export CC_GITHUB_OWNER='test-owner'
+    export CC_GITHUB_REPO='test-owner/test-repo'
+    export CC_PROJECT_ID='PVT_test'
+    export CC_PROJECT_NUMBER='1'
+    export CC_STATUS_FIELD_ID='PVTSSF_test'
+    export CC_REQUIRE_HUMAN_APPROVAL='true'
+    source '${MOCK_PROVIDERS_DIR}/github.sh'
+    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"To Be Tested\",\"content\":{\"number\":42}}]}'; }
+    pb_issue_view() { echo '{\"body\":\"\"}'; }
+    _pb_closure_guard 42 --comment 'Was canceled last week' 2>&1
+" 2>&1) || true
+
+if echo "$guard_nocancelprefix_test" | grep -qi 'approve'; then
+    _pass "closure guard: 'Was canceled' without prefix is blocked"
+else
+    _fail "closure guard: 'Was canceled' was not blocked — got: $guard_nocancelprefix_test"
+fi
+
+# Cancel from Done → still blocked (terminal)
+guard_cancel_done_test=$(bash -c "
+    set -euo pipefail
+    export CC_GITHUB_OWNER='test-owner'
+    export CC_GITHUB_REPO='test-owner/test-repo'
+    export CC_PROJECT_ID='PVT_test'
+    export CC_PROJECT_NUMBER='1'
+    export CC_STATUS_FIELD_ID='PVTSSF_test'
+    export CC_REQUIRE_HUMAN_APPROVAL='true'
+    source '${MOCK_PROVIDERS_DIR}/github.sh'
+    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"Done\",\"content\":{\"number\":42}}]}'; }
+    pb_issue_view() { echo '{\"body\":\"\"}'; }
+    _pb_closure_guard 42 --comment 'Canceled: duplicate' 2>&1
+" 2>&1) || true
+
+if echo "$guard_cancel_done_test" | grep -qi 'already Done'; then
+    _pass "closure guard: cancel from Done is still blocked"
+else
+    _fail "closure guard: cancel from Done was not blocked — got: $guard_cancel_done_test"
+fi
+
+# --force flag → bypass
+guard_force_test=$(bash -c "
+    set -euo pipefail
+    export CC_GITHUB_OWNER='test-owner'
+    export CC_GITHUB_REPO='test-owner/test-repo'
+    export CC_PROJECT_ID='PVT_test'
+    export CC_PROJECT_NUMBER='1'
+    export CC_STATUS_FIELD_ID='PVTSSF_test'
+    export CC_REQUIRE_HUMAN_APPROVAL='true'
+    source '${MOCK_PROVIDERS_DIR}/github.sh'
+    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"To Be Tested\",\"content\":{\"number\":42}}]}'; }
+    pb_issue_view() { echo '{\"body\":\"\"}'; }
+    _pb_closure_guard 42 --force 2>&1
+" 2>&1)
+guard_force_exit=$?
+
+if [[ $guard_force_exit -eq 0 ]]; then
+    _pass "closure guard: --force bypasses all guards"
+else
+    _fail "closure guard: --force did not bypass — got: $guard_force_test"
+fi
+
+# =============================================================================
+# Section 35: Closure guard — acceptance criteria check
+# =============================================================================
+
+# Issue with unchecked criteria → blocked
+guard_unchecked_test=$(bash -c "
+    set -euo pipefail
+    export CC_GITHUB_OWNER='test-owner'
+    export CC_GITHUB_REPO='test-owner/test-repo'
+    export CC_PROJECT_ID='PVT_test'
+    export CC_PROJECT_NUMBER='1'
+    export CC_STATUS_FIELD_ID='PVTSSF_test'
+    export CC_REQUIRE_HUMAN_APPROVAL='false'
+    source '${MOCK_PROVIDERS_DIR}/github.sh'
+    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"In Progress\",\"content\":{\"number\":42}}]}'; }
+    pb_issue_view() { echo '{\"body\":\"## Criteria\n- [x] Done\n- [ ] Not done\n- [ ] Also not done\"}'; }
+    _pb_closure_guard 42 2>&1
+" 2>&1) || true
+
+if echo "$guard_unchecked_test" | grep -qi '2 of 3'; then
+    _pass "closure guard: blocks close with unchecked acceptance criteria"
+else
+    _fail "closure guard: did not block unchecked criteria — got: $guard_unchecked_test"
+fi
+
+# Issue with all checked → allowed
+guard_allchecked_test=$(bash -c "
+    set -euo pipefail
+    export CC_GITHUB_OWNER='test-owner'
+    export CC_GITHUB_REPO='test-owner/test-repo'
+    export CC_PROJECT_ID='PVT_test'
+    export CC_PROJECT_NUMBER='1'
+    export CC_STATUS_FIELD_ID='PVTSSF_test'
+    export CC_REQUIRE_HUMAN_APPROVAL='false'
+    source '${MOCK_PROVIDERS_DIR}/github.sh'
+    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"In Progress\",\"content\":{\"number\":42}}]}'; }
+    pb_issue_view() { echo '{\"body\":\"## Criteria\n- [x] Done\n- [x] Also done\"}'; }
+    _pb_closure_guard 42 2>&1
+" 2>&1)
+guard_allchecked_exit=$?
+
+if [[ $guard_allchecked_exit -eq 0 ]]; then
+    _pass "closure guard: allows close with all criteria checked"
+else
+    _fail "closure guard: blocked close with all checked — got: $guard_allchecked_test"
+fi
+
+# Issue with no checkboxes → allowed
+guard_noboxes_test=$(bash -c "
+    set -euo pipefail
+    export CC_GITHUB_OWNER='test-owner'
+    export CC_GITHUB_REPO='test-owner/test-repo'
+    export CC_PROJECT_ID='PVT_test'
+    export CC_PROJECT_NUMBER='1'
+    export CC_STATUS_FIELD_ID='PVTSSF_test'
+    export CC_REQUIRE_HUMAN_APPROVAL='false'
+    source '${MOCK_PROVIDERS_DIR}/github.sh'
+    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"In Progress\",\"content\":{\"number\":42}}]}'; }
+    pb_issue_view() { echo '{\"body\":\"Just a description, no checkboxes\"}'; }
+    _pb_closure_guard 42 2>&1
+" 2>&1)
+guard_noboxes_exit=$?
+
+if [[ $guard_noboxes_exit -eq 0 ]]; then
+    _pass "closure guard: allows close with no acceptance criteria"
+else
+    _fail "closure guard: blocked close with no criteria — got: $guard_noboxes_test"
+fi
+
+# =============================================================================
+# Section 36: validate-bash hook — exemption markers
+# =============================================================================
+
+# "Closed via /project-board" alone should NOT be exempt anymore
+if grep -qF '"Closed via /project-board"' "${ROOT_DIR}/core/hooks/validate-bash.sh" 2>/dev/null; then
+    _fail "validate-bash: still has standalone 'Closed via /project-board' exemption"
+else
+    _pass "validate-bash: 'Closed via /project-board' standalone exemption removed"
+fi
+
+# "Approved by @" should still be exempt
+if grep -qF '"Approved by @"' "${ROOT_DIR}/core/hooks/validate-bash.sh" 2>/dev/null; then
+    _pass "validate-bash: 'Approved by @' exemption present"
+else
+    _fail "validate-bash: 'Approved by @' exemption missing"
+fi
+
+# "Canceled:" should still be exempt
+if grep -qF '"Canceled:"' "${ROOT_DIR}/core/hooks/validate-bash.sh" 2>/dev/null; then
+    _pass "validate-bash: 'Canceled:' exemption present"
+else
+    _fail "validate-bash: 'Canceled:' exemption missing"
+fi
+
+# GitHub pb_issue_close uses "Approved by @system" marker
+if grep -q 'Approved by @system' "${PROVIDERS_DIR}/github.sh" 2>/dev/null; then
+    _pass "github: pb_issue_close uses 'Approved by @system' marker"
+else
+    _fail "github: pb_issue_close missing 'Approved by @system' marker"
+fi
 
 # Cleanup
 rm -rf "$MOCK_DIR"

@@ -335,9 +335,15 @@ jobs:
             exit 0
           fi
 
-          # If already in To Be Tested or Done, this close is likely from
-          # /project-board approve — move to Done regardless of gate
-          if [ "$CURRENT" = "To Be Tested" ] || [ "$CURRENT" = "Done" ]; then
+          # Check if this close came from an approved path
+          CLOSE_COMMENT=$(gh issue view "$ISSUE_NUM" --repo "${{ github.repository }}" \
+            --json comments --jq '[.comments[].body] | last // ""' 2>/dev/null || echo "")
+
+          # Only promote To Be Tested → Done if close has "Approved by @" marker
+          if [ "$CURRENT" = "Done" ]; then
+            TARGET_ID="$DONE_ID"
+            TARGET_NAME="Done"
+          elif [ "$CURRENT" = "To Be Tested" ] && echo "$CLOSE_COMMENT" | grep -qF "Approved by @"; then
             TARGET_ID="$DONE_ID"
             TARGET_NAME="Done"
           elif [ "$REQUIRE_HUMAN_APPROVAL" = "true" ]; then

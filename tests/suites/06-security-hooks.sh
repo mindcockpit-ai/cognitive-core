@@ -98,10 +98,15 @@ if [ -f "$VALIDATE_BASH" ]; then
         "$VALIDATE_BASH" \
         "$(mock_bash_json "gh issue close 42 --comment \"Canceled: no longer needed\"")"
 
-    assert_hook_allows \
-        "bash: gh issue close with Closed via /project-board → allow" \
+    assert_hook_denies \
+        "bash: gh issue close with Closed via /project-board alone → deny" \
         "$VALIDATE_BASH" \
         "$(mock_bash_json "gh issue close 42 --comment \"Closed via /project-board\"")"
+
+    assert_hook_allows \
+        "bash: gh issue close with Approved by @system → allow" \
+        "$VALIDATE_BASH" \
+        "$(mock_bash_json "gh issue close 42 --comment \"Closed via /project-board — Approved by @system\"")"
 
     # Closure guard disabled via config
     output=$(echo "$(mock_bash_json "gh issue close 42")" | \
