@@ -28,9 +28,11 @@ _grep_count() {
 INPUT_RAW=$(head -c 65536)
 
 # Binary guard: reject non-text input cleanly
-# Check for non-printable control characters (except newline, tab, carriage return)
+# Check for binary control characters (0x00-0x08, 0x0E-0x1F) — NOT multibyte UTF-8.
+# [:print:] only covers ASCII 0x20-0x7E; UTF-8 bytes 0x80-0xFF are legitimate text.
 if [ -n "$INPUT_RAW" ]; then
-    _binary_chars=$(printf '%s' "$INPUT_RAW" | LC_ALL=C tr -d '[:print:][:space:]' | wc -c | tr -d '[:space:]')
+    # shellcheck disable=SC1003
+    _binary_chars=$(printf '%s' "$INPUT_RAW" | LC_ALL=C tr -d '\011\012\015\040-\176\200-\377' | wc -c | tr -d '[:space:]')
     if [ "$_binary_chars" -gt 0 ]; then
         exit 0
     fi
