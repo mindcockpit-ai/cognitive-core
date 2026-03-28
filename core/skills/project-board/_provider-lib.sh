@@ -79,6 +79,91 @@ _pb_status_display_name() {
     echo "$key"
 }
 
+# ---- Closure Guard ----
+# Deterministic pre-check for pb_issue_close. Invoked by the router before
+# dispatching to the provider's close function. Ensures:
+#   1. Terminal states (Done/Canceled) cannot be re-closed
+#   2. Approval gate enforced when CC_REQUIRE_HUMAN_APPROVAL=true
+#   3. Acceptance criteria (checkboxes) are all checked before closure
+# Exemptions: --force flag, "Canceled:" comment prefix
+
+_pb_closure_guard() {
+    local number="$1"
+    shift
+    local comment="" force="false"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --comment) comment="$2"; shift 2 ;;
+            --force)   force="true"; shift ;;
+            *)         shift ;;
+        esac
+    done
+
+    # Cancel path: exempt from approval gate (but not terminal state check)
+    local is_cancel="false"
+    if [[ "$comment" == Canceled:* ]]; then
+        is_cancel="true"
+    fi
+
+    # Force flag: bypass all guards (logged)
+    if [[ "$force" == "true" ]]; then
+        echo '{"warning":"Closure guard bypassed with --force"}' >&2
+        return 0
+    fi
+
+    # Guard 1: Check board status (terminal states blocked)
+    local status_json current_status
+    status_json=$(pb_board_status "$number" 2>/dev/null) || true
+    current_status=$(echo "$status_json" | _CC_FIELD="status" python3 -c "
+import json, sys, os
+try:
+    data = json.load(sys.stdin)
+    print(data.get(os.environ['_CC_FIELD'], 'Unknown'))
+except:
+    print('Unknown')
+" 2>/dev/null || echo "Unknown")
+
+    if [[ "$current_status" == "Done" ]]; then
+        _pb_die "Cannot close #$number — already Done"
+    fi
+    if [[ "$current_status" == "Canceled" ]]; then
+        _pb_die "Cannot close #$number — already Canceled"
+    fi
+
+    # Guard 2: Approval gate (skip for cancel path)
+    if [[ "$is_cancel" == "false" ]]; then
+        local approval_required="${CC_REQUIRE_HUMAN_APPROVAL:-true}"
+        if [[ "$approval_required" == "true" && "$current_status" == "To Be Tested" ]]; then
+            _pb_die "Cannot close #$number — status is 'To Be Tested' and CC_REQUIRE_HUMAN_APPROVAL=true. Use /project-board approve $number instead"
+        fi
+    fi
+
+    # Guard 3: Acceptance criteria check (skip for cancel path)
+    if [[ "$is_cancel" == "false" ]]; then
+        local issue_json unchecked
+        issue_json=$(pb_issue_view "$number" 2>/dev/null) || true
+        if [[ -n "$issue_json" ]]; then
+            unchecked=$(echo "$issue_json" | python3 -c "
+import json, sys, re
+data = json.load(sys.stdin)
+body = data.get('body', '') or data.get('description', '') or ''
+if isinstance(body, dict):
+    body = json.dumps(body)
+total = len(re.findall(r'-\s*\[[ x]\]', body))
+checked = len(re.findall(r'-\s*\[x\]', body))
+unchecked = total - checked
+if total > 0 and unchecked > 0:
+    print(f'{unchecked} of {total} acceptance criteria unchecked')
+" 2>/dev/null || echo "")
+            if [[ -n "$unchecked" ]]; then
+                _pb_die "Cannot close #$number — $unchecked"
+            fi
+        fi
+    fi
+
+    return 0
+}
+
 # ---- Provider Interface ----
 # Each provider MUST implement these functions:
 #
@@ -182,7 +267,7 @@ _pb_route() {
             case "$cmd" in
                 list)    pb_issue_list "$@" ;;
                 create)  pb_issue_create "$@" ;;
-                close)   pb_issue_close "$@" ;;
+                close)   _pb_closure_guard "$@" && pb_issue_close "$@" ;;
                 reopen)  pb_issue_reopen "$@" ;;
                 view)    pb_issue_view "$@" ;;
                 comment) pb_issue_comment "$@" ;;

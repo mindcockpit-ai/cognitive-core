@@ -192,11 +192,16 @@ pb_issue_close() {
         esac
     done
 
-    # Always include closure marker so the validate-bash hook recognizes
-    # skill-initiated closures (exemption pattern: "Closed via /project-board")
-    local marker="Closed via /project-board"
+    # Closure marker for validate-bash hook exemption.
+    # Uses "Approved by @system" when CC_REQUIRE_HUMAN_APPROVAL=false,
+    # or "Canceled:" prefix (already in comment from cancel path).
+    # When approval is required, pb_board_approve handles closure directly.
+    local marker="Closed via /project-board — Approved by @system"
     if [[ -n "$comment" ]]; then
-        comment="${comment} — ${marker}"
+        # Cancel path already has "Canceled:" prefix — keep it as-is for hook exemption
+        if [[ "$comment" != Canceled:* ]]; then
+            comment="${comment} — ${marker}"
+        fi
     else
         comment="$marker"
     fi
