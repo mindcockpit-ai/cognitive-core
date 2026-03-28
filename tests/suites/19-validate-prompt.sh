@@ -310,4 +310,98 @@ assert_contains "accumulation: has WARN prefix" "$output" "WARN"
 assert_contains "accumulation: has disclaimer" "$output" "Disclaimer"
 assert_contains "accumulation: has summary line" "$output" "warning(s)"
 
+# =============================================================================
+# Section 9: Layer 2 — Codebase grounding
+# =============================================================================
+
+# Create synthetic codebase fixture
+L2_FIXTURE=$(mktemp -d)
+mkdir -p "${L2_FIXTURE}/core/auth"
+mkdir -p "${L2_FIXTURE}/core/agents"
+mkdir -p "${L2_FIXTURE}/core/hooks"
+touch "${L2_FIXTURE}/core/auth/handler.sh"
+touch "${L2_FIXTURE}/core/hooks/validate-bash.sh"
+touch "${L2_FIXTURE}/core/agents/code-standards-reviewer.md"
+touch "${L2_FIXTURE}/core/agents/security-analyst.md"
+
+# L2-1: CC_PROJECT_DIR unset → grounding skipped
+output=$(echo "<scope>Fix core/auth/handler.sh</scope><constraints>Do NOT skip</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "L2: skipped when CC_PROJECT_DIR unset" "$output" "Grounding: skipped"
+
+# L2-2: CC_PROJECT_DIR set → grounding runs
+output=$(echo "<scope>Fix core/auth/handler.sh</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="$L2_FIXTURE" bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "L2: runs when CC_PROJECT_DIR set" "$output" "Grounding:"
+assert_not_contains "L2: not skipped when set" "$output" "skipped"
+
+# L2-3: Resolved path
+output=$(echo "<scope>Fix core/auth/handler.sh now</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="$L2_FIXTURE" bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "L2: resolved path counted" "$output" "1/1 references resolved"
+
+# L2-4: Unresolved path
+output=$(echo "<scope>Fix core/nonexistent/phantom.sh</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="$L2_FIXTURE" bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "L2: unresolved path" "$output" "0/1 references resolved"
+
+# L2-5: Mixed ratio (2 resolved + 1 unresolved)
+output=$(echo "<scope>
+Fix core/auth/handler.sh and core/hooks/validate-bash.sh
+Also fix core/nonexistent/phantom.sh
+</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="$L2_FIXTURE" bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "L2: mixed ratio" "$output" "2/3 references resolved"
+
+# L2-6: @agent handle resolved
+output=$(echo "<scope>
+Assign to @code-standards-reviewer for core/auth/handler.sh
+</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="$L2_FIXTURE" bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "L2: agent resolved" "$output" "2/2 references resolved"
+
+# L2-7: @agent handle unresolved
+output=$(echo "<scope>
+Assign to @nonexistent-agent for core/auth/handler.sh
+</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="$L2_FIXTURE" bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "L2: agent unresolved" "$output" "1/2 references resolved"
+
+# L2-8: Path traversal rejected (Constraint C)
+output=$(echo "<scope>Fix ../../etc/passwd</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="$L2_FIXTURE" bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "L2: path traversal rejected" "$output" "0/1 references resolved"
+
+# L2-9: Leading - rejected (Constraint C)
+output=$(echo "<scope>Fix -exec rm core/auth/handler.sh</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="$L2_FIXTURE" bash "$VP_SCRIPT" 2>/dev/null) || true
+# -exec is not path-like (no /), so only core/auth/handler.sh is extracted
+assert_contains "L2: leading dash not in refs" "$output" "1/1 references resolved"
+
+# L2-10: Context section excluded from grounding
+output=$(echo "<scope>
+Fix core/nonexistent/phantom.sh
+</scope>
+<constraints>Do NOT skip</constraints>
+<context>
+core/auth/handler.sh exists here but should not be counted
+</context>" | CC_PROJECT_DIR="$L2_FIXTURE" bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "L2: context excluded" "$output" "0/1 references resolved"
+
+# L2-11: Term cap at 20 (Constraint D)
+CAP_SCOPE="<scope>"
+for i in $(seq 1 25); do CAP_SCOPE="${CAP_SCOPE}
+Fix core/path${i}/file${i}.sh"; done
+CAP_SCOPE="${CAP_SCOPE}
+</scope><constraints>Do NOT skip</constraints>"
+output=$(echo "$CAP_SCOPE" | CC_PROJECT_DIR="$L2_FIXTURE" bash "$VP_SCRIPT" 2>/dev/null) || true
+# Total should be 25 but resolved capped evaluation
+total=$(echo "$output" | grep -oE 'Grounding: [0-9]+/[0-9]+' | grep -oE '/[0-9]+' | tr -d '/')
+if [ "${total:-0}" -eq 25 ]; then _pass "L2: total counts all 25 refs"; else _fail "L2: total counts all 25 refs (got ${total:-empty})"; fi
+
+# L2-12: Exit 0 with grounding
+if echo "<scope>Fix core/auth/handler.sh</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="$L2_FIXTURE" bash "$VP_SCRIPT" > /dev/null 2>&1; then _pass "L2: exit 0 with grounding"; else _fail "L2: exit 0 with grounding"; fi
+
+# L2-13: No file paths leaked in output (Constraint E)
+output=$(echo "<scope>Fix core/auth/handler.sh</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="$L2_FIXTURE" bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_not_contains "L2: no fixture path in output" "$output" "$L2_FIXTURE"
+
+# L2-14: Non-absolute CC_PROJECT_DIR → skipped
+output=$(echo "<scope>Fix core/auth/handler.sh</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="relative/path" bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "L2: non-absolute root skipped" "$output" "Grounding: skipped"
+
+# Cleanup fixture
+rm -rf "$L2_FIXTURE"
+
 suite_end

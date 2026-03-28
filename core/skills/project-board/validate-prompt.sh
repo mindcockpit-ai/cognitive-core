@@ -175,12 +175,98 @@ if [ -n "$FOLLOWING_LINE" ]; then
     fi
 fi
 
-# ---- Section 5: Output ----
+# ---- Section 5: Codebase Grounding (Layer 2) ----
+# Conditional on CC_PROJECT_DIR. Resolves path-like references against the filesystem.
+# Issue #169 — 9 security constraints (A-H + readonly).
+
+_GROUNDING_MSG=""
+
+if [ -z "${CC_PROJECT_DIR:-}" ]; then
+    _GROUNDING_MSG="Grounding: skipped (no project root)"
+else
+    # Constraint A: validate root is absolute, capture as readonly
+    case "$CC_PROJECT_DIR" in
+        /*) readonly _L2_ROOT="$CC_PROJECT_DIR" ;;
+        *)  _GROUNDING_MSG="Grounding: skipped (non-absolute root)" ;;
+    esac
+fi
+
+if [ -z "$_GROUNDING_MSG" ]; then
+    # 5.1 Extract path-like references from INSTRUCTION_TEXT
+    _L2_REFS=()
+    while IFS= read -r _ref; do
+        [ -z "$_ref" ] && continue
+        _L2_REFS+=("$_ref")
+    done < <(printf '%s\n' "$INSTRUCTION_TEXT" | grep -oE '[A-Za-z][A-Za-z0-9_.-]*/[A-Za-z0-9_./-]+' 2>/dev/null || true)
+
+    # 5.2 Extract @agent handles (store with @ prefix for later detection)
+    while IFS= read -r _handle; do
+        [ -z "$_handle" ] && continue
+        _L2_REFS+=("@${_handle}")
+    done < <(printf '%s\n' "$INSTRUCTION_TEXT" | grep -oE '@[A-Za-z][A-Za-z0-9-]+' 2>/dev/null | sed 's/^@//' || true)
+
+    _L2_TOTAL=${#_L2_REFS[@]}
+    _L2_RESOLVED=0
+    _L2_EVALUATED=0
+
+    for _term in "${_L2_REFS[@]}"; do
+        # Constraint D: cap at 20 evaluated terms
+        [ "$_L2_EVALUATED" -ge 20 ] && break
+
+        # Constraint C: reject dangerous patterns BEFORE any filesystem access
+        case "$_term" in
+            ..*|*..*) continue ;;       # path traversal (.., foo/../bar)
+            /*)       continue ;;       # absolute path
+            -*)       continue ;;       # option injection
+            *~*)      continue ;;       # tilde expansion
+        esac
+        # Reject shell metacharacters
+        # shellcheck disable=SC2254
+        case "$_term" in
+            *'$'*|*'`'*|*';'*|*'|'*|*'&'*|*'('*|*')'*) continue ;;
+        esac
+        # Allowlist: only [A-Za-z0-9._/@-] characters permitted
+        if printf '%s' "$_term" | LC_ALL=C grep -qE '[^A-Za-z0-9._/@-]' 2>/dev/null; then
+            continue
+        fi
+
+        _L2_EVALUATED=$((_L2_EVALUATED + 1))
+
+        # Resolution: agent handle (@name) vs file path
+        case "$_term" in
+            @*)
+                # Agent handle: strip @ and check filesystem
+                _agent_name="${_term#@}"
+                if [ -f "${_L2_ROOT}/core/agents/${_agent_name}.md" ]; then
+                    _L2_RESOLVED=$((_L2_RESOLVED + 1))
+                fi
+                ;;
+            *)
+                # File path: test -e with Constraint H symlink check
+                if [ -e "${_L2_ROOT}/${_term}" ]; then
+                    # Verify resolved path stays within project root (cd/pwd idiom)
+                    _target_dir=$(dirname "${_L2_ROOT}/${_term}")
+                    _real_dir=$(cd "$_target_dir" 2>/dev/null && pwd) || _real_dir=""
+                    case "${_real_dir}" in
+                        "${_L2_ROOT}"*) _L2_RESOLVED=$((_L2_RESOLVED + 1)) ;;
+                    esac
+                fi
+                ;;
+        esac
+    done
+
+    _GROUNDING_MSG="Grounding: ${_L2_RESOLVED}/${_L2_TOTAL} references resolved"
+fi
+
+# ---- Section 6: Output ----
 
 echo "Stochastic vulnerability check: ${WARN_COUNT} warning(s)"
 if [ -n "$WARNINGS" ]; then
     echo ""
     printf '%s' "$WARNINGS"
+fi
+if [ -n "$_GROUNDING_MSG" ]; then
+    echo "$_GROUNDING_MSG"
 fi
 echo ""
 echo "Disclaimer: syntactic patterns only — semantic ambiguity requires human review"
