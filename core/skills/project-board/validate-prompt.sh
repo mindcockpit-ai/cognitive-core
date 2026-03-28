@@ -184,9 +184,9 @@ _GROUNDING_MSG=""
 if [ -z "${CC_PROJECT_DIR:-}" ]; then
     _GROUNDING_MSG="Grounding: skipped (no project root)"
 else
-    # Constraint A: validate root is absolute, capture as readonly
+    # Constraint A: validate root is absolute, capture for this invocation
     case "$CC_PROJECT_DIR" in
-        /*) readonly _L2_ROOT="$CC_PROJECT_DIR" ;;
+        /*) _L2_ROOT=$(cd "$CC_PROJECT_DIR" 2>/dev/null && pwd -P) || _L2_ROOT="$CC_PROJECT_DIR" ;;
         *)  _GROUNDING_MSG="Grounding: skipped (non-absolute root)" ;;
     esac
 fi
@@ -243,12 +243,24 @@ if [ -z "$_GROUNDING_MSG" ]; then
                 ;;
             *)
                 # File path: test -e with Constraint H symlink check
-                if [ -e "${_L2_ROOT}/${_term}" ]; then
-                    # Verify resolved path stays within project root (cd/pwd idiom)
-                    _target_dir=$(dirname "${_L2_ROOT}/${_term}")
-                    _real_dir=$(cd "$_target_dir" 2>/dev/null && pwd) || _real_dir=""
-                    case "${_real_dir}" in
-                        "${_L2_ROOT}"*) _L2_RESOLVED=$((_L2_RESOLVED + 1)) ;;
+                _full="${_L2_ROOT}/${_term}"
+                if [ -e "$_full" ]; then
+                    # Constraint H: resolve actual target path, then verify containment.
+                    # For directories: cd into target, pwd gives real path.
+                    # For files: cd into parent of the target, pwd + basename.
+                    # Symlinks are followed by cd, so escaped targets are detected.
+                    _real=""
+                    if [ -d "$_full" ]; then
+                        _real=$(cd "$_full" 2>/dev/null && pwd -P) || _real=""
+                    else
+                        _pdir=$(cd "$(dirname "$_full")" 2>/dev/null && pwd -P) || _pdir=""
+                        if [ -n "$_pdir" ]; then
+                            _real="${_pdir}/$(basename "$_full")"
+                        fi
+                    fi
+                    # Strict subdirectory containment (trailing slash prevents sibling prefix match)
+                    case "${_real}" in
+                        "${_L2_ROOT}"|"${_L2_ROOT}"/*) _L2_RESOLVED=$((_L2_RESOLVED + 1)) ;;
                     esac
                 fi
                 ;;

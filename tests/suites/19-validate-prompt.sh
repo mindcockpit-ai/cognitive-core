@@ -401,6 +401,33 @@ assert_not_contains "L2: no fixture path in output" "$output" "$L2_FIXTURE"
 output=$(echo "<scope>Fix core/auth/handler.sh</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="relative/path" bash "$VP_SCRIPT" 2>/dev/null) || true
 assert_contains "L2: non-absolute root skipped" "$output" "Grounding: skipped"
 
+# L2-15: Symlink escape rejected (Constraint H)
+# Create a symlink inside the fixture pointing outside it
+_SYMLINK_TARGET=$(mktemp -d)
+touch "${_SYMLINK_TARGET}/secret.sh"
+ln -s "$_SYMLINK_TARGET" "${L2_FIXTURE}/core/auth/escape-link" 2>/dev/null || true
+if [ -L "${L2_FIXTURE}/core/auth/escape-link" ]; then
+    output=$(echo "<scope>Fix core/auth/escape-link/secret.sh</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="$L2_FIXTURE" bash "$VP_SCRIPT" 2>/dev/null) || true
+    assert_contains "L2: symlink escape rejected" "$output" "0/1 references resolved"
+    _pass "L2: symlink test executed"
+else
+    _skip "L2: symlink creation not supported"
+fi
+rm -rf "$_SYMLINK_TARGET"
+
+# L2-16: Sibling directory prefix-match rejected (Constraint H hardening)
+_SIBLING="${L2_FIXTURE}-evil"
+mkdir -p "$_SIBLING/core/auth"
+touch "$_SIBLING/core/auth/handler.sh"
+ln -s "${_SIBLING}/core/auth" "${L2_FIXTURE}/core/sibling-link" 2>/dev/null || true
+if [ -L "${L2_FIXTURE}/core/sibling-link" ]; then
+    output=$(echo "<scope>Fix core/sibling-link/handler.sh</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="$L2_FIXTURE" bash "$VP_SCRIPT" 2>/dev/null) || true
+    assert_contains "L2: sibling prefix rejected" "$output" "0/1 references resolved"
+else
+    _skip "L2: sibling symlink creation not supported"
+fi
+rm -rf "$_SIBLING"
+
 # Cleanup fixture
 rm -rf "$L2_FIXTURE"
 
