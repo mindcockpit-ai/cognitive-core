@@ -34,6 +34,10 @@ $RECYCLE.BIN/
 *~
 .directory
 .Trash-*
+.fuse_hidden*
+.nfs*
+nohup.out
+*.stackdump
 
 # ---- Build output (common) ----
 build/
@@ -160,6 +164,15 @@ nppBackup/
 # Cursor
 .cursor/
 
+# AI / LLM tool runtime (2025+)
+.aider*
+.windsurf/
+.cline/
+.continue/
+.codex/
+.amazonq/
+.tabnine_root
+
 # ---- Secrets and credentials ----
 .env
 .env.*
@@ -180,16 +193,36 @@ service-account*.json
 .secret
 .secrets
 .htpasswd
+.envrc
+.npmrc
+.docker/config.json
 
 # IaC and cloud credentials
 terraform.tfstate
 terraform.tfstate.backup
+*.tfvars
+*.tfvars.json
 .terraform/
+.terraformrc
+terraform.rc
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
 # .terraform.lock.hcl — commit this (reproducible provider versions)
+.pulumi/
+cdk.out/
+.cdk.staging/
+cdk.context.json
 .aws/credentials
 .kube/config
 .netrc
 vault-token
+
+# JetBrains HTTP Client secrets (outside .idea/)
+http-client.private.env.json
 
 # ---- Logs ----
 *.log
