@@ -25,8 +25,17 @@ if [ "$_NOTIFY_ENABLED" != "true" ]; then
 fi
 
 # ---- Event whitelist ----
+# Use case statement, NOT [[ =~ ]] — EVENT is untrusted input and would be
+# interpreted as regex RHS, allowing bypass via metacharacters (e.g., "Stop|Evil").
 ALLOWED_EVENTS="${CC_NOTIFY_EVENTS:-Stop SubagentStop Notification}"
-if [[ ! " $ALLOWED_EVENTS " =~ [[:space:]]${EVENT}[[:space:]] ]]; then
+_event_allowed=false
+for _evt in $ALLOWED_EVENTS; do
+    if [ "$EVENT" = "$_evt" ]; then
+        _event_allowed=true
+        break
+    fi
+done
+if [ "$_event_allowed" = "false" ]; then
     exit 0
 fi
 
@@ -57,14 +66,14 @@ fi
 # ---- Build message ----
 case "$EVENT" in
     SubagentStop)
-        AGENT_NAME=$(echo "$INPUT" | _cc_json_get ".agent_name")
+        AGENT_NAME=$(echo "$INPUT" | _cc_json_get ".agent_name" | tr -cd '[:print:]')
         MSG="${CC_PROJECT_NAME:-Project}: Agent complete: ${AGENT_NAME:-unknown}"
         ;;
     Stop)
         MSG="${CC_PROJECT_NAME:-Project}: Session complete"
         ;;
     Notification)
-        DETAIL=$(echo "$INPUT" | _cc_json_get ".message")
+        DETAIL=$(echo "$INPUT" | _cc_json_get ".message" | tr -cd '[:print:]')
         MSG="${CC_PROJECT_NAME:-Project}: Needs attention: ${DETAIL:-check terminal}"
         ;;
     *)
@@ -74,7 +83,7 @@ esac
 
 # [S1] Sanitise message: strip characters that could inject into osascript or shell
 # shellcheck disable=SC1003
-MSG=$(echo "$MSG" | tr -d '"`$\\' | cut -c1-200)
+MSG=$(echo "$MSG" | tr -d "'\"\`\$\\\\" | cut -c1-200)
 
 # ---- Dispatch to enabled channels ----
 CHANNELS="${CC_NOTIFY_CHANNELS:-bell desktop ntfy}"
