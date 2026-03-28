@@ -177,7 +177,7 @@ fi
 
 # ---- Section 5: Codebase Grounding (Layer 2) ----
 # Conditional on CC_PROJECT_DIR. Resolves path-like references against the filesystem.
-# Issue #169 — 9 security constraints (A-H + readonly).
+# Issue #169 — 8 security constraints (A-H).
 
 _GROUNDING_MSG=""
 
