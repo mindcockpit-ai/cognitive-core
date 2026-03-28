@@ -28,9 +28,11 @@ _grep_count() {
 INPUT_RAW=$(head -c 65536)
 
 # Binary guard: reject non-text input cleanly
-# Check for non-printable control characters (except newline, tab, carriage return)
+# Check for binary control characters (0x00-0x08, 0x0E-0x1F) — NOT multibyte UTF-8.
+# [:print:] only covers ASCII 0x20-0x7E; UTF-8 bytes 0x80-0xFF are legitimate text.
 if [ -n "$INPUT_RAW" ]; then
-    _binary_chars=$(printf '%s' "$INPUT_RAW" | LC_ALL=C tr -d '[:print:][:space:]' | wc -c | tr -d '[:space:]')
+    # shellcheck disable=SC1003
+    _binary_chars=$(printf '%s' "$INPUT_RAW" | LC_ALL=C tr -d '\011\012\015\040-\176\200-\377' | wc -c | tr -d '[:space:]')
     if [ "$_binary_chars" -gt 0 ]; then
         exit 0
     fi
@@ -173,12 +175,110 @@ if [ -n "$FOLLOWING_LINE" ]; then
     fi
 fi
 
-# ---- Section 5: Output ----
+# ---- Section 5: Codebase Grounding (Layer 2) ----
+# Conditional on CC_PROJECT_DIR. Resolves path-like references against the filesystem.
+# Issue #169 — 8 security constraints (A-H).
+
+_GROUNDING_MSG=""
+
+if [ -z "${CC_PROJECT_DIR:-}" ]; then
+    _GROUNDING_MSG="Grounding: skipped (no project root)"
+else
+    # Constraint A: validate root is absolute, capture for this invocation
+    case "$CC_PROJECT_DIR" in
+        /*) _L2_ROOT=$(cd "$CC_PROJECT_DIR" 2>/dev/null && pwd -P) || _L2_ROOT="$CC_PROJECT_DIR" ;;
+        *)  _GROUNDING_MSG="Grounding: skipped (non-absolute root)" ;;
+    esac
+fi
+
+if [ -z "$_GROUNDING_MSG" ]; then
+    # 5.1 Extract path-like references from INSTRUCTION_TEXT
+    _L2_REFS=()
+    while IFS= read -r _ref; do
+        [ -z "$_ref" ] && continue
+        _L2_REFS+=("$_ref")
+    done < <(printf '%s\n' "$INSTRUCTION_TEXT" | grep -oE '[A-Za-z][A-Za-z0-9_.-]*/[A-Za-z0-9_./-]+' 2>/dev/null || true)
+
+    # 5.2 Extract @agent handles (store with @ prefix for later detection)
+    while IFS= read -r _handle; do
+        [ -z "$_handle" ] && continue
+        _L2_REFS+=("@${_handle}")
+    done < <(printf '%s\n' "$INSTRUCTION_TEXT" | grep -oE '@[A-Za-z][A-Za-z0-9-]+' 2>/dev/null | sed 's/^@//' || true)
+
+    _L2_TOTAL=${#_L2_REFS[@]}
+    _L2_RESOLVED=0
+    _L2_EVALUATED=0
+
+    for _term in "${_L2_REFS[@]}"; do
+        # Constraint D: cap at 20 evaluated terms
+        [ "$_L2_EVALUATED" -ge 20 ] && break
+
+        # Constraint C: reject dangerous patterns BEFORE any filesystem access
+        case "$_term" in
+            ..*|*..*) continue ;;       # path traversal (.., foo/../bar)
+            /*)       continue ;;       # absolute path
+            -*)       continue ;;       # option injection
+            *~*)      continue ;;       # tilde expansion
+        esac
+        # Reject shell metacharacters
+        # shellcheck disable=SC2254
+        case "$_term" in
+            *'$'*|*'`'*|*';'*|*'|'*|*'&'*|*'('*|*')'*) continue ;;
+        esac
+        # Allowlist: only [A-Za-z0-9._/@-] characters permitted
+        if printf '%s' "$_term" | LC_ALL=C grep -qE '[^A-Za-z0-9._/@-]' 2>/dev/null; then
+            continue
+        fi
+
+        _L2_EVALUATED=$((_L2_EVALUATED + 1))
+
+        # Resolution: agent handle (@name) vs file path
+        case "$_term" in
+            @*)
+                # Agent handle: strip @ and check filesystem
+                _agent_name="${_term#@}"
+                if [ -f "${_L2_ROOT}/core/agents/${_agent_name}.md" ]; then
+                    _L2_RESOLVED=$((_L2_RESOLVED + 1))
+                fi
+                ;;
+            *)
+                # File path: test -e with Constraint H symlink check
+                _full="${_L2_ROOT}/${_term}"
+                if [ -e "$_full" ]; then
+                    # Constraint H: resolve actual target path, then verify containment.
+                    # For directories: cd into target, pwd gives real path.
+                    # For files: cd into parent of the target, pwd + basename.
+                    # Symlinks are followed by cd, so escaped targets are detected.
+                    _real=""
+                    if [ -d "$_full" ]; then
+                        _real=$(cd "$_full" 2>/dev/null && pwd -P) || _real=""
+                    else
+                        _pdir=$(cd "$(dirname "$_full")" 2>/dev/null && pwd -P) || _pdir=""
+                        if [ -n "$_pdir" ]; then
+                            _real="${_pdir}/$(basename "$_full")"
+                        fi
+                    fi
+                    # Strict subdirectory containment (trailing slash prevents sibling prefix match)
+                    case "${_real}" in
+                        "${_L2_ROOT}"|"${_L2_ROOT}"/*) _L2_RESOLVED=$((_L2_RESOLVED + 1)) ;;
+                    esac
+                fi
+                ;;
+        esac
+    done
+
+    _GROUNDING_MSG="Grounding: ${_L2_RESOLVED}/${_L2_TOTAL} references resolved"
+fi
+
+# ---- Section 6: Output ----
 
 echo "Stochastic vulnerability check: ${WARN_COUNT} warning(s)"
 if [ -n "$WARNINGS" ]; then
     echo ""
     printf '%s' "$WARNINGS"
+fi
+if [ -n "$_GROUNDING_MSG" ]; then
+    echo "$_GROUNDING_MSG"
 fi
 echo ""
 echo "Disclaimer: syntactic patterns only — semantic ambiguity requires human review"
