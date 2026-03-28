@@ -191,6 +191,48 @@ assert_contains "structural: word count >400" "$output" "exceeds 400"
 output=$(echo "$CLEAN_PROMPT" | bash "$VP_SCRIPT" 2>/dev/null) || true
 assert_not_contains "structural: short prompt no word warning" "$output" "exceeds 400"
 
+# S3: Missing "Do NOT" boundaries — triggers only when >200 instruction words
+LONG_NO_DONOT="<scope>"
+for i in $(seq 1 45); do LONG_NO_DONOT="${LONG_NO_DONOT}
+Implement step ${i} of the core/auth/handler.sh refactor plan now safely"; done
+LONG_NO_DONOT="${LONG_NO_DONOT}
+</scope>
+<constraints>Follow conventions for core/auth/handler.sh</constraints>"
+output=$(echo "$LONG_NO_DONOT" | bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "structural: missing Do NOT (>200 words)" "$output" "Do NOT"
+
+# S3 negative: "Do NOT" present — no warning
+LONG_WITH_DONOT="<scope>"
+for i in $(seq 1 45); do LONG_WITH_DONOT="${LONG_WITH_DONOT}
+Implement step ${i} of the core/auth/handler.sh refactor plan now safely"; done
+LONG_WITH_DONOT="${LONG_WITH_DONOT}
+</scope>
+<constraints>Do NOT modify existing hooks at core/auth/handler.sh</constraints>"
+output=$(echo "$LONG_WITH_DONOT" | bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_not_contains "structural: Do NOT present = no warning" "$output" "Do NOT.*boundaries"
+
+# S3 edge: short prompt (<200 words) without "Do NOT" — no warning (below threshold)
+output=$(echo "<scope>
+Implement fix at core/auth/handler.sh
+</scope>
+<constraints>Follow conventions</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_not_contains "structural: short prompt no Do NOT = no warning" "$output" "Do NOT.*boundaries"
+
+# S5: Dangling "the following" without subsequent list
+output=$(echo "<scope>
+Update the following
+</scope>
+<constraints>Do NOT skip tests for core/auth/handler.sh</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "structural: dangling 'the following'" "$output" "dangling"
+
+# S5 negative: "the following" with content on next line — no warning
+output=$(echo "<scope>
+Update the following
+- core/auth/handler.sh
+</scope>
+<constraints>Do NOT skip tests</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_not_contains "structural: 'the following' with list = no warning" "$output" "dangling"
+
 # =============================================================================
 # Section 6: Security mitigations
 # =============================================================================

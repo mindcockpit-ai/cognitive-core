@@ -164,7 +164,8 @@ fi
 FOLLOWING_LINE=$(printf '%s\n' "$FULL_TEXT" | { grep -n 'the following' 2>/dev/null || true; } | head -1 | cut -d: -f1)
 if [ -n "$FOLLOWING_LINE" ]; then
     NEXT_LINE=$((FOLLOWING_LINE + 1))
-    NEXT_CONTENT=$(printf '%s\n' "$FULL_TEXT" | sed -n "${NEXT_LINE}p" 2>/dev/null | tr -d '[:space:]')
+    # Strip whitespace and XML tags — a line with only "</scope>" is not real content
+    NEXT_CONTENT=$(printf '%s\n' "$FULL_TEXT" | sed -n "${NEXT_LINE}p" 2>/dev/null | sed 's/<[^>]*>//g' | tr -d '[:space:]')
     if [ -z "$NEXT_CONTENT" ]; then
         WARN_COUNT=$((WARN_COUNT + 1))
         WARNINGS="${WARNINGS}  WARN  line ${FOLLOWING_LINE}: dangling reference — \"the following\" without subsequent list
