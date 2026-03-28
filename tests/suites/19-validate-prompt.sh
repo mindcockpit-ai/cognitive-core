@@ -60,57 +60,60 @@ assert_eq "clean prompt: empty stderr" "" "$stderr"
 if echo "$CLEAN_PROMPT" | bash "$VP_SCRIPT" > /dev/null 2>&1; then _pass "clean prompt: exit 0"; else _fail "clean prompt: exit 0"; fi
 
 # =============================================================================
-# Section 3: Pattern detection — dirty corpus (one per category)
+# Section 3: Pattern detection — every sub-pattern tested individually
 # =============================================================================
 
-# Politeness
-output=$(echo "<scope>
-please implement the fix at core/auth/handler.sh
+# Helper: test a single trigger phrase against expected category
+_test_pattern() {
+    local label="$1" phrase="$2" category="$3"
+    local out
+    out=$(echo "<scope>
+${phrase} core/auth/handler.sh
 </scope>
 <constraints>Do NOT skip tests</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
-assert_contains "dirty: politeness detected" "$output" "politeness"
+    assert_contains "$label" "$out" "$category"
+}
 
-# Hedging
-output=$(echo "<scope>
-consider using a different approach for core/auth/handler.sh
-</scope>
-<constraints>Do NOT skip tests</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
-assert_contains "dirty: hedging detected" "$output" "hedging"
+# -- Politeness (5 sub-patterns) --
+_test_pattern "pattern: please" "please implement the fix at" "politeness"
+_test_pattern "pattern: could you" "could you update the config at" "politeness"
+_test_pattern "pattern: would you" "would you refactor the module at" "politeness"
+_test_pattern "pattern: it would be nice" "it would be nice to fix" "politeness"
+_test_pattern "pattern: feel free to" "feel free to adjust" "politeness"
 
-# Vague terms
-output=$(echo "<scope>
-use the appropriate solution for core/auth/handler.sh
-</scope>
-<constraints>Do NOT skip tests</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
-assert_contains "dirty: vague term detected" "$output" "vague term"
+# -- Hedging (5 sub-patterns) --
+_test_pattern "pattern: consider" "consider using a different approach for" "hedging"
+_test_pattern "pattern: might" "this might need refactoring in" "hedging"
+_test_pattern "pattern: possibly" "possibly update the logic in" "hedging"
+_test_pattern "pattern: perhaps" "perhaps change the implementation of" "hedging"
+_test_pattern "pattern: maybe" "maybe refactor the handler in" "hedging"
 
-# Escape clause
-output=$(echo "<scope>
-implement security where possible in core/auth/handler.sh
-</scope>
-<constraints>Do NOT skip tests</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
-assert_contains "dirty: escape clause detected" "$output" "escape clause"
+# -- Vague terms (4 sub-patterns) --
+_test_pattern "pattern: adequate" "ensure adequate coverage of" "vague term"
+_test_pattern "pattern: reasonable" "use a reasonable approach for" "vague term"
+_test_pattern "pattern: appropriate" "use the appropriate solution for" "vague term"
+_test_pattern "pattern: sufficient" "add sufficient tests for" "vague term"
 
-# Open-ended
-output=$(echo "<scope>
-add logging, metrics, etc. to core/auth/handler.sh
-</scope>
-<constraints>Do NOT skip tests</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
-assert_contains "dirty: open-ended detected" "$output" "open-ended"
+# -- Escape clauses (3 sub-patterns) --
+_test_pattern "pattern: where possible" "optimise where possible in" "escape clause"
+_test_pattern "pattern: as appropriate" "add logging as appropriate to" "escape clause"
+_test_pattern "pattern: as needed" "refactor as needed in" "escape clause"
 
-# Temporal vague
-output=$(echo "<scope>
-eventually refactor core/auth/handler.sh
-</scope>
-<constraints>Do NOT skip tests</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
-assert_contains "dirty: temporal vague detected" "$output" "temporal vague"
+# -- Open-ended (3 sub-patterns) --
+_test_pattern "pattern: etc." "add logging, metrics, etc. to" "open-ended"
+_test_pattern "pattern: and so on" "fix errors, warnings, and so on in" "open-ended"
+_test_pattern "pattern: including but not limited to" "update including but not limited to" "open-ended"
 
-# Ambiguous quantifier
-output=$(echo "<scope>
-fix several issues in core/auth/handler.sh
-</scope>
-<constraints>Do NOT skip tests</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
-assert_contains "dirty: ambiguous quantifier detected" "$output" "ambiguous quantifier"
+# -- Temporal vague (3 sub-patterns) --
+_test_pattern "pattern: soon" "soon refactor the module at" "temporal vague"
+_test_pattern "pattern: eventually" "eventually migrate the handler at" "temporal vague"
+_test_pattern "pattern: shortly" "shortly update the config at" "temporal vague"
+
+# -- Ambiguous quantifiers (4 sub-patterns) --
+_test_pattern "pattern: several" "fix several issues in" "ambiguous quantifier"
+_test_pattern "pattern: multiple" "update multiple files in" "ambiguous quantifier"
+_test_pattern "pattern: various" "refactor various modules in" "ambiguous quantifier"
+_test_pattern "pattern: a number of" "address a number of bugs in" "ambiguous quantifier"
 
 # =============================================================================
 # Section 4: False-positive prevention — clean corpus
