@@ -40,6 +40,7 @@ suite_pretty_name() {
         16-recursive-epic-structure.sh) echo "Recursive Epic Structure" ;;
         17-agent-health.sh) echo "Agent Health" ;;
         18-vscode-adapter.sh) echo "VS Code Adapter" ;;
+        19-validate-prompt.sh) echo "Validate Prompt" ;;
         *) echo "$1" ;;
     esac
 }
