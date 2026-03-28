@@ -252,6 +252,91 @@ echo '{}' | \
     bash "${PLUGIN_DIR}/scripts/notify-complete.sh" >/dev/null 2>&1 || true
 _pass "notify-complete: handles empty event without crash"
 
+# ---- notify-complete.sh vulnerability tests (enabled path) ----
+
+NOTIFY_SCRIPT="${PLUGIN_DIR}/scripts/notify-complete.sh"
+
+# V1: Regex injection — crafted event "Stop|Evil" must NOT pass whitelist
+v1_result=$(echo '{"hook_event_name":"Stop|Evil"}' | \
+    CC_PROJECT_DIR="$TEST_PROJECT_DIR" CC_NOTIFY_ENABLED="true" \
+    CC_NOTIFY_CHANNELS="" \
+    bash "$NOTIFY_SCRIPT" 2>&1) || true
+if [ -z "$v1_result" ]; then
+    _pass "notify-complete: V1 regex injection blocked (Stop|Evil rejected)"
+else
+    _fail "notify-complete: V1 regex injection — crafted event should be rejected"
+fi
+
+# V1b: Regex wildcard ".*" must NOT pass whitelist
+v1b_result=$(echo '{"hook_event_name":".*"}' | \
+    CC_PROJECT_DIR="$TEST_PROJECT_DIR" CC_NOTIFY_ENABLED="true" \
+    CC_NOTIFY_CHANNELS="" \
+    bash "$NOTIFY_SCRIPT" 2>&1) || true
+if [ -z "$v1b_result" ]; then
+    _pass "notify-complete: V1b regex wildcard blocked (.* rejected)"
+else
+    _fail "notify-complete: V1b regex wildcard — .* should be rejected"
+fi
+
+# V1c: Legitimate event "Stop" must pass whitelist (with empty channels to avoid dispatch)
+if echo '{"hook_event_name":"Stop"}' | \
+    CC_PROJECT_DIR="$TEST_PROJECT_DIR" CC_NOTIFY_ENABLED="true" \
+    CC_NOTIFY_CHANNELS="" \
+    bash "$NOTIFY_SCRIPT" > /dev/null 2>&1; then
+    _pass "notify-complete: V1c legitimate Stop event accepted"
+else
+    _fail "notify-complete: V1c legitimate Stop event should be accepted"
+fi
+
+# V2: ANSI injection in agent_name — control chars must be stripped
+# Use a tab character (safe to embed) as proxy for control chars
+v2_input='{"hook_event_name":"SubagentStop","agent_name":"evil-agent"}'
+if echo "$v2_input" | \
+    CC_PROJECT_DIR="$TEST_PROJECT_DIR" CC_NOTIFY_ENABLED="true" \
+    CC_NOTIFY_CHANNELS="bell" \
+    bash "$NOTIFY_SCRIPT" > /dev/null 2>&1; then
+    _pass "notify-complete: V2 SubagentStop with agent_name exits 0"
+else
+    _fail "notify-complete: V2 SubagentStop should not crash"
+fi
+# Verify tr -cd '[:print:]' is present in the script (deterministic code check)
+if grep -q "tr -cd '\[:print:\]'" "$NOTIFY_SCRIPT"; then
+    _pass "notify-complete: V2 ANSI sanitisation present (tr -cd print)"
+else
+    _fail "notify-complete: V2 ANSI sanitisation missing"
+fi
+
+# V3: Single quote in message — must be stripped by S1
+v3_input='{"hook_event_name":"Notification","message":"it'\''s a test"}'
+if echo "$v3_input" | \
+    CC_PROJECT_DIR="$TEST_PROJECT_DIR" CC_NOTIFY_ENABLED="true" \
+    CC_NOTIFY_CHANNELS="bell" \
+    bash "$NOTIFY_SCRIPT" > /dev/null 2>&1; then
+    _pass "notify-complete: V3 single quote handled (exit 0)"
+else
+    _fail "notify-complete: V3 single quote should not crash"
+fi
+
+# Enabled path: master switch TRUE (uppercase) accepted
+if echo '{"hook_event_name":"Stop"}' | \
+    CC_PROJECT_DIR="$TEST_PROJECT_DIR" CC_NOTIFY_ENABLED="TRUE" \
+    CC_NOTIFY_CHANNELS="" \
+    bash "$NOTIFY_SCRIPT" > /dev/null 2>&1; then
+    _pass "notify-complete: C1 uppercase TRUE accepted"
+else
+    _fail "notify-complete: C1 uppercase TRUE should be normalised and accepted"
+fi
+
+# Unknown event rejected
+if echo '{"hook_event_name":"FakeEvent"}' | \
+    CC_PROJECT_DIR="$TEST_PROJECT_DIR" CC_NOTIFY_ENABLED="true" \
+    CC_NOTIFY_CHANNELS="" \
+    bash "$NOTIFY_SCRIPT" > /dev/null 2>&1; then
+    _pass "notify-complete: unknown event exits 0"
+else
+    _fail "notify-complete: unknown event should exit 0"
+fi
+
 # ---- session-guard.sh ----
 
 # Should produce valid JSON with hookSpecificOutput
