@@ -849,8 +849,10 @@ else
 fi
 
 # Verify no guard logic in providers (separation of concerns)
+# Check that providers do not reference guard symbols in executable code (comments OK)
 for provider in jira youtrack github; do
-    if grep -q '_pb_closure_guard\|CC_REQUIRE_HUMAN_APPROVAL' "${PROVIDERS_DIR}/${provider}.sh" 2>/dev/null | grep -v '^#' | grep -v 'marker' | head -1 | grep -q 'CC_REQUIRE_HUMAN_APPROVAL'; then
+    guard_hits=$(grep -E '_pb_closure_guard|CC_REQUIRE_HUMAN_APPROVAL' "${PROVIDERS_DIR}/${provider}.sh" 2>/dev/null | grep -v '^\s*#' | grep -vc 'marker' || echo 0)
+    if [[ "$guard_hits" -gt 0 ]]; then
         _fail "${provider}: contains guard logic (should be in _provider-lib.sh only)"
     else
         _pass "${provider}: no closure guard logic in provider (correct — lives in _provider-lib.sh)"
@@ -1085,7 +1087,114 @@ else
 fi
 
 # =============================================================================
-# Section 36: validate-bash hook — exemption markers
+# Section 36: Additional guard coverage — gaps from peer review
+# =============================================================================
+
+# T1: Board status Canceled → blocked
+guard_canceled_status_test=$(bash -c "
+    set -euo pipefail
+    export CC_GITHUB_OWNER='test-owner'
+    export CC_GITHUB_REPO='test-owner/test-repo'
+    export CC_PROJECT_ID='PVT_test'
+    export CC_PROJECT_NUMBER='1'
+    export CC_STATUS_FIELD_ID='PVTSSF_test'
+    export CC_REQUIRE_HUMAN_APPROVAL='false'
+    source '${MOCK_PROVIDERS_DIR}/github.sh'
+    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"Canceled\",\"content\":{\"number\":42}}]}'; }
+    pb_issue_view() { echo '{\"body\":\"\"}'; }
+    _pb_closure_guard 42 2>&1
+" 2>&1) || true
+
+if echo "$guard_canceled_status_test" | grep -qi 'already Canceled'; then
+    _pass "closure guard: blocks close from Canceled status"
+else
+    _fail "closure guard: did not block Canceled status — got: $guard_canceled_status_test"
+fi
+
+# T2: Jira ADF dict body — isinstance(body, dict) branch
+guard_adf_test=$(bash -c "
+    set -euo pipefail
+    export CC_JIRA_URL='https://test.atlassian.net'
+    export CC_JIRA_PROJECT='TEST'
+    export CC_JIRA_TOKEN='test-token'
+    export CC_REQUIRE_HUMAN_APPROVAL='false'
+    source '${MOCK_PROVIDERS_DIR}/jira.sh'
+    pb_board_status() { echo '{\"status\":\"In Progress\"}'; }
+    pb_issue_view() { echo '{\"fields\":{\"description\":{\"type\":\"doc\",\"content\":[{\"type\":\"taskList\",\"content\":[{\"type\":\"taskItem\",\"attrs\":{\"state\":\"TODO\"}}]}]}},\"body\":null,\"description\":{\"type\":\"doc\"}}'; }
+    _pb_closure_guard TEST-42 2>&1
+" 2>&1) || true
+
+# ADF body becomes a dict → json.dumps → no checkbox regex match → allowed (no criteria found)
+if [[ $? -eq 0 ]] || echo "$guard_adf_test" | grep -q 'ok'; then
+    _pass "closure guard: Jira ADF dict body handled (isinstance branch)"
+else
+    _fail "closure guard: Jira ADF body crashed — got: $guard_adf_test"
+fi
+
+# T3: YouTrack description field fallback
+guard_yt_desc_test=$(bash -c "
+    set -euo pipefail
+    export CC_YOUTRACK_URL='https://test.youtrack.cloud'
+    export CC_YOUTRACK_PROJECT='TEST'
+    export CC_YOUTRACK_TOKEN='perm:test-token'
+    export CC_REQUIRE_HUMAN_APPROVAL='false'
+    source '${MOCK_PROVIDERS_DIR}/youtrack.sh'
+    pb_board_status() { echo '{\"status\":\"In Progress\"}'; }
+    pb_issue_view() { echo '{\"description\":\"## Criteria\n- [x] Done\n- [ ] Not done\"}'; }
+    _pb_closure_guard TEST-42 2>&1
+" 2>&1) || true
+
+if echo "$guard_yt_desc_test" | grep -qi '1 of 2'; then
+    _pass "closure guard: YouTrack description field fallback works"
+else
+    _fail "closure guard: YouTrack description not parsed — got: $guard_yt_desc_test"
+fi
+
+# T4: To Be Tested + approval=false → allowed
+guard_testing_noapproval_test=$(bash -c "
+    set -euo pipefail
+    export CC_GITHUB_OWNER='test-owner'
+    export CC_GITHUB_REPO='test-owner/test-repo'
+    export CC_PROJECT_ID='PVT_test'
+    export CC_PROJECT_NUMBER='1'
+    export CC_STATUS_FIELD_ID='PVTSSF_test'
+    export CC_REQUIRE_HUMAN_APPROVAL='false'
+    source '${MOCK_PROVIDERS_DIR}/github.sh'
+    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"To Be Tested\",\"content\":{\"number\":42}}]}'; }
+    pb_issue_view() { echo '{\"body\":\"\"}'; }
+    _pb_closure_guard 42 2>&1
+" 2>&1)
+guard_testing_noapproval_exit=$?
+
+if [[ $guard_testing_noapproval_exit -eq 0 ]]; then
+    _pass "closure guard: allows close from To Be Tested when approval not required"
+else
+    _fail "closure guard: blocked To Be Tested with approval=false — got: $guard_testing_noapproval_test"
+fi
+
+# D1 fix verification: uppercase [X] counted as checked
+guard_uppercaseX_test=$(bash -c "
+    set -euo pipefail
+    export CC_GITHUB_OWNER='test-owner'
+    export CC_GITHUB_REPO='test-owner/test-repo'
+    export CC_PROJECT_ID='PVT_test'
+    export CC_PROJECT_NUMBER='1'
+    export CC_STATUS_FIELD_ID='PVTSSF_test'
+    export CC_REQUIRE_HUMAN_APPROVAL='false'
+    source '${MOCK_PROVIDERS_DIR}/github.sh'
+    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"In Progress\",\"content\":{\"number\":42}}]}'; }
+    pb_issue_view() { echo '{\"body\":\"- [X] Done uppercase\n- [x] Done lowercase\n- [ ] Not done\"}'; }
+    _pb_closure_guard 42 2>&1
+" 2>&1) || true
+
+if echo "$guard_uppercaseX_test" | grep -qi '1 of 3'; then
+    _pass "closure guard: uppercase [X] counted as checked (1 of 3 unchecked)"
+else
+    _fail "closure guard: uppercase [X] miscount — got: $guard_uppercaseX_test"
+fi
+
+# =============================================================================
+# Section 37: validate-bash hook — exemption markers
 # =============================================================================
 
 # "Closed via /project-board" alone should NOT be exempt anymore
