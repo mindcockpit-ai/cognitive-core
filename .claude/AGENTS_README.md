@@ -110,6 +110,44 @@ security-analyst finds systemic vulnerability     → project-coordinator
 Any agent blocked or needs cross-cutting work     → project-coordinator
 ```
 
+## Timeout & Health Monitoring
+
+Background agents are monitored for stuck behavior and excessive runtime. Configuration is in `cognitive-core.conf`:
+
+| Agent Type | Config Variable | Default (minutes) |
+|------------|----------------|-------------------|
+| Explore | `CC_AGENT_TIMEOUT_EXPLORE` | 5 |
+| Research | `CC_AGENT_TIMEOUT_RESEARCH` | 15 |
+| Plan | `CC_AGENT_TIMEOUT_PLAN` | 10 |
+| Implement | `CC_AGENT_TIMEOUT_IMPLEMENT` | 30 |
+
+Global settings:
+- `CC_AGENT_TIMEOUT_MINUTES` — default timeout for unclassified agents (30 min)
+- `CC_AGENT_AUTO_KILL` — automatically kill agents exceeding timeout (`false` by default)
+
+### How It Works
+
+1. The `_session-hygiene.sh` hook tracks running background agents
+2. When an agent exceeds its timeout, a warning is logged to `agent-health.log`
+3. If `CC_AGENT_AUTO_KILL=true`, the `TaskStop` tool is invoked to terminate the stuck agent
+4. Health events are recorded with timestamp, agent ID, and duration
+
+### Known Stuck Patterns
+
+- **Infinite retry loops**: Agent retries a failing API call indefinitely
+- **Circular tool calls**: Agent alternates between two tools without progress
+- **Large file reads**: Agent reads oversized files repeatedly, burning context
+- **Unresponsive subagents**: Parent waits for a child agent that has silently failed
+
+### Killing Stuck Background Agents
+
+When a background agent is stuck:
+
+1. Check `agent-health.log` for timeout warnings
+2. Use `TaskStop` to terminate the specific agent by task ID
+3. If `CC_AGENT_AUTO_KILL=true`, this happens automatically after the configured timeout
+4. Review the agent output file to understand what went wrong
+
 ## Mandatory Quality Gate
 
 Every code change MUST include a code-standards-reviewer pass before completion:
