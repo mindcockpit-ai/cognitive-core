@@ -250,6 +250,23 @@ assert_contains "security: empty input 0 warnings" "$output" "0 warning"
 output=$(printf 'consider\x00 using core/auth/handler.sh' | bash "$VP_SCRIPT" 2>/dev/null) || true
 assert_contains "security: null bytes handled" "$output" "Disclaimer"
 
+# UTF-8 with table-drawing characters — must NOT be rejected as binary
+output=$(echo "<scope>
+| Column | Count |
+|────────|───────|
+Implement fix at core/auth/handler.sh
+</scope>
+<constraints>Do NOT skip tests</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "security: UTF-8 table chars pass binary guard" "$output" "Disclaimer"
+assert_contains "security: UTF-8 produces warning count" "$output" "warning(s)"
+
+# UTF-8 with Cyrillic/accented chars — must pass binary guard
+output=$(echo "<scope>
+Refactor módulo autentificación at core/auth/handler.sh
+</scope>
+<constraints>Do NOT skip</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "security: UTF-8 accented chars pass" "$output" "Disclaimer"
+
 # No raw matched text in output: inject a distinctive string and verify it's NOT echoed
 INJECTION='INJECTION_PAYLOAD_12345'
 output=$(echo "<scope>
