@@ -851,8 +851,8 @@ fi
 # Verify no guard logic in providers (separation of concerns)
 # Check that providers do not reference guard symbols in executable code (comments OK)
 for provider in jira youtrack github; do
-    guard_hits=$(grep -E '_pb_closure_guard|CC_REQUIRE_HUMAN_APPROVAL' "${PROVIDERS_DIR}/${provider}.sh" 2>/dev/null | grep -v '^\s*#' | grep -vc 'marker' || echo 0)
-    if [[ "$guard_hits" -gt 0 ]]; then
+    # Check for guard symbols in non-comment, non-marker lines
+    if grep -E '_pb_closure_guard|CC_REQUIRE_HUMAN_APPROVAL' "${PROVIDERS_DIR}/${provider}.sh" 2>/dev/null | grep -v '^\s*#' | grep -qv 'marker'; then
         _fail "${provider}: contains guard logic (should be in _provider-lib.sh only)"
     else
         _pass "${provider}: no closure guard logic in provider (correct — lives in _provider-lib.sh)"
