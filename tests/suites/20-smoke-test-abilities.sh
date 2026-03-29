@@ -102,9 +102,11 @@ fi
 # =============================================================================
 
 GOOD_JSON_DIR=$(create_test_dir)
-SAMPLE_JSON='{"timestamp":"2026-03-29T12:00:00Z","server":"http://localhost","environment":"test","summary":{"total":2,"passed":1,"failed":1},"results":[{"name":"Home","url":"/","status":"PASS","httpCode":200,"errors":[]},{"name":"Admin","url":"/admin","status":"FAIL","httpCode":200,"errors":["ORA-00904"]}]}'
+cat > "${GOOD_JSON_DIR}/sample.json" << 'JSONEOF'
+{"timestamp":"2026-03-29T12:00:00Z","server":"http://localhost","environment":"test","summary":{"total":2,"passed":1,"failed":1},"results":[{"name":"Home","url":"/","status":"PASS","httpCode":200,"errors":[]},{"name":"Admin","url":"/admin","status":"FAIL","httpCode":200,"errors":["ORA-00904"]}]}
+JSONEOF
 cat > "${GOOD_JSON_DIR}/cognitive-core.conf" << CONFEOF
-CC_SMOKE_TEST_COMMAND="echo '${SAMPLE_JSON}'"
+CC_SMOKE_TEST_COMMAND="cat ${GOOD_JSON_DIR}/sample.json"
 CC_SMOKE_TEST_URL="http://localhost:8080"
 CC_ORG="test-org"
 CC_PROJECT_NAME="test-repo"
