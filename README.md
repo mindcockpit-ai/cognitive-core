@@ -5,7 +5,7 @@
 <h1 align="center">cognitive-core</h1>
 
 <p align="center">
-  <a href="https://github.com/mindcockpit-ai/cognitive-core/releases/tag/v1.0.0"><img src="https://img.shields.io/badge/version-v1.0.0-38bdf8?style=flat-square" alt="v1.0.0"/></a>
+  <a href="https://github.com/mindcockpit-ai/cognitive-core/releases/tag/v1.3.0"><img src="https://img.shields.io/badge/version-v1.3.0-38bdf8?style=flat-square" alt="v1.3.0"/></a>
   <a href="https://multivac42.ai"><img src="https://img.shields.io/badge/website-multivac42.ai-38bdf8?style=flat-square" alt="Website"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-FSL--1.1--ALv2-38bdf8?style=flat-square" alt="License: FSL-1.1-ALv2"/></a>
   <a href="https://github.com/mindcockpit-ai/cognitive-core"><img src="https://img.shields.io/github/stars/mindcockpit-ai/cognitive-core?style=flat-square" alt="GitHub Stars"/></a>
@@ -69,7 +69,7 @@ across layers. Parsimony applies *within* each security layer, never *across* th
 |----------|-------------|
 | **Solo developers** using Claude Code | Production-grade safety hooks, structured agents, and skills from first install |
 | **Development teams** adopting AI-assisted workflows | Consistent coding standards, CI/CD fitness gates, multi-agent coordination |
-| **Enterprise architects** | Portable framework across 11 languages, 3 database packs, 3 platform adapters |
+| **Enterprise architects** | Portable framework across 11 languages, 3 database packs, 4 platform adapters |
 | **Security-conscious organizations** | Defense-in-depth hooks that block dangerous commands, scan for secrets, audit external access |
 
 **Not for**: Single-file scripts, throwaway prototypes, or teams that want AI without governance. If you want uncontrolled AI code generation, use Copilot directly — cognitive-core adds structure, not speed.
@@ -81,7 +81,7 @@ across layers. Parsimony applies *within* each security layer, never *across* th
 | | Traditional IDE AI | Cloud SaaS Tools | cognitive-core |
 |---|---|---|---|
 | **Deployment** | Locked to one IDE | Cloud-dependent | Installs into any project |
-| **AI Provider** | Single vendor | Single vendor | Multi-adapter (Claude, Ollama, IntelliJ) |
+| **AI Provider** | Single vendor | Single vendor | Multi-adapter (Claude, Ollama, IntelliJ, VS Code) |
 | **Data Sovereignty** | Cloud required | Cloud required | Fully local possible |
 | **Project Management** | None | None | GitHub, Jira, YouTrack |
 | **Legacy Support** | Generic | Generic | Struts/JSP, legacy Java archeology |
@@ -140,7 +140,7 @@ Multi-agent peer review — where agents check each other's work — was impleme
 - **Agents** — Hub-and-spoke team of 10 specialists with smart delegation and least-privilege tool restrictions
 - **Skills** — 47 composable skills: 20 core + 26 language-pack + 1 database-pack
 - **[Gitignore Policy](docs/GITIGNORE_POLICY.md)** — State-of-the-art `.gitignore` templates: base (16 IDEs, 3 OS families, IaC secrets) + 11 language-pack fragments, auto-merged on install/update
-- **Adapters** — Claude Code, Aider+Ollama, IntelliJ+DevoxxGenie (VS Code, Eclipse, Cursor planned)
+- **Adapters** — Claude Code, Aider+Ollama, IntelliJ+DevoxxGenie, VS Code (Eclipse, Cursor planned)
 
 ### Enterprise Governance ([details](docs/research/board-workflow-governance.md))
 
@@ -595,7 +595,7 @@ This framework was built from 21 findings identified during a comprehensive CI/C
 ```
 core/           Framework core (hooks, agents, skills, templates, utilities)
 language-packs/ Language-specific extensions (perl, python, node, java, go, rust, csharp, react, angular, spring-boot)
-adapters/       Platform adapters (claude, aider, intellij)
+adapters/       Platform adapters (claude, aider, intellij, vscode)
 database-packs/ Database-specific extensions (oracle, postgresql, mysql)
 cicd/           CI/CD pipeline (workflows, docker, scripts, monitoring, k8s)
 docs/           Framework documentation
