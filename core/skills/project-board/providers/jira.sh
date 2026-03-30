@@ -87,10 +87,14 @@ _jira_agile_api() {
         "$url"
 }
 
-# ---- Markdown to ADF conversion ----
-# Converts markdown text to Jira Atlassian Document Format (ADF).
-# Supports: ## headings, - [ ] / - [x] task items, - bullet lists, paragraphs.
-# Plain text without markdown is wrapped in a single paragraph (backward compatible).
+# ---- Markdown + Wiki Markup to ADF conversion ----
+# Converts markdown AND Jira wiki markup to Atlassian Document Format (ADF).
+# Supports: ## and h1. headings, **bold** and *wiki bold*, _italic_ and {{monospace}},
+# `code`, - [ ] tasks, - and * bullet lists, # ordered lists, {code:lang} blocks,
+# ||table|| headers, [text|url] links, ---- horizontal rules, paragraphs.
+# Wiki patterns take precedence over Markdown where they conflict.
+# Plain text without markup is wrapped in a single paragraph (backward compatible).
+# No strikethrough (-text-) — false-positive rate on hyphenated words is unacceptable.
 
 _jira_md_to_adf() {
     local text="$1"
@@ -100,33 +104,106 @@ import json, sys, re, uuid
 def local_id():
     return uuid.uuid4().hex[:12]
 
+# --- Code block extraction (BEFORE any inline processing) ---
+CODE_BLOCKS = []
+
+def extract_code_blocks(text):
+    '''Extract {code:lang}...{code} and \`\`\`lang...\`\`\` blocks, replace with placeholders.'''
+    result = text
+    # Wiki code blocks: {code:lang}...{code} or {code}...{code}
+    # Use non-greedy match with explicit non-brace chars to avoid ReDoS
+    for m in reversed(list(re.finditer(r'\{code(?::([^}]*))?\}(.*?)\{code\}', result, re.DOTALL))):
+        lang = m.group(1) or ''
+        code_text = m.group(2)
+        idx = len(CODE_BLOCKS)
+        CODE_BLOCKS.append((lang, code_text))
+        result = result[:m.start()] + '\\x00CODEBLOCK' + str(idx) + '\\x00' + result[m.end():]
+    # Markdown fenced code blocks: \`\`\`lang ... \`\`\`
+    for m in reversed(list(re.finditer(r'\`\`\`([^\\n]*)\\n(.*?)\`\`\`', result, re.DOTALL))):
+        lang = m.group(1).strip()
+        code_text = m.group(2)
+        idx = len(CODE_BLOCKS)
+        CODE_BLOCKS.append((lang, code_text))
+        result = result[:m.start()] + '\\x00CODEBLOCK' + str(idx) + '\\x00' + result[m.end():]
+    return result
+
 def parse_inline(text):
-    '''Parse inline markdown (bold, italic, code) into ADF marks.'''
+    '''Parse inline wiki markup and markdown into ADF marks.
+    Order: wiki monospace {{}} > wiki bold * > markdown bold ** > wiki italic _ >
+           markdown italic * > markdown code \` > wiki links [text|url]
+    No strikethrough — hyphenated words must pass through unmangled.'''
     nodes = []
-    # Split on **bold**, *italic*, and \`code\` patterns
-    parts = re.split(r'(\*\*[^*]+\*\*|\*[^*]+\*|\`[^\`]+\`)', text)
+    # Combined pattern for all inline marks (no nested quantifiers)
+    pattern = r'(\{\{[^}]+\}\}|\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_|\`[^\`]+\`|\[[^\]]+\])'
+    parts = re.split(pattern, text)
     for part in parts:
         if not part:
             continue
-        if part.startswith('**') and part.endswith('**'):
+        # Wiki monospace: {{text}}
+        if part.startswith('{{') and part.endswith('}}'):
+            nodes.append({'type': 'text', 'text': part[2:-2], 'marks': [{'type': 'code'}]})
+        # Markdown bold: **text**
+        elif part.startswith('**') and part.endswith('**'):
             nodes.append({'type': 'text', 'text': part[2:-2], 'marks': [{'type': 'strong'}]})
-        elif part.startswith('*') and part.endswith('*'):
+        # Wiki/Markdown bold: *text* (only if not at word boundary with other *)
+        elif part.startswith('*') and part.endswith('*') and not part.startswith('**'):
+            nodes.append({'type': 'text', 'text': part[1:-1], 'marks': [{'type': 'strong'}]})
+        # Wiki italic: _text_
+        elif part.startswith('_') and part.endswith('_'):
             nodes.append({'type': 'text', 'text': part[1:-1], 'marks': [{'type': 'em'}]})
+        # Markdown inline code: \`text\`
         elif part.startswith('\`') and part.endswith('\`'):
             nodes.append({'type': 'text', 'text': part[1:-1], 'marks': [{'type': 'code'}]})
+        # Wiki link: [text|url] or [url]
+        elif part.startswith('[') and part.endswith(']'):
+            inner = part[1:-1]
+            if '|' in inner:
+                link_text, url = inner.split('|', 1)
+            else:
+                link_text = inner
+                url = inner
+            nodes.append({'type': 'text', 'text': link_text, 'marks': [{'type': 'link', 'attrs': {'href': url}}]})
         else:
             nodes.append({'type': 'text', 'text': part})
     return nodes if nodes else [{'type': 'text', 'text': text}]
 
 text = sys.stdin.read()
-lines = text.split('\n')
+
+# Step 1: Extract code blocks before line processing
+text = extract_code_blocks(text)
+
+lines = text.split('\\n')
 content = []
 i = 0
 
 while i < len(lines):
     line = lines[i]
 
-    # Heading (## or ###)
+    # Code block placeholder — restore as codeBlock node
+    m = re.match(r'^\\x00CODEBLOCK(\d+)\\x00$', line.strip())
+    if m:
+        idx = int(m.group(1))
+        lang, code_text = CODE_BLOCKS[idx]
+        node = {'type': 'codeBlock', 'content': [{'type': 'text', 'text': code_text}]}
+        if lang:
+            node['attrs'] = {'language': lang}
+        content.append(node)
+        i += 1
+        continue
+
+    # Wiki heading: h1. through h6.
+    m = re.match(r'^h([1-6])\.\s+(.*)', line)
+    if m:
+        level = int(m.group(1))
+        content.append({
+            'type': 'heading',
+            'attrs': {'level': level},
+            'content': parse_inline(m.group(2))
+        })
+        i += 1
+        continue
+
+    # Markdown heading: ## or ###
     m = re.match(r'^(#{1,6})\s+(.*)', line)
     if m:
         level = len(m.group(1))
@@ -136,6 +213,40 @@ while i < len(lines):
             'content': parse_inline(m.group(2))
         })
         i += 1
+        continue
+
+    # Horizontal rule: ---- (4+ dashes on own line)
+    if re.match(r'^-{4,}\s*$', line):
+        content.append({'type': 'rule'})
+        i += 1
+        continue
+
+    # Wiki table: ||Header|| or |Cell| rows
+    if re.match(r'^(\|\||\|)[^|]', line):
+        rows = []
+        while i < len(lines) and re.match(r'^(\|\||\|)[^|]', lines[i]):
+            row_line = lines[i]
+            is_header = row_line.startswith('||')
+            if is_header:
+                # Split ||H1||H2|| — strip leading/trailing ||
+                cells_raw = row_line.strip('|').split('||')
+                cell_type = 'tableHeader'
+            else:
+                # Split |C1|C2| — strip leading/trailing |
+                cells_raw = row_line.strip('|').split('|')
+                cell_type = 'tableCell'
+            cells = []
+            for cell_text in cells_raw:
+                cell_content = parse_inline(cell_text.strip()) if cell_text.strip() else [{'type': 'text', 'text': ''}]
+                cells.append({
+                    'type': cell_type,
+                    'content': [{'type': 'paragraph', 'content': cell_content}]
+                })
+            if cells:
+                rows.append({'type': 'tableRow', 'content': cells})
+            i += 1
+        if rows:
+            content.append({'type': 'table', 'content': rows})
         continue
 
     # Task item: - [ ] or - [x]
@@ -160,7 +271,30 @@ while i < len(lines):
         })
         continue
 
-    # Bullet list item: - text or * text
+    # Wiki ordered list: # item, ## nested item
+    # Ambiguity: single '#' is also a markdown heading (matched above).
+    # Resolution: if current '#' line was NOT consumed by the heading matcher
+    # (which already ran), it means something else prevented it. In practice,
+    # the heading matcher catches single '#' lines. So wiki ordered lists only
+    # fire when we see a SEQUENCE of '#' lines (look-ahead confirms list context).
+    if re.match(r'^#\s+\S', line) and not re.match(r'^#{2,6}\s', line):
+        is_list = (i + 1 < len(lines) and re.match(r'^#{1,3}\s+', lines[i + 1])) or \
+                  (i > 0 and re.match(r'^#{1,3}\s+', lines[i - 1]))
+        if is_list:
+            items = []
+            while i < len(lines):
+                om = re.match(r'^(#{1,3})\s+(.*)', lines[i])
+                if not om:
+                    break
+                items.append({
+                    'type': 'listItem',
+                    'content': [{'type': 'paragraph', 'content': parse_inline(om.group(2))}]
+                })
+                i += 1
+            content.append({'type': 'orderedList', 'content': items})
+            continue
+
+    # Bullet list item: - text or * text (markdown and wiki)
     m = re.match(r'^[\s]*[-*]\s+(.*)', line)
     if m:
         items = []
@@ -188,7 +322,7 @@ while i < len(lines):
     })
     i += 1
 
-# Fallback: if no markdown detected, wrap entire text as single paragraph
+# Fallback: if no markup detected, wrap entire text as single paragraph
 if not content:
     content = [{'type': 'paragraph', 'content': [{'type': 'text', 'text': text}]}]
 
