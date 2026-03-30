@@ -123,9 +123,6 @@ if [ -z "$REASON" ] && [ "$_CLOSURE_GUARD" = "true" ]; then
         if echo "$CMD" | grep -qF "Canceled:"; then
             _CLOSURE_EXEMPT="true"
         fi
-        if echo "$CMD" | grep -qF "Closed via /project-board"; then
-            _CLOSURE_EXEMPT="true"
-        fi
         if [ "$_CLOSURE_EXEMPT" = "false" ]; then
             REASON="Blocked: direct gh issue close bypasses closure guard"
             _cc_security_log "DENY" "closure-guard" "${REASON} | cmd=${CMD}"
