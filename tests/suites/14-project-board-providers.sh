@@ -1415,6 +1415,93 @@ else
     _fail "ADF: strikethrough detected — got: $adf_out"
 fi
 
+# T19: {code} without language — no attrs key in output
+adf_out=$(_test_adf '{code}
+plain preformatted
+{code}')
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); cb=d['content'][0]; assert cb['type']=='codeBlock' and 'attrs' not in cb and 'plain preformatted' in cb['content'][0]['text']"; then
+    _pass "ADF: {code} without language produces codeBlock without attrs"
+else
+    _fail "ADF: {code} without language failed — got: $adf_out"
+fi
+
+# T20: Multiple code blocks — correct content and language ordering
+adf_out=$(_test_adf '{code:python}
+first()
+{code}
+
+text between
+
+{code:bash}
+second
+{code}')
+if echo "$adf_out" | python3 -c "
+import json,sys; d=json.load(sys.stdin)
+blocks=[c for c in d['content'] if c['type']=='codeBlock']
+assert len(blocks)==2, f'expected 2 blocks, got {len(blocks)}'
+assert blocks[0]['attrs']['language']=='python' and 'first()' in blocks[0]['content'][0]['text']
+assert blocks[1]['attrs']['language']=='bash' and 'second' in blocks[1]['content'][0]['text']
+"; then
+    _pass "ADF: multiple code blocks preserve correct order and language"
+else
+    _fail "ADF: multiple code blocks failed — got: $adf_out"
+fi
+
+# T21: Empty table cell handled gracefully
+adf_out=$(_test_adf '||Name||Score||
+|Alice||')
+if echo "$adf_out" | python3 -c "
+import json,sys; d=json.load(sys.stdin)
+t=d['content'][0]
+assert t['type']=='table'
+row=t['content'][1]  # data row
+assert len(row['content'])==2, f'expected 2 cells, got {len(row[\"content\"])}'
+"; then
+    _pass "ADF: empty table cell handled gracefully"
+else
+    _fail "ADF: empty table cell failed — got: $adf_out"
+fi
+
+# T22: Markdown fenced code block (triple-backtick)
+adf_out=$(_test_adf '```python
+x = 1
+```')
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); cb=d['content'][0]; assert cb['type']=='codeBlock' and cb['attrs']['language']=='python' and 'x = 1' in cb['content'][0]['text']"; then
+    _pass "ADF: markdown fenced code block with language"
+else
+    _fail "ADF: markdown fenced code block failed — got: $adf_out"
+fi
+
+# T23: javascript: URI neutralized in wiki links (XSS defense-in-depth)
+adf_out=$(_test_adf "[Click|javascript:alert(1)]")
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); href=d['content'][0]['content'][0]['marks'][0]['attrs']['href']; assert href=='#', f'expected # got {href}'"; then
+    _pass "ADF: javascript: URI neutralized to # (XSS defense)"
+else
+    _fail "ADF: javascript: URI not neutralized — got: $adf_out"
+fi
+
+# T24: data: URI neutralized in wiki links
+adf_out=$(_test_adf "[Click|data:text/html,<script>alert(1)</script>]")
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); href=d['content'][0]['content'][0]['marks'][0]['attrs']['href']; assert href=='#', f'expected # got {href}'"; then
+    _pass "ADF: data: URI neutralized to # (XSS defense)"
+else
+    _fail "ADF: data: URI not neutralized — got: $adf_out"
+fi
+
+# T25: https:// and relative URLs pass through scheme whitelist
+adf_out=$(_test_adf "[Safe|https://example.com] and [Anchor|#section] and [Relative|/path/to]")
+if echo "$adf_out" | python3 -c "
+import json,sys; d=json.load(sys.stdin)
+nodes=d['content'][0]['content']
+links=[n for n in nodes if n.get('marks') and n['marks'][0]['type']=='link']
+hrefs=[l['marks'][0]['attrs']['href'] for l in links]
+assert 'https://example.com' in hrefs and '#section' in hrefs and '/path/to' in hrefs, f'got {hrefs}'
+"; then
+    _pass "ADF: https/anchor/relative URLs pass scheme whitelist"
+else
+    _fail "ADF: safe URLs blocked — got: $adf_out"
+fi
+
 # Cleanup
 rm -rf "$MOCK_DIR"
 

@@ -90,8 +90,9 @@ _jira_agile_api() {
 # ---- Markdown + Wiki Markup to ADF conversion ----
 # Converts markdown AND Jira wiki markup to Atlassian Document Format (ADF).
 # Supports: ## and h1. headings, **bold** and *wiki bold*, _italic_ and {{monospace}},
-# `code`, - [ ] tasks, - and * bullet lists, # ordered lists, {code:lang} blocks,
+# `code`, - [ ] tasks, - and * bullet lists, {code:lang} blocks,
 # ||table|| headers, [text|url] links, ---- horizontal rules, paragraphs.
+# NOT supported: # ordered lists (ambiguous with markdown headings), -strikethrough-.
 # Wiki patterns take precedence over Markdown where they conflict.
 # Plain text without markup is wrapped in a single paragraph (backward compatible).
 # No strikethrough (-text-) — false-positive rate on hyphenated words is unacceptable.
@@ -162,6 +163,9 @@ def parse_inline(text):
             else:
                 link_text = inner
                 url = inner
+            # Defense-in-depth: neutralize javascript:/data: URIs (XSS on Jira DC)
+            if not url.strip().startswith(('http://', 'https://', 'mailto:', '#', '/')):
+                url = '#'
             nodes.append({'type': 'text', 'text': link_text, 'marks': [{'type': 'link', 'attrs': {'href': url}}]})
         else:
             nodes.append({'type': 'text', 'text': part})
@@ -228,12 +232,22 @@ while i < len(lines):
             row_line = lines[i]
             is_header = row_line.startswith('||')
             if is_header:
-                # Split ||H1||H2|| — strip leading/trailing ||
-                cells_raw = row_line.strip('|').split('||')
+                # Split ||H1||H2|| — use || as delimiter, drop empty first/last
+                cells_raw = row_line.split('||')
+                cells_raw = [c for c in cells_raw if c is not None]
+                # Remove leading/trailing empty strings from split
+                if cells_raw and cells_raw[0] == '':
+                    cells_raw = cells_raw[1:]
+                if cells_raw and cells_raw[-1] == '':
+                    cells_raw = cells_raw[:-1]
                 cell_type = 'tableHeader'
             else:
-                # Split |C1|C2| — strip leading/trailing |
-                cells_raw = row_line.strip('|').split('|')
+                # Split |C1|C2| — use | as delimiter, drop empty first/last
+                cells_raw = row_line.split('|')
+                if cells_raw and cells_raw[0] == '':
+                    cells_raw = cells_raw[1:]
+                if cells_raw and cells_raw[-1] == '':
+                    cells_raw = cells_raw[:-1]
                 cell_type = 'tableCell'
             cells = []
             for cell_text in cells_raw:
@@ -271,29 +285,6 @@ while i < len(lines):
         })
         continue
 
-    # Wiki ordered list: # item, ## nested item
-    # Ambiguity: single '#' is also a markdown heading (matched above).
-    # Resolution: if current '#' line was NOT consumed by the heading matcher
-    # (which already ran), it means something else prevented it. In practice,
-    # the heading matcher catches single '#' lines. So wiki ordered lists only
-    # fire when we see a SEQUENCE of '#' lines (look-ahead confirms list context).
-    if re.match(r'^#\s+\S', line) and not re.match(r'^#{2,6}\s', line):
-        is_list = (i + 1 < len(lines) and re.match(r'^#{1,3}\s+', lines[i + 1])) or \
-                  (i > 0 and re.match(r'^#{1,3}\s+', lines[i - 1]))
-        if is_list:
-            items = []
-            while i < len(lines):
-                om = re.match(r'^(#{1,3})\s+(.*)', lines[i])
-                if not om:
-                    break
-                items.append({
-                    'type': 'listItem',
-                    'content': [{'type': 'paragraph', 'content': parse_inline(om.group(2))}]
-                })
-                i += 1
-            content.append({'type': 'orderedList', 'content': items})
-            continue
-
     # Bullet list item: - text or * text (markdown and wiki)
     m = re.match(r'^[\s]*[-*]\s+(.*)', line)
     if m:
@@ -324,7 +315,7 @@ while i < len(lines):
 
 # Fallback: if no markup detected, wrap entire text as single paragraph
 if not content:
-    content = [{'type': 'paragraph', 'content': [{'type': 'text', 'text': text}]}]
+    content = [{'type': 'paragraph', 'content': [{'type': 'text', 'text': text.strip()}]}]
 
 doc = {'type': 'doc', 'version': 1, 'content': content}
 print(json.dumps(doc))
