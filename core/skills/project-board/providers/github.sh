@@ -393,6 +393,9 @@ for item in json.load(sys.stdin).get('items', []):
     local approver
     approver=$(gh api user --jq '.login' 2>/dev/null || echo "unknown")
 
+    # Set approved label atomically before closing (CI checks this label)
+    gh issue edit "$number" --repo "$CC_GITHUB_REPO" --add-label "approved" >/dev/null 2>&1
+
     # Close the issue
     local approval_comment="Approved by @${approver}."
     [[ -n "$comment" ]] && approval_comment="Approved by @${approver}: ${comment}"

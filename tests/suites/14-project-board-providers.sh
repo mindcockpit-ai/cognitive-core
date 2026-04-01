@@ -1503,6 +1503,46 @@ else
     _fail "ADF: safe URLs blocked — got: $adf_out"
 fi
 
+# =============================================================================
+# Section 39: Approval uses label-based signal (#188)
+# =============================================================================
+
+# GitHub pb_board_approve sets 'approved' label
+if grep -A 60 '^pb_board_approve()' "${PROVIDERS_DIR}/github.sh" | grep -q 'add-label.*approved'; then
+    _pass "github: pb_board_approve sets 'approved' label"
+else
+    _fail "github: pb_board_approve missing 'approved' label"
+fi
+
+# Jira pb_board_approve sets 'approved' label
+if grep -A 50 '^pb_board_approve()' "${PROVIDERS_DIR}/jira.sh" | grep -q '"approved"'; then
+    _pass "jira: pb_board_approve sets 'approved' label"
+else
+    _fail "jira: pb_board_approve missing 'approved' label"
+fi
+
+# YouTrack pb_board_approve sets 'approved' tag
+if grep -A 50 '^pb_board_approve()' "${PROVIDERS_DIR}/youtrack.sh" | grep -q '"approved"'; then
+    _pass "youtrack: pb_board_approve sets 'approved' tag"
+else
+    _fail "youtrack: pb_board_approve missing 'approved' tag"
+fi
+
+# CI workflow uses label-based check (not comment-based)
+ci_workflow="${ROOT_DIR}/.github/workflows/project-board-automation.yml"
+
+if grep -q 'approved.*label' "$ci_workflow" || grep -q 'labels.*approved' "$ci_workflow"; then
+    _pass "CI: issue-closed job checks for 'approved' label"
+else
+    _fail "CI: issue-closed job missing label-based approval check"
+fi
+
+if grep -q 'Approved by @' "$ci_workflow"; then
+    _fail "CI: issue-closed job still uses comment-based 'Approved by @' check"
+else
+    _pass "CI: issue-closed job no longer uses comment-based 'Approved by @' check"
+fi
+
 # Cleanup
 rm -rf "$MOCK_DIR"
 

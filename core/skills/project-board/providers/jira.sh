@@ -684,6 +684,10 @@ print(len(data['fields'].get('comment', {}).get('comments', [])))
         _pb_die "Cannot approve $issue_key — no verification evidence found (0 comments)"
     fi
 
+    # Set approved label atomically before transitioning (CI checks this label)
+    _jira_api PUT "/issue/${issue_key}" \
+        -d '{"update":{"labels":[{"add":"approved"}]}}' >/dev/null 2>&1 || true
+
     # Add approval comment and transition to Done
     local approval_comment="Approved."
     [[ -n "$comment" ]] && approval_comment="Approved: ${comment}"

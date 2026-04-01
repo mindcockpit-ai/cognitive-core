@@ -343,6 +343,10 @@ for cf in data.get('customFields', []):
         _pb_die "Cannot approve $issue_id — current status is '$current_status', expected '$testing_status'"
     fi
 
+    # Set approved tag atomically before transitioning (CI checks this label/tag)
+    _yt_api POST "/issues/${issue_id}/tags?fields=id" \
+        -d '{"name":"approved"}' >/dev/null 2>&1 || true
+
     # Add approval comment and transition to Done
     local approval_comment="Approved."
     [[ -n "$comment" ]] && approval_comment="Approved: ${comment}"
