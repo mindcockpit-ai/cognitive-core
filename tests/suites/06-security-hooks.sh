@@ -133,6 +133,52 @@ if [ -f "$VALIDATE_BASH" ]; then
         _skip "bash: closure guard structured fields (jq not available)"
     fi
 
+    # --- Closure guard: gh api state-change detection ---
+    assert_hook_denies \
+        "bash: gh api PATCH state=closed → deny (closure guard API)" \
+        "$VALIDATE_BASH" \
+        "$(mock_bash_json "gh api repos/org/repo/issues/42 -X PATCH -f state=closed")"
+
+    assert_hook_denies \
+        "bash: gh api graphql CloseIssue → deny (closure guard API)" \
+        "$VALIDATE_BASH" \
+        "$(mock_bash_json "gh api graphql -f query='mutation { CloseIssue(input: {issueId: \"ID\"}) { issue { id } } }'")"
+
+    assert_hook_allows \
+        "bash: gh api state=closed with Approved by @ → allow" \
+        "$VALIDATE_BASH" \
+        "$(mock_bash_json "gh api repos/org/repo/issues/42 -X PATCH -f state=closed -f body=\"Approved by @user\"")"
+
+    assert_hook_allows \
+        "bash: gh api state=closed with Canceled: → allow" \
+        "$VALIDATE_BASH" \
+        "$(mock_bash_json "gh api repos/org/repo/issues/42 -X PATCH -f state=closed -f body=\"Canceled: duplicate\"")"
+
+    assert_hook_allows \
+        "bash: gh api (no state change) → allow" \
+        "$VALIDATE_BASH" \
+        "$(mock_bash_json "gh api repos/org/repo/issues/42")"
+
+    assert_hook_allows \
+        "bash: gh api add labels (not closing) → allow" \
+        "$VALIDATE_BASH" \
+        "$(mock_bash_json "gh api repos/org/repo/issues/42/labels -X POST -f labels[]=\"bug\"")"
+
+    # Closure guard API: structured error fields
+    if command -v jq &>/dev/null; then
+        output=$(echo "$(mock_bash_json "gh api repos/org/repo/issues/42 -X PATCH -f state=closed")" | bash "$VALIDATE_BASH" 2>/dev/null) || true
+        cat_val=$(echo "$output" | jq -r '.hookSpecificOutput.errorCategory // ""' 2>/dev/null)
+        assert_eq "bash: closure guard API has errorCategory=policy" "policy" "$cat_val"
+
+        retry_val=$(echo "$output" | jq -r '.hookSpecificOutput.isRetryable | tostring' 2>/dev/null)
+        assert_eq "bash: closure guard API has isRetryable=true" "true" "$retry_val"
+
+        sug_val=$(echo "$output" | jq -r '.hookSpecificOutput.suggestion // ""' 2>/dev/null)
+        assert_contains "bash: closure guard API has suggestion" "$sug_val" "/project-board close"
+    else
+        _skip "bash: closure guard API structured fields (jq not available)"
+    fi
+
     # --- Safe commands should still pass ---
     assert_hook_allows \
         "bash: curl (no pipe) → allow" \

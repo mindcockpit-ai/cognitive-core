@@ -144,6 +144,26 @@ if [ -z "$REASON" ] && [ "$_CLOSURE_GUARD" = "true" ]; then
             exit 0
         fi
     fi
+
+    # gh api state-change bypass: REST (state=closed) or GraphQL (CloseIssue mutation)
+    # Uses CMD_LOWER (not _CMD_CHECK) because payloads are typically inside quotes
+    # that CMD_STRIPPED removes — same rationale as gh issue close above.
+    if echo "$CMD_LOWER" | grep -qE 'gh[[:space:]]+api[[:space:]]' && \
+       echo "$CMD_LOWER" | grep -qE 'state[^a-z]*closed|closeissue'; then
+        _API_CLOSURE_EXEMPT="false"
+        if echo "$CMD" | grep -qF "Approved by @"; then
+            _API_CLOSURE_EXEMPT="true"
+        fi
+        if echo "$CMD" | grep -qF "Canceled:"; then
+            _API_CLOSURE_EXEMPT="true"
+        fi
+        if [ "$_API_CLOSURE_EXEMPT" = "false" ]; then
+            REASON="Blocked: gh api call attempts to close issue via REST/GraphQL, bypassing closure guard"
+            _cc_security_log "DENY" "closure-guard-api" "${REASON} | cmd=${CMD}"
+            _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Use '/project-board approve N' for verified issues or '/project-board close N --comment \"Approved by @user\"' to close with exemption"
+            exit 0
+        fi
+    fi
 fi
 
 # --- Project-specific blocked patterns (from config) ---
