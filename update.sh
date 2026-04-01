@@ -308,8 +308,12 @@ fi
 # Read original manifest values for preservation
 ORIG_INSTALLED=$(grep -o '"installed_at"[[:space:]]*:[[:space:]]*"[^"]*"' "$VERSION_FILE" | head -1 | sed 's/.*"installed_at"[[:space:]]*:[[:space:]]*"//;s/"//')
 
-# Determine framework version from install.sh
-FRAMEWORK_VERSION=$(grep -m1 'CC_VERSION=' "${FRAMEWORK_DIR}/install.sh" 2>/dev/null | sed 's/.*CC_VERSION="//;s/".*//' || echo "$CURRENT_VERSION")
+# Determine framework version from version.txt (preferred) or install.sh fallback
+if [ -f "${FRAMEWORK_DIR}/version.txt" ]; then
+    FRAMEWORK_VERSION=$(tr -d '[:space:]' < "${FRAMEWORK_DIR}/version.txt")
+else
+    FRAMEWORK_VERSION="$CURRENT_VERSION"
+fi
 
 cat > "$VERSION_FILE" << VEOF
 {
