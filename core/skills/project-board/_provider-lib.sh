@@ -79,6 +79,48 @@ _pb_status_display_name() {
     echo "$key"
 }
 
+# Reverse-map a provider-native status name to a canonical key.
+# Checks the active provider's CC_*_STATUS_MAP; falls back to display name match.
+# Usage: _pb_canonical_status "Zu erledigen" → "todo"
+_pb_canonical_status() {
+    local native="$1"
+    local native_lower
+    native_lower=$(echo "$native" | tr '[:upper:]' '[:lower:]')
+
+    # Try provider-specific status map (covers custom Jira/YouTrack names)
+    local map=""
+    map="${CC_JIRA_STATUS_MAP:-}${CC_YOUTRACK_STATUS_MAP:-}${CC_GITHUB_STATUS_MAP:-}"
+    if [[ -n "$map" ]]; then
+        local pair
+        IFS='|' read -ra pairs <<< "$map"
+        for pair in "${pairs[@]}"; do
+            local k="${pair%%=*}"
+            local v="${pair#*=}"
+            local v_lower
+            v_lower=$(echo "$v" | tr '[:upper:]' '[:lower:]')
+            if [[ "$v_lower" == "$native_lower" ]]; then
+                echo "$k"
+                return 0
+            fi
+        done
+    fi
+
+    # Fall back to display name table
+    local entry
+    for entry in "${PB_STATUS_DISPLAY_NAMES[@]}"; do
+        local dk="${entry%%:*}"
+        local dv="${entry#*:}"
+        local dv_lower
+        dv_lower=$(echo "$dv" | tr '[:upper:]' '[:lower:]')
+        if [[ "$dv_lower" == "$native_lower" ]]; then
+            echo "$dk"
+            return 0
+        fi
+    done
+
+    echo "$native"
+}
+
 # ---- Closure Guard ----
 # Deterministic pre-check for pb_issue_close. Invoked by the router before
 # dispatching to the provider's close function. Ensures:
@@ -126,18 +168,21 @@ except Exception:
     print('Unknown')
 " 2>/dev/null || echo "Unknown")
 
-    if [[ "$current_status" == "Done" ]]; then
-        _pb_die "Cannot close #$number — already Done"
+    local canonical_status
+    canonical_status=$(_pb_canonical_status "$current_status")
+
+    if [[ "$canonical_status" == "done" ]]; then
+        _pb_die "Cannot close #$number — already Done ($current_status)"
     fi
-    if [[ "$current_status" == "Canceled" ]]; then
-        _pb_die "Cannot close #$number — already Canceled"
+    if [[ "$canonical_status" == "canceled" ]]; then
+        _pb_die "Cannot close #$number — already Canceled ($current_status)"
     fi
 
     # Guard 2: Approval gate (skip for cancel path)
     if [[ "$is_cancel" == "false" ]]; then
         local approval_required="${CC_REQUIRE_HUMAN_APPROVAL:-true}"
-        if [[ "$approval_required" == "true" && "$current_status" == "To Be Tested" ]]; then
-            _pb_die "Cannot close #$number — status is 'To Be Tested' and CC_REQUIRE_HUMAN_APPROVAL=true. Use /project-board approve $number instead"
+        if [[ "$approval_required" == "true" && "$canonical_status" == "testing" ]]; then
+            _pb_die "Cannot close #$number — status is '$current_status' and CC_REQUIRE_HUMAN_APPROVAL=true. Use /project-board approve $number instead"
         fi
     fi
 

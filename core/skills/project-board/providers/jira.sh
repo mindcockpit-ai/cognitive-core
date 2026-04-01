@@ -383,7 +383,8 @@ _jira_do_transition() {
     local transitions
     transitions=$(_jira_get_transitions "$issue_key") || return 1
 
-    local transition_id
+    local transition_id _jira_transition_stderr
+    _jira_transition_stderr=$(mktemp)
     transition_id=$(echo "$transitions" | _CC_TARGET="$target_status" python3 -c "
 import json, sys, os
 data = json.load(sys.stdin)
@@ -392,13 +393,16 @@ for t in data.get('transitions', []):
     if t['to']['name'].lower() == target.lower():
         print(t['id'])
         sys.exit(0)
-# Try partial match
-for t in data.get('transitions', []):
-    if target.lower() in t['to']['name'].lower():
-        print(t['id'])
-        sys.exit(0)
+available = [t['to']['name'] for t in data.get('transitions', [])]
+print('Available: ' + ', '.join(available), file=sys.stderr)
 sys.exit(1)
-" 2>/dev/null) || _pb_die "No transition to '$target_status' available from current status"
+" 2>"$_jira_transition_stderr") || {
+        local avail
+        avail=$(cat "$_jira_transition_stderr" 2>/dev/null)
+        rm -f "$_jira_transition_stderr"
+        _pb_die "No transition to '$target_status' from current status. ${avail}"
+    }
+    rm -f "$_jira_transition_stderr"
 
     _jira_api POST "/issue/${issue_key}/transitions" \
         -d "{\"transition\":{\"id\":\"$transition_id\"}}" >/dev/null
@@ -515,13 +519,13 @@ pb_issue_close() {
         pb_issue_comment "$issue_key" "$comment"
     fi
 
-    _jira_do_transition "$issue_key" "Done"
+    _jira_do_transition "$issue_key" "$(_jira_status_name "done")"
     _pb_success "Issue $issue_key closed"
 }
 
 pb_issue_reopen() {
     local issue_key="${1:?Issue key required}"
-    _jira_do_transition "$issue_key" "To Do"
+    _jira_do_transition "$issue_key" "$(_jira_status_name "todo")"
     _pb_success "Issue $issue_key reopened"
 }
 
@@ -684,7 +688,7 @@ print(len(data['fields'].get('comment', {}).get('comments', [])))
     local approval_comment="Approved."
     [[ -n "$comment" ]] && approval_comment="Approved: ${comment}"
     pb_issue_comment "$issue_key" "$approval_comment"
-    _jira_do_transition "$issue_key" "Done"
+    _jira_do_transition "$issue_key" "$(_jira_status_name "done")"
 
     _pb_success "Issue $issue_key approved and moved to Done"
 }

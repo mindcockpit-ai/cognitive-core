@@ -116,7 +116,7 @@ pb_issue_list() {
     fi
 
     local encoded_query
-    encoded_query=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$query'))")
+    encoded_query=$(_CC_QUERY="$query" python3 -c "import urllib.parse, os; print(urllib.parse.quote(os.environ['_CC_QUERY']))")
 
     _yt_api GET "/issues?query=${encoded_query}&fields=idReadable,summary,customFields(name,value(name)),reporter(login)&\$top=50"
 }
@@ -187,9 +187,10 @@ pb_issue_close() {
         pb_issue_comment "$issue_id" "$comment"
     fi
 
-    # Update State custom field to Done
+    local done_status
+    done_status=$(_yt_status_name "done")
     _yt_api POST "/issues/${issue_id}" \
-        -d "{\"customFields\":[{\"name\":\"State\",\"\$type\":\"StateIssueCustomField\",\"value\":{\"name\":\"Done\"}}]}" >/dev/null
+        -d "{\"customFields\":[{\"name\":\"State\",\"\$type\":\"StateIssueCustomField\",\"value\":{\"name\":\"${done_status}\"}}]}" >/dev/null
 
     _pb_success "Issue $issue_id closed"
 }
@@ -197,8 +198,10 @@ pb_issue_close() {
 pb_issue_reopen() {
     local issue_id="${1:?Issue ID required}"
 
+    local todo_status
+    todo_status=$(_yt_status_name "todo")
     _yt_api POST "/issues/${issue_id}" \
-        -d "{\"customFields\":[{\"name\":\"State\",\"\$type\":\"StateIssueCustomField\",\"value\":{\"name\":\"Open\"}}]}" >/dev/null
+        -d "{\"customFields\":[{\"name\":\"State\",\"\$type\":\"StateIssueCustomField\",\"value\":{\"name\":\"${todo_status}\"}}]}" >/dev/null
 
     _pb_success "Issue $issue_id reopened"
 }

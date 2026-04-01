@@ -54,8 +54,9 @@ pb_branch_create() { :; }
 pb_branch_list() { :; }
 MOCKEOF
 
-# Append the real _pb_closure_guard from _provider-lib.sh into the mock
-# Extract the function (from definition to closing brace) so tests can exercise it
+# Append real functions from _provider-lib.sh into the mock
+# Extract each function (from definition to closing brace) so tests can exercise them
+sed -n '/^_pb_canonical_status()/,/^}/p' "${PB_DIR}/_provider-lib.sh" >> "${MOCK_PB_DIR}/_provider-lib.sh"
 sed -n '/^_pb_closure_guard()/,/^}/p' "${PB_DIR}/_provider-lib.sh" >> "${MOCK_PB_DIR}/_provider-lib.sh"
 
 # Create provider symlinks that point to mock _provider-lib.sh
