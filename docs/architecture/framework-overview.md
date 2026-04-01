@@ -403,22 +403,22 @@ Three ways to extend cognitive-core without modifying the core.
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐  │
 │  │  ADAPTERS (6)                                              │  │
-│  │                                                             │  │
-│  │  Each adapter implements 5 functions:                       │  │
-│  │  _adapter_install_hook                                      │  │
-│  │  _adapter_install_agent                                     │  │
-│  │  _adapter_install_skill                                     │  │
-│  │  _adapter_generate_settings                                 │  │
-│  │  _adapter_generate_project_readme                           │  │
-│  │                                                             │  │
-│  │  Platform      Install Dir        Project File              │  │
-│  │  ──────────    ─────────────      ─────────────             │  │
-│  │  Claude Code   .claude/           CLAUDE.md                 │  │
-│  │  Aider         .cognitive-core/   CONVENTIONS.md            │  │
-│  │  IntelliJ      .cognitive-core/   DEVOXXGENIE.md            │  │
-│  │  VS Code       .vscode/           copilot-instructions      │  │
-│  │  Ollama        .cognitive-core/   CONVENTIONS.md            │  │
-│  │  OpenAI        .cognitive-core/   CONVENTIONS.md            │  │
+│  │                                                            │  │
+│  │  Each adapter implements 5 functions:                      │  │
+│  │  _adapter_install_hook                                     │  │
+│  │  _adapter_install_agent                                    │  │
+│  │  _adapter_install_skill                                    │  │
+│  │  _adapter_generate_settings                                │  │
+│  │  _adapter_generate_project_readme                          │  │
+│  │                                                            │  │
+│  │  Platform      Install Dir        Project File             │  │
+│  │  ──────────    ─────────────      ─────────────            │  │
+│  │  Claude Code   .claude/           CLAUDE.md                │  │
+│  │  Aider         .cognitive-core/   CONVENTIONS.md           │  │
+│  │  IntelliJ      .cognitive-core/   DEVOXXGENIE.md           │  │
+│  │  VS Code       .vscode/           copilot-instructions     │  │
+│  │  Ollama        .cognitive-core/   CONVENTIONS.md           │  │
+│  │  OpenAI        .cognitive-core/   CONVENTIONS.md           │  │
 │  └────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────┘
 ```
