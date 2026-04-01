@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.4.0...v1.4.1) (2026-04-01)
+
+
+### Bug Fixes
+
+* **install:** read version from version.txt instead of parsing install.sh ([d51854b](https://github.com/mindcockpit-ai/cognitive-core/commit/d51854b2ef68a1f38abf09133ffc03f956f9bf3e))
+
 ## [1.4.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.3.0...v1.4.0) (2026-04-01)
 
 
