@@ -88,8 +88,9 @@ if [ -f "$VALIDATE_BASH" ]; then
         "$VALIDATE_BASH" \
         "$(mock_bash_json "gh issue close 42")"
 
-    assert_hook_allows \
-        "bash: gh issue close with Approved by @ → allow" \
+    # "Approved by @" without approved label → deny (label-verified closure)
+    assert_hook_denies \
+        "bash: gh issue close with Approved by @ but no label → deny" \
         "$VALIDATE_BASH" \
         "$(mock_bash_json "gh issue close 42 --repo org/repo --comment \"Approved by @user\"")"
 
@@ -103,8 +104,9 @@ if [ -f "$VALIDATE_BASH" ]; then
         "$VALIDATE_BASH" \
         "$(mock_bash_json "gh issue close 42 --comment \"Closed via /project-board\"")"
 
-    assert_hook_allows \
-        "bash: gh issue close with Approved by @system → allow" \
+    # "Approved by @system" without label → also deny
+    assert_hook_denies \
+        "bash: gh issue close with Approved by @system but no label → deny" \
         "$VALIDATE_BASH" \
         "$(mock_bash_json "gh issue close 42 --comment \"Closed via /project-board — Approved by @system\"")"
 
@@ -144,8 +146,9 @@ if [ -f "$VALIDATE_BASH" ]; then
         "$VALIDATE_BASH" \
         "$(mock_bash_json "gh api graphql -f query='mutation { CloseIssue(input: {issueId: \"ID\"}) { issue { id } } }'")"
 
-    assert_hook_allows \
-        "bash: gh api state=closed with Approved by @ → allow" \
+    # gh api with "Approved by @" → deny (no label exemption for API path)
+    assert_hook_denies \
+        "bash: gh api state=closed with Approved by @ → deny (no API exemption)" \
         "$VALIDATE_BASH" \
         "$(mock_bash_json "gh api repos/org/repo/issues/42 -X PATCH -f state=closed -f body=\"Approved by @user\"")"
 
