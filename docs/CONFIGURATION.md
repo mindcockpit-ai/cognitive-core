@@ -93,9 +93,9 @@ Available skills: `session-resume`, `session-sync`, `code-review`, `pre-commit`,
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `CC_HOOKS` | string | `"setup-env compact-reminder validate-bash post-edit-lint"` | Space-separated hook names to enable |
+| `CC_HOOKS` | string | `"setup-env compact-reminder validate-bash validate-read validate-fetch validate-write post-edit-lint notify-complete"` | Space-separated hook names to enable |
 
-Available hooks: `setup-env`, `compact-reminder`, `validate-bash`, `validate-read`, `validate-write`, `validate-fetch`, `post-edit-lint`
+Available hooks: `setup-env`, `compact-reminder`, `validate-bash`, `validate-read`, `validate-write`, `validate-fetch`, `post-edit-lint`, `notify-complete`
 
 ### Compact Rules
 
