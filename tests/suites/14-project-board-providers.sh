@@ -54,8 +54,9 @@ pb_branch_create() { :; }
 pb_branch_list() { :; }
 MOCKEOF
 
-# Append the real _pb_closure_guard from _provider-lib.sh into the mock
-# Extract the function (from definition to closing brace) so tests can exercise it
+# Append real functions from _provider-lib.sh into the mock
+# Extract each function (from definition to closing brace) so tests can exercise them
+sed -n '/^_pb_canonical_status()/,/^}/p' "${PB_DIR}/_provider-lib.sh" >> "${MOCK_PB_DIR}/_provider-lib.sh"
 sed -n '/^_pb_closure_guard()/,/^}/p' "${PB_DIR}/_provider-lib.sh" >> "${MOCK_PB_DIR}/_provider-lib.sh"
 
 # Create provider symlinks that point to mock _provider-lib.sh
@@ -1224,6 +1225,282 @@ if grep -q 'Approved by @system' "${PROVIDERS_DIR}/github.sh" 2>/dev/null; then
     _pass "github: pb_issue_close uses 'Approved by @system' marker"
 else
     _fail "github: pb_issue_close missing 'Approved by @system' marker"
+fi
+
+# =============================================================================
+# Section 38: Jira ADF converter — wiki markup support (#198)
+# =============================================================================
+
+# Helper: extract _jira_md_to_adf function and run it in isolation
+_test_adf() {
+    local input="$1"
+    bash -c "
+        set -euo pipefail
+        export CC_JIRA_URL='https://test.atlassian.net'
+        export CC_JIRA_PROJECT='TEST'
+        export CC_JIRA_TOKEN='test-token'
+        source '${MOCK_PROVIDERS_DIR}/jira.sh'
+        _jira_md_to_adf \"\$1\"
+    " -- "$input"
+}
+
+# T1: Wiki heading h2. produces ADF heading level 2
+adf_out=$(_test_adf "h2. My Heading")
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); c=d['content'][0]; assert c['type']=='heading' and c['attrs']['level']==2, f'got {c}'"; then
+    _pass "ADF: wiki heading h2. produces level 2 heading"
+else
+    _fail "ADF: wiki heading h2. failed — got: $adf_out"
+fi
+
+# T2: Wiki heading h5. produces level 5
+adf_out=$(_test_adf "h5. Deep Heading")
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['content'][0]['attrs']['level']==5"; then
+    _pass "ADF: wiki heading h5. produces level 5"
+else
+    _fail "ADF: wiki heading h5. failed — got: $adf_out"
+fi
+
+# T3: Wiki bold *text* produces strong mark
+adf_out=$(_test_adf "*bold text*")
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); marks=[m['type'] for n in d['content'][0]['content'] for m in n.get('marks',[])]; assert 'strong' in marks, f'got {marks}'"; then
+    _pass "ADF: wiki bold *text* produces strong mark"
+else
+    _fail "ADF: wiki bold failed — got: $adf_out"
+fi
+
+# T4: Wiki italic _text_ produces em mark
+adf_out=$(_test_adf "_italic text_")
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); marks=[m['type'] for n in d['content'][0]['content'] for m in n.get('marks',[])]; assert 'em' in marks, f'got {marks}'"; then
+    _pass "ADF: wiki italic _text_ produces em mark"
+else
+    _fail "ADF: wiki italic failed — got: $adf_out"
+fi
+
+# T5: Wiki monospace {{text}} produces code mark
+adf_out=$(_test_adf "{{monospace}}")
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); marks=[m['type'] for n in d['content'][0]['content'] for m in n.get('marks',[])]; assert 'code' in marks, f'got {marks}'"; then
+    _pass "ADF: wiki monospace {{text}} produces code mark"
+else
+    _fail "ADF: wiki monospace failed — got: $adf_out"
+fi
+
+# T6: Hyphenated words NOT mangled (spring-cloud-starter-config)
+adf_out=$(_test_adf "spring-cloud-starter-config is a dependency")
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); txt=json.dumps(d); assert 'spring-cloud-starter-config' in txt, f'mangled'; assert 'strong' not in txt and 'em' not in txt, f'got marks'"; then
+    _pass "ADF: hyphenated words pass through unmangled"
+else
+    _fail "ADF: hyphenated words mangled — got: $adf_out"
+fi
+
+# T7: Date with hyphens NOT mangled (2026-03-28)
+adf_out=$(_test_adf "Released on 2026-03-28 successfully")
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); txt=json.dumps(d); assert '2026-03-28' in txt and 'strong' not in txt and 'em' not in txt"; then
+    _pass "ADF: date hyphens pass through unmangled"
+else
+    _fail "ADF: date hyphens mangled — got: $adf_out"
+fi
+
+# T8: Horizontal rule (----) produces rule node
+adf_out=$(_test_adf "----")
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['content'][0]['type']=='rule'"; then
+    _pass "ADF: horizontal rule (----) produces rule node"
+else
+    _fail "ADF: horizontal rule failed — got: $adf_out"
+fi
+
+# T9: Wiki link [text|url] with query params
+adf_out=$(_test_adf "[Click Here|https://example.com?a=1&b=2]")
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); n=d['content'][0]['content'][0]; assert n['marks'][0]['type']=='link' and 'a=1&b=2' in n['marks'][0]['attrs']['href'] and n['text']=='Click Here'"; then
+    _pass "ADF: wiki link [text|url] with query params preserved"
+else
+    _fail "ADF: wiki link failed — got: $adf_out"
+fi
+
+# T10: Wiki link [url] bare
+adf_out=$(_test_adf "[https://example.com]")
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); n=d['content'][0]['content'][0]; assert n['marks'][0]['type']=='link' and n['text']=='https://example.com'"; then
+    _pass "ADF: wiki link [url] bare produces link"
+else
+    _fail "ADF: wiki link bare failed — got: $adf_out"
+fi
+
+# T11: Code block {code:xml}...{code} produces codeBlock with language
+adf_out=$(_test_adf '{code:xml}
+<root>
+  <child/>
+</root>
+{code}')
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); cb=d['content'][0]; assert cb['type']=='codeBlock' and cb['attrs']['language']=='xml' and '<root>' in cb['content'][0]['text']"; then
+    _pass "ADF: code block {code:xml} produces codeBlock with language"
+else
+    _fail "ADF: code block failed — got: $adf_out"
+fi
+
+# T12: Code block content NOT processed for inline marks
+adf_out=$(_test_adf '{code:java}
+String *name* = _value_;
+{code}')
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); cb=d['content'][0]; assert 'strong' not in json.dumps(cb) and '*name*' in cb['content'][0]['text']"; then
+    _pass "ADF: code block content protected from inline processing"
+else
+    _fail "ADF: code block content was processed — got: $adf_out"
+fi
+
+# T13: Wiki table ||Header||/|Cell| produces table nodes
+adf_out=$(_test_adf '||Name||Age||
+|Alice|30|
+|Bob|25|')
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); t=d['content'][0]; assert t['type']=='table' and len(t['content'])==3 and t['content'][0]['content'][0]['type']=='tableHeader' and t['content'][1]['content'][0]['type']=='tableCell'"; then
+    _pass "ADF: wiki table produces table/tableHeader/tableCell nodes"
+else
+    _fail "ADF: wiki table failed — got: $adf_out"
+fi
+
+# T14: Empty input produces valid ADF document
+adf_out=$(_test_adf "")
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['type']=='doc' and d['version']==1 and len(d['content'])>=1"; then
+    _pass "ADF: empty input produces valid ADF document"
+else
+    _fail "ADF: empty input failed — got: $adf_out"
+fi
+
+# T15: Existing markdown conversion backward compatible
+adf_out=$(_test_adf '## MD Heading
+- [ ] task item
+- bullet item
+**bold** text')
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); types=[c['type'] for c in d['content']]; assert 'heading' in types and 'taskList' in types and 'bulletList' in types and 'paragraph' in types, f'got {types}'"; then
+    _pass "ADF: markdown backward compatibility (headings, tasks, bullets, bold)"
+else
+    _fail "ADF: markdown backward compat failed — got: $adf_out"
+fi
+
+# T16: Mixed wiki + markdown renders correctly
+adf_out=$(_test_adf '## MD Heading
+h3. Wiki Heading
+**md bold** and *wiki bold*
+----')
+if echo "$adf_out" | python3 -c "
+import json,sys; d=json.load(sys.stdin)
+types=[c['type'] for c in d['content']]
+assert types.count('heading')==2, f'expected 2 headings, got {types}'
+assert 'rule' in types, f'missing rule in {types}'
+assert 'strong' in json.dumps(d), 'missing strong'
+"; then
+    _pass "ADF: mixed wiki + markdown renders correctly"
+else
+    _fail "ADF: mixed input failed — got: $adf_out"
+fi
+
+# T17: ReDoS safety — 10KB input without timeout
+big_input=$(python3 -c "print('spring-cloud-starter-config ' * 500)")
+adf_out=$(timeout 5 bash -c "
+    set -euo pipefail
+    export CC_JIRA_URL='https://test.atlassian.net'
+    export CC_JIRA_PROJECT='TEST'
+    export CC_JIRA_TOKEN='test-token'
+    source '${MOCK_PROVIDERS_DIR}/jira.sh'
+    _jira_md_to_adf \"\$1\"
+" -- "$big_input" 2>&1) && redos_exit=0 || redos_exit=$?
+if [[ $redos_exit -eq 0 ]]; then
+    _pass "ADF: ReDoS safety — 10KB input processed without timeout"
+else
+    _fail "ADF: ReDoS — 10KB input timed out or failed (exit $redos_exit)"
+fi
+
+# T18: Strikethrough NOT implemented — no -text- pattern matching
+adf_out=$(_test_adf "Use spring-cloud-starter for -testing- and check-in")
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); txt=json.dumps(d); assert 'strike' not in txt, f'strikethrough found'"; then
+    _pass "ADF: strikethrough not implemented (no strike marks)"
+else
+    _fail "ADF: strikethrough detected — got: $adf_out"
+fi
+
+# T19: {code} without language — no attrs key in output
+adf_out=$(_test_adf '{code}
+plain preformatted
+{code}')
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); cb=d['content'][0]; assert cb['type']=='codeBlock' and 'attrs' not in cb and 'plain preformatted' in cb['content'][0]['text']"; then
+    _pass "ADF: {code} without language produces codeBlock without attrs"
+else
+    _fail "ADF: {code} without language failed — got: $adf_out"
+fi
+
+# T20: Multiple code blocks — correct content and language ordering
+adf_out=$(_test_adf '{code:python}
+first()
+{code}
+
+text between
+
+{code:bash}
+second
+{code}')
+if echo "$adf_out" | python3 -c "
+import json,sys; d=json.load(sys.stdin)
+blocks=[c for c in d['content'] if c['type']=='codeBlock']
+assert len(blocks)==2, f'expected 2 blocks, got {len(blocks)}'
+assert blocks[0]['attrs']['language']=='python' and 'first()' in blocks[0]['content'][0]['text']
+assert blocks[1]['attrs']['language']=='bash' and 'second' in blocks[1]['content'][0]['text']
+"; then
+    _pass "ADF: multiple code blocks preserve correct order and language"
+else
+    _fail "ADF: multiple code blocks failed — got: $adf_out"
+fi
+
+# T21: Empty table cell handled gracefully
+adf_out=$(_test_adf '||Name||Score||
+|Alice||')
+if echo "$adf_out" | python3 -c "
+import json,sys; d=json.load(sys.stdin)
+t=d['content'][0]
+assert t['type']=='table'
+row=t['content'][1]  # data row
+assert len(row['content'])==2, f'expected 2 cells, got {len(row[\"content\"])}'
+"; then
+    _pass "ADF: empty table cell handled gracefully"
+else
+    _fail "ADF: empty table cell failed — got: $adf_out"
+fi
+
+# T22: Markdown fenced code block (triple-backtick)
+adf_out=$(_test_adf '```python
+x = 1
+```')
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); cb=d['content'][0]; assert cb['type']=='codeBlock' and cb['attrs']['language']=='python' and 'x = 1' in cb['content'][0]['text']"; then
+    _pass "ADF: markdown fenced code block with language"
+else
+    _fail "ADF: markdown fenced code block failed — got: $adf_out"
+fi
+
+# T23: javascript: URI neutralized in wiki links (XSS defense-in-depth)
+adf_out=$(_test_adf "[Click|javascript:alert(1)]")
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); href=d['content'][0]['content'][0]['marks'][0]['attrs']['href']; assert href=='#', f'expected # got {href}'"; then
+    _pass "ADF: javascript: URI neutralized to # (XSS defense)"
+else
+    _fail "ADF: javascript: URI not neutralized — got: $adf_out"
+fi
+
+# T24: data: URI neutralized in wiki links
+adf_out=$(_test_adf "[Click|data:text/html,<script>alert(1)</script>]")
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); href=d['content'][0]['content'][0]['marks'][0]['attrs']['href']; assert href=='#', f'expected # got {href}'"; then
+    _pass "ADF: data: URI neutralized to # (XSS defense)"
+else
+    _fail "ADF: data: URI not neutralized — got: $adf_out"
+fi
+
+# T25: https:// and relative URLs pass through scheme whitelist
+adf_out=$(_test_adf "[Safe|https://example.com] and [Anchor|#section] and [Relative|/path/to]")
+if echo "$adf_out" | python3 -c "
+import json,sys; d=json.load(sys.stdin)
+nodes=d['content'][0]['content']
+links=[n for n in nodes if n.get('marks') and n['marks'][0]['type']=='link']
+hrefs=[l['marks'][0]['attrs']['href'] for l in links]
+assert 'https://example.com' in hrefs and '#section' in hrefs and '/path/to' in hrefs, f'got {hrefs}'
+"; then
+    _pass "ADF: https/anchor/relative URLs pass scheme whitelist"
+else
+    _fail "ADF: safe URLs blocked — got: $adf_out"
 fi
 
 # Cleanup

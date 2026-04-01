@@ -37,6 +37,7 @@ A portable, vendor-agnostic AI-augmented development framework that governs the 
 | claude | Claude Code CLI | Claude (any) | Production |
 | aider | Aider + Ollama | Local models (Mistral, Llama) | Production |
 | intellij | IntelliJ + DevoxxGenie | Any provider | Production |
+| vscode | VS Code (Copilot, Continue.dev, Cline) | Any provider | Production (v1.3.0) |
 
 ### Enterprise Governance
 
@@ -55,7 +56,7 @@ A portable, vendor-agnostic AI-augmented development framework that governs the 
 
 | Metric | Value |
 |--------|-------|
-| Test suites | 13 suites, 528 tests, all passing |
+| Test suites | 16 suites, 809+ assertions, all passing |
 | Claude Certified Architect | 959/1000 (Grade A, all 5 domains) |
 | Workflow Maturity Audit | 4.79/5.0 (+63% above industry average) |
 
@@ -74,7 +75,7 @@ A portable, vendor-agnostic AI-augmented development framework that governs the 
 
 | # | Feature | Priority | Size | Status |
 |---|---------|----------|------|--------|
-| [#81](https://github.com/mindcockpit-ai/cognitive-core/issues/81) | VS Code adapter (Copilot + Continue.dev + Cline) | P1-high | L | Feasibility complete |
+| [#81](https://github.com/mindcockpit-ai/cognitive-core/issues/81) | VS Code adapter (Copilot + Continue.dev + Cline) | P1-high | L | **Shipped (v1.3.0)** |
 | [#82](https://github.com/mindcockpit-ai/cognitive-core/issues/82) | Eclipse adapter (Copilot + EclipseLlama) | P2-medium | XL | Feasibility complete |
 | [#83](https://github.com/mindcockpit-ai/cognitive-core/issues/83) | Cursor IDE adapter | P2-medium | M | Feasibility complete |
 | [#84](https://github.com/mindcockpit-ai/cognitive-core/issues/84) | Windsurf adapter (Cascade + workflows) | P3-low | M | Feasibility complete |
@@ -162,10 +163,13 @@ Your stack. Your rules. Your workflow. [Research paper](docs/research/enterprise
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| v1.3.0 | 2026-03-28 | VS Code adapter, inter-session coordination, closure guard, prompt linter, 809+ assertions |
+| v1.2.0 | 2026-03-23 | Gitignore policy (16 IDEs + 11 language packs), 16 suites / 809 assertions |
+| v1.1.0 | 2026-03-18 | Shared MCP server, batch-review skill, W3C PROV provenance, A2A state machine |
 | v1.0.0 | 2026-03-18 | 4 novel features, enterprise governance, 3 adapters, 959/1000 certification |
 | v0.2.0 | 2026-02-17 | Security guard, connected projects, CI/CD, landing page |
 | v0.1.0 | 2026-02 | Initial release with core architecture |
 
 ---
 
-*Last updated: 2026-03-25*
+*Last updated: 2026-03-30*
