@@ -9,28 +9,28 @@ Visual architecture guide. All diagrams render in GitHub markdown.
 Everything in one view — what cognitive-core is made of.
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      cognitive-core                              │
-├──────────┬──────────┬──────────┬────────────────────────────────┤
-│          │          │          │                                  │
-│  HOOKS   │  AGENTS  │  SKILLS  │     EXTENSION PACKS             │
-│  (safety)│  (team)  │  (tasks) │                                  │
-│          │          │          │  ┌────────────┐ ┌────────────┐  │
-│  15 hooks│ 10 agents│ 20 skills│  │ 11 Language │ │ 3 Database │  │
-│          │          │          │  │ Packs       │ │ Packs      │  │
-│          │          │          │  └────────────┘ └────────────┘  │
-├──────────┴──────────┴──────────┴────────────────────────────────┤
-│                                                                   │
-│  ADAPTERS            CICD              TESTING                    │
-│  6 platforms         Workflows         20 suites                  │
-│  (Claude, Aider,     Docker, K8s       800+ assertions            │
-│   IntelliJ, VSCode,  Monitoring                                   │
-│   Ollama, OpenAI)                                                 │
-│                                                                   │
-├───────────────────────────────────────────────────────────────────┤
+┌──────────────────────────────────────────────────────────────────────────┐
+│                            cognitive-core                                │
+├──────────┬──────────┬──────────┬─────────────────────────────────────────┤
+│          │          │          │                                         │
+│  HOOKS   │  AGENTS  │  SKILLS  │  EXTENSION PACKS                       │
+│  (safety)│  (team)  │  (tasks) │                                         │
+│          │          │          │  ┌─────────────┐  ┌─────────────┐      │
+│  15 hooks│ 10 agents│ 20 skills│  │ 11 Language  │  │ 3 Database  │      │
+│          │          │          │  │ Packs        │  │ Packs       │      │
+│          │          │          │  └─────────────┘  └─────────────┘      │
+├──────────┴──────────┴──────────┴─────────────────────────────────────────┤
+│                                                                          │
+│  ADAPTERS              CICD                TESTING                        │
+│  6 platforms           Workflows           20 suites                     │
+│  (Claude, Aider,       Docker, K8s         800+ assertions               │
+│   IntelliJ, VSCode,    Monitoring                                        │
+│   Ollama, OpenAI)                                                        │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────┤
 │  install.sh ──→ cognitive-core.conf ──→ .claude/ (or .cognitive-core/)  │
 │  update.sh ──→ version.json (checksums) ──→ safe incremental update     │
-└───────────────────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 **One sentence**: cognitive-core installs hooks (safety), agents (team), and skills (tasks) into any project, with extension packs for languages and databases, adapters for different AI platforms, and 20 test suites to verify everything works.
@@ -45,63 +45,63 @@ What happens when a user types something in a Claude Code session.
     User types: "review this code for security issues"
          │
          ▼
-┌─────────────────────────────────┐
-│  SESSION START (once per session)│
-│  setup-env.sh → env vars, branch│
-│  compact-reminder.sh → rules    │
-│  session-resume → prior context  │
-└────────────┬────────────────────┘
-             │
-             ▼
-┌─────────────────────────────────┐
-│  CLAUDE (LLM) decides actions    │
-│  Reads: CLAUDE.md, agent defs,   │
-│         skill definitions         │
-│                                   │
-│  Routes to: @security-analyst     │
-│  Plans: Read files, run grep,     │
-│         generate review           │
-└────────────┬────────────────────┘
-             │
-             ▼  (for each tool call)
-┌─────────────────────────────────┐
-│  PreToolUse HOOKS                │
-│                                   │
-│  Bash?   → validate-bash.sh      │
-│  Read?   → validate-read.sh      │
-│  Fetch?  → validate-fetch.sh     │
-│                                   │
-│  ┌─────────┐    ┌─────────────┐  │
-│  │  DENY   │    │   ALLOW     │  │
-│  │ (JSON)  │    │ (silent)    │  │
-│  └────┬────┘    └──────┬──────┘  │
-│       │                │          │
-│   blocked          executes       │
-└───────┘────────────────┬─────────┘
-                         │
-                         ▼
-              ┌──────────────────┐
-              │  TOOL EXECUTES   │
-              │  (bash, read,    │
-              │   write, etc.)   │
-              └────────┬─────────┘
-                       │
-                       ▼
-┌─────────────────────────────────┐
-│  PostToolUse HOOKS               │
-│                                   │
-│  Write/Edit? → validate-write.sh │
-│               → post-edit-lint.sh│
-│  Fetch?      → post-fetch-cache  │
-│                                   │
-│  Cannot block (already happened)  │
-│  Can warn via additionalContext   │
-└────────────┬────────────────────┘
-             │
-             ▼
-┌─────────────────────────────────┐
-│  RESPONSE to user                │
-└─────────────────────────────────┘
+┌───────────────────────────────────┐
+│  SESSION START (once per session) │
+│  setup-env.sh → env vars, branch │
+│  compact-reminder.sh → rules     │
+│  session-resume → prior context   │
+└────────────────┬──────────────────┘
+                 │
+                 ▼
+┌───────────────────────────────────┐
+│  CLAUDE (LLM) decides actions     │
+│  Reads: CLAUDE.md, agent defs,    │
+│         skill definitions          │
+│                                    │
+│  Routes to: @security-analyst      │
+│  Plans: Read files, run grep,      │
+│         generate review            │
+└────────────────┬──────────────────┘
+                 │
+                 ▼  (for each tool call)
+┌───────────────────────────────────┐
+│  PreToolUse HOOKS                 │
+│                                    │
+│  Bash?   → validate-bash.sh       │
+│  Read?   → validate-read.sh       │
+│  Fetch?  → validate-fetch.sh      │
+│                                    │
+│  ┌──────────┐   ┌──────────────┐  │
+│  │  DENY    │   │   ALLOW      │  │
+│  │  (JSON)  │   │   (silent)   │  │
+│  └────┬─────┘   └──────┬───────┘  │
+│       │                 │          │
+│   blocked           executes       │
+└───────┘─────────────────┬─────────┘
+                          │
+                          ▼
+               ┌──────────────────┐
+               │  TOOL EXECUTES   │
+               │  (bash, read,    │
+               │   write, etc.)   │
+               └────────┬─────────┘
+                        │
+                        ▼
+┌───────────────────────────────────┐
+│  PostToolUse HOOKS                │
+│                                    │
+│  Write/Edit? → validate-write.sh  │
+│               → post-edit-lint.sh │
+│  Fetch?      → post-fetch-cache   │
+│                                    │
+│  Cannot block (already happened)   │
+│  Can warn via additionalContext    │
+└────────────────┬──────────────────┘
+                 │
+                 ▼
+┌───────────────────────────────────┐
+│  RESPONSE to user                 │
+└───────────────────────────────────┘
 ```
 
 **Key insight**: Hooks are the only deterministic enforcement layer. Everything else (agent routing, skill steps, CLAUDE.md rules) is LLM-interpreted.
@@ -113,23 +113,23 @@ What happens when a user types something in a Claude Code session.
 The immune system — intercepts every tool call.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     HOOK PROTOCOL                            │
-│                                                               │
-│   Claude Code                     Hook Script                 │
-│   ─────────                       ───────────                 │
-│                                                               │
-│   Tool call    ──── stdin JSON ────→  INPUT=$(cat)            │
-│   happens                             parse with _lib.sh      │
-│                                                               │
-│                                   ┌─ ALLOW: exit 0 (silent)  │
-│                ◄── stdout JSON ──┤                            │
-│                                   └─ DENY: JSON response     │
-│                                      {"permissionDecision":   │
-│                                       "deny",                 │
-│                                       "permissionDecision-    │
-│                                        Reason": "..."}        │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                       HOOK PROTOCOL                          │
+│                                                              │
+│  Claude Code                      Hook Script                │
+│  ──────────                       ───────────                │
+│                                                              │
+│  Tool call    ──── stdin JSON ───→  INPUT=$(cat)             │
+│  happens                            parse with _lib.sh       │
+│                                                              │
+│                                   ┌─ ALLOW: exit 0 (silent) │
+│               ◄── stdout JSON ───┤                           │
+│                                   └─ DENY: JSON response    │
+│                                      {"permissionDecision":  │
+│                                       "deny",                │
+│                                       "permissionDecision-   │
+│                                        Reason": "..."}       │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ### Hook Events
@@ -172,19 +172,19 @@ CC_SECURITY_LEVEL=
 Hub-and-spoke — the project-coordinator routes to specialists.
 
 ```
-                         ┌───────────────────┐
-                         │       USER        │
-                         └─────────┬─────────┘
-                                   │
-                    ┌──────────────▼──────────────┐
-                    │    project-coordinator       │
-                    │    (Hub — Opus)               │
-                    │                               │
-                    │  Analyzes request             │
-                    │  Matches keywords             │
-                    │  Delegates to specialist      │
-                    │  Synthesizes results           │
-                    └──┬───┬───┬───┬───┬───┬──────┘
+                         ┌──────────────────┐
+                         │       USER       │
+                         └────────┬─────────┘
+                                  │
+                    ┌─────────────▼─────────────┐
+                    │   project-coordinator      │
+                    │   (Hub — Opus)              │
+                    │                             │
+                    │  Analyzes request           │
+                    │  Matches keywords           │
+                    │  Delegates to specialist    │
+                    │  Synthesizes results        │
+                    └──┬───┬───┬───┬───┬───┬────┘
                        │   │   │   │   │   │
          ┌─────────────┘   │   │   │   │   └──────────────┐
          ▼                 ▼   │   ▼   ▼                  ▼
@@ -227,40 +227,40 @@ Hub-and-spoke — the project-coordinator routes to specialists.
 How a SKILL.md is structured and how ability types work.
 
 ```
-┌─────────────────────────────────────────────────┐
-│  core/skills/smoke-test/SKILL.md                 │
-├─────────────────────────────────────────────────┤
-│                                                   │
-│  ┌─────────────────────────────────────────┐     │
-│  │  YAML FRONTMATTER (harness-enforced)     │     │
-│  │  name: smoke-test                        │     │
-│  │  allowed-tools: [Bash, Read, Grep]       │  D  │
-│  │  user-invocable: true                    │  E  │
-│  └─────────────────────────────────────────┘  T  │
-│                                                E  │
-│  ┌─────────────────────────────────────────┐  R  │
-│  │  ABILITY REGISTRY (type annotations)     │  M  │
-│  │                                          │  I  │
-│  │  preflight      [D]   → preflight.sh     │  N  │
-│  │  execute-test   [D]   → execute-test.sh  │  I  │
-│  │  format-table   [S]   → LLM generates    │  S  │
-│  │  create-issue   [D/S] → create-issue.sh  │  T  │
-│  │  offer-closures [H]   → human decides    │  I  │
-│  └─────────────────────────────────────────┘  C  │
-│                                                   │
-│  ┌─────────────────────────────────────────┐     │
-│  │  WORKFLOW (LLM-interpreted prose)        │     │
-│  │                                          │  S  │
-│  │  Step 1 [D]: Run preflight.sh            │  T  │
-│  │  Step 2 [D]: Run execute-test.sh         │  O  │
-│  │  Step 3 [S]: Render markdown table       │  C  │
-│  │  Step 4 [D]: Run check-issues.sh         │  H  │
-│  │  Step 5 [S]: Compose issue body          │  A  │
-│  │  Step 6 [D/S]: Run create-issue.sh       │  S  │
-│  │  Step 7 [H]: Ask human about closures    │  T  │
-│  └─────────────────────────────────────────┘  I  │
-│                                                C  │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│  core/skills/smoke-test/SKILL.md                     │
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│  ┌──────────────────────────────────────────┐        │
+│  │  YAML FRONTMATTER (harness-enforced)     │        │
+│  │  name: smoke-test                        │   D    │
+│  │  allowed-tools: [Bash, Read, Grep]       │   E    │
+│  │  user-invocable: true                    │   T    │
+│  └──────────────────────────────────────────┘   E    │
+│                                                  R    │
+│  ┌──────────────────────────────────────────┐   M    │
+│  │  ABILITY REGISTRY (type annotations)     │   I    │
+│  │                                          │   N    │
+│  │  preflight      [D]   → preflight.sh     │   I    │
+│  │  execute-test   [D]   → execute-test.sh  │   S    │
+│  │  format-table   [S]   → LLM generates    │   T    │
+│  │  create-issue   [D/S] → create-issue.sh  │   I    │
+│  │  offer-closures [H]   → human decides    │   C    │
+│  └──────────────────────────────────────────┘        │
+│                                                      │
+│  ┌──────────────────────────────────────────┐        │
+│  │  WORKFLOW (LLM-interpreted prose)        │        │
+│  │                                          │   S    │
+│  │  Step 1 [D]: Run preflight.sh            │   T    │
+│  │  Step 2 [D]: Run execute-test.sh         │   O    │
+│  │  Step 3 [S]: Render markdown table       │   C    │
+│  │  Step 4 [D]: Run check-issues.sh         │   H    │
+│  │  Step 5 [S]: Compose issue body          │   A    │
+│  │  Step 6 [D/S]: Run create-issue.sh       │   S    │
+│  │  Step 7 [H]: Ask human about closures    │   T    │
+│  └──────────────────────────────────────────┘   I    │
+│                                                  C    │
+└──────────────────────────────────────────────────────┘
 ```
 
 ### Ability Types — Who Decides, Who Executes
@@ -301,70 +301,70 @@ How a SKILL.md is structured and how ability types work.
 How cognitive-core gets into your project.
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                         INSTALL FLOW                              │
-│                                                                    │
-│  ./install.sh /path/to/project                                    │
-│       │                                                            │
-│       ▼                                                            │
-│  ┌──────────────┐   ┌──────────────┐   ┌────────────────────┐    │
-│  │ 1. PROMPTS    │──→│ 2. DETECT    │──→│ 3. SELECT ADAPTER  │    │
-│  │               │   │              │   │                    │    │
-│  │ Project name  │   │ Language     │   │ Claude → .claude/  │    │
-│  │ Language      │   │ Database     │   │ Aider → .cog-core/ │    │
-│  │ Database      │   │ Platform     │   │ IntelliJ → .cog../ │    │
-│  │ Security lvl  │   │              │   │ VSCode → .vscode/  │    │
-│  └──────────────┘   └──────────────┘   └─────────┬──────────┘    │
-│                                                    │                │
-│       ┌────────────────────────────────────────────┘                │
-│       ▼                                                            │
-│  ┌────────────────────────────────────────────────────────────┐    │
-│  │ 4. COPY COMPONENTS via adapter                              │    │
-│  │                                                              │    │
-│  │  cognitive-core.conf    ← generated from user answers        │    │
-│  │  settings.json          ← hooks + permissions                │    │
-│  │  CLAUDE.md              ← project rules (or CONVENTIONS.md)  │    │
-│  │  hooks/*.sh             ← selected hooks                     │    │
-│  │  agents/*.md            ← selected agents                    │    │
-│  │  skills/*/SKILL.md      ← selected skills                    │    │
-│  │  language-pack/*        ← if language selected               │    │
-│  │  database-pack/*        ← if database selected               │    │
-│  │  .gitignore merge       ← from gitignore-base + pack frags  │    │
-│  └────────────────────────────────────────┬───────────────────┘    │
-│                                            │                        │
-│       ┌────────────────────────────────────┘                        │
-│       ▼                                                            │
-│  ┌──────────────────┐                                              │
-│  │ 5. WRITE MANIFEST │                                              │
-│  │ version.json      │ ← SHA256 checksums of every installed file   │
-│  └──────────────────┘                                              │
-└──────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                           INSTALL FLOW                               │
+│                                                                      │
+│  ./install.sh /path/to/project                                       │
+│       │                                                              │
+│       ▼                                                              │
+│  ┌───────────────┐  ┌───────────────┐  ┌──────────────────────┐     │
+│  │ 1. PROMPTS    │─→│ 2. DETECT     │─→│ 3. SELECT ADAPTER    │     │
+│  │               │  │               │  │                      │     │
+│  │ Project name  │  │ Language      │  │ Claude  → .claude/   │     │
+│  │ Language      │  │ Database      │  │ Aider   → .cog-core/ │     │
+│  │ Database      │  │ Platform      │  │ IntelliJ→ .cog-core/ │     │
+│  │ Security lvl  │  │               │  │ VSCode  → .vscode/   │     │
+│  └───────────────┘  └───────────────┘  └──────────┬───────────┘     │
+│                                                    │                 │
+│       ┌────────────────────────────────────────────┘                 │
+│       ▼                                                              │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │ 4. COPY COMPONENTS via adapter                               │   │
+│  │                                                               │   │
+│  │  cognitive-core.conf  ← generated from user answers           │   │
+│  │  settings.json        ← hooks + permissions                   │   │
+│  │  CLAUDE.md            ← project rules (or CONVENTIONS.md)     │   │
+│  │  hooks/*.sh           ← selected hooks                        │   │
+│  │  agents/*.md          ← selected agents                       │   │
+│  │  skills/*/SKILL.md    ← selected skills                       │   │
+│  │  language-pack/*      ← if language selected                  │   │
+│  │  database-pack/*      ← if database selected                  │   │
+│  │  .gitignore merge     ← from gitignore-base + pack fragments  │   │
+│  └──────────────────────────────────────────────┬───────────────┘   │
+│                                                  │                   │
+│       ┌──────────────────────────────────────────┘                   │
+│       ▼                                                              │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │ 5. WRITE MANIFEST                                            │   │
+│  │ version.json ← SHA256 checksums of every installed file      │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────────────────┘
 
 
-┌──────────────────────────────────────────────────────────────────┐
-│                         UPDATE FLOW                               │
-│                                                                    │
-│  ./update.sh /path/to/project                                     │
-│       │                                                            │
-│       ▼                                                            │
-│  ┌──────────────────────────────────────────────────────────┐     │
-│  │ 1. Read version.json                                      │     │
-│  │ 2. For each tracked file:                                 │     │
-│  │    current_hash = SHA256(installed file)                   │     │
-│  │    manifest_hash = version.json recorded hash             │     │
-│  │    framework_hash = SHA256(framework source file)         │     │
-│  │                                                            │     │
-│  │    ┌─ current == manifest?                                │     │
-│  │    │  YES → user did NOT modify → safe to update          │     │
-│  │    │  NO  → user modified → SKIP (warn to review)         │     │
-│  │    └──────────────────────────────────────────────         │     │
-│  │                                                            │     │
-│  │ 3. Copy new files not in manifest (new framework features)│     │
-│  │ 4. Write updated version.json                             │     │
-│  └──────────────────────────────────────────────────────────┘     │
-│                                                                    │
-│  KEY INVARIANT: update never overwrites your customizations        │
-└──────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                           UPDATE FLOW                                │
+│                                                                      │
+│  ./update.sh /path/to/project                                        │
+│       │                                                              │
+│       ▼                                                              │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │ 1. Read version.json                                         │   │
+│  │ 2. For each tracked file:                                    │   │
+│  │    current_hash  = SHA256(installed file)                     │   │
+│  │    manifest_hash = version.json recorded hash                │   │
+│  │    framework_hash = SHA256(framework source file)            │   │
+│  │                                                               │   │
+│  │    ┌─ current == manifest?                                   │   │
+│  │    │  YES → user did NOT modify → safe to update             │   │
+│  │    │  NO  → user modified → SKIP (warn to review)            │   │
+│  │    └─────────────────────────────────────────────            │   │
+│  │                                                               │   │
+│  │ 3. Copy new files not in manifest (new framework features)   │   │
+│  │ 4. Write updated version.json                                │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  KEY INVARIANT: update never overwrites your customizations          │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -375,51 +375,51 @@ Three ways to extend cognitive-core without modifying the core.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                     EXTENSION POINTS                              │
-│                                                                    │
-│  ┌──────────────────────────────────────────────────────────┐    │
-│  │  LANGUAGE PACKS (11)                                      │    │
-│  │                                                            │    │
-│  │  language-packs/<lang>/                                    │    │
-│  │  ├── skills/         ← language-specific skills            │    │
-│  │  ├── rules/          ← path-scoped coding rules            │    │
-│  │  ├── gitignore.frag  ← merged into project .gitignore     │    │
-│  │  └── pack.conf       ← defaults (linter, formatter, etc.) │    │
-│  │                                                            │    │
-│  │  angular  csharp  go  java  node  perl  python             │    │
-│  │  react  rust  spring-boot  struts-jsp                      │    │
-│  └──────────────────────────────────────────────────────────┘    │
-│                                                                    │
-│  ┌──────────────────────────────────────────────────────────┐    │
-│  │  DATABASE PACKS (3)                                       │    │
-│  │                                                            │    │
-│  │  database-packs/<db>/                                      │    │
-│  │  ├── skills/         ← DB-specific patterns & optimization │    │
-│  │  ├── rules/          ← SQL conventions                     │    │
-│  │  └── pack.conf       ← defaults (client tool, port, etc.) │    │
-│  │                                                            │    │
-│  │  oracle  postgresql  mysql                                 │    │
-│  └──────────────────────────────────────────────────────────┘    │
-│                                                                    │
-│  ┌──────────────────────────────────────────────────────────┐    │
-│  │  ADAPTERS (6)                                             │    │
-│  │                                                            │    │
-│  │  Each adapter implements 5 functions:                      │    │
-│  │  _adapter_install_hook                                     │    │
-│  │  _adapter_install_agent                                    │    │
-│  │  _adapter_install_skill                                    │    │
-│  │  _adapter_generate_settings                                │    │
-│  │  _adapter_generate_project_readme                          │    │
-│  │                                                            │    │
-│  │  Platform       Install Dir         Project File           │    │
-│  │  ─────────      ───────────         ────────────           │    │
-│  │  Claude Code    .claude/            CLAUDE.md              │    │
-│  │  Aider          .cognitive-core/    CONVENTIONS.md         │    │
-│  │  IntelliJ       .cognitive-core/    DEVOXXGENIE.md         │    │
-│  │  VS Code        .vscode/            copilot-instructions   │    │
-│  │  Ollama         .cognitive-core/    CONVENTIONS.md         │    │
-│  │  OpenAI         .cognitive-core/    CONVENTIONS.md         │    │
-│  └──────────────────────────────────────────────────────────┘    │
+│                       EXTENSION POINTS                           │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │  LANGUAGE PACKS (11)                                       │  │
+│  │                                                             │  │
+│  │  language-packs/<lang>/                                     │  │
+│  │  ├── skills/         ← language-specific skills             │  │
+│  │  ├── rules/          ← path-scoped coding rules             │  │
+│  │  ├── gitignore.frag  ← merged into project .gitignore      │  │
+│  │  └── pack.conf       ← defaults (linter, formatter, etc.)  │  │
+│  │                                                             │  │
+│  │  angular  csharp  go  java  node  perl  python              │  │
+│  │  react  rust  spring-boot  struts-jsp                       │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │  DATABASE PACKS (3)                                        │  │
+│  │                                                             │  │
+│  │  database-packs/<db>/                                       │  │
+│  │  ├── skills/         ← DB-specific patterns & optimization  │  │
+│  │  ├── rules/          ← SQL conventions                      │  │
+│  │  └── pack.conf       ← defaults (client tool, port, etc.)  │  │
+│  │                                                             │  │
+│  │  oracle  postgresql  mysql                                  │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │  ADAPTERS (6)                                              │  │
+│  │                                                             │  │
+│  │  Each adapter implements 5 functions:                       │  │
+│  │  _adapter_install_hook                                      │  │
+│  │  _adapter_install_agent                                     │  │
+│  │  _adapter_install_skill                                     │  │
+│  │  _adapter_generate_settings                                 │  │
+│  │  _adapter_generate_project_readme                           │  │
+│  │                                                             │  │
+│  │  Platform      Install Dir        Project File              │  │
+│  │  ──────────    ─────────────      ─────────────             │  │
+│  │  Claude Code   .claude/           CLAUDE.md                 │  │
+│  │  Aider         .cognitive-core/   CONVENTIONS.md            │  │
+│  │  IntelliJ      .cognitive-core/   DEVOXXGENIE.md            │  │
+│  │  VS Code       .vscode/           copilot-instructions      │  │
+│  │  Ollama        .cognitive-core/   CONVENTIONS.md            │  │
+│  │  OpenAI        .cognitive-core/   CONVENTIONS.md            │  │
+│  └────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
