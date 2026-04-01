@@ -126,7 +126,7 @@ if [ -z "$REASON" ] && [ "$_CLOSURE_GUARD" = "true" ]; then
         if [ "$_CLOSURE_EXEMPT" = "false" ]; then
             REASON="Blocked: direct gh issue close bypasses closure guard"
             _cc_security_log "DENY" "closure-guard" "${REASON} | cmd=${CMD}"
-            _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Use /project-board close N instead"
+            _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Use '/project-board approve N' for verified issues or '/project-board close N --comment \"Approved by @user\"' to close with exemption"
             exit 0
         fi
     fi
