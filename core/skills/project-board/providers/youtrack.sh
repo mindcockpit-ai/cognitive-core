@@ -222,8 +222,11 @@ pb_issue_comment() {
     local issue_id="${1:?Issue ID required}"
     local body="${2:?Comment body required}"
 
+    local payload
+    payload=$(_CC_BODY="$body" python3 -c "
+import json, os; print(json.dumps({'text': os.environ['_CC_BODY']}))")
     _yt_api POST "/issues/${issue_id}/comments" \
-        -d "{\"text\":\"$body\"}" >/dev/null
+        -d "$payload" >/dev/null
 
     _pb_success "Comment added to $issue_id"
 }

@@ -88,8 +88,12 @@ _pb_canonical_status() {
     native_lower=$(echo "$native" | tr '[:upper:]' '[:lower:]')
 
     # Try provider-specific status map (covers custom Jira/YouTrack names)
-    local map=""
-    map="${CC_JIRA_STATUS_MAP:-}${CC_YOUTRACK_STATUS_MAP:-}${CC_GITHUB_STATUS_MAP:-}"
+    local parts=()
+    [[ -n "${CC_JIRA_STATUS_MAP:-}" ]]    && parts+=("$CC_JIRA_STATUS_MAP")
+    [[ -n "${CC_YOUTRACK_STATUS_MAP:-}" ]] && parts+=("$CC_YOUTRACK_STATUS_MAP")
+    [[ -n "${CC_GITHUB_STATUS_MAP:-}" ]]  && parts+=("$CC_GITHUB_STATUS_MAP")
+    local map
+    map=$(IFS='|'; echo "${parts[*]}")
     if [[ -n "$map" ]]; then
         local pair
         IFS='|' read -ra pairs <<< "$map"
