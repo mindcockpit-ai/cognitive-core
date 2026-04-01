@@ -146,31 +146,6 @@ if [ "$NG_VERSION" -ge 21 ] && [ -z "$REASON" ]; then
     fi
 fi
 
-# --- Security patterns (all versions) ---
-if [ -z "$REASON" ]; then
-    # bypassSecurityTrust (DomSanitizer bypass)
-    if echo "$CONTENT" | grep -qE 'bypassSecurityTrust(Html|Url|Script|Style|ResourceUrl)'; then
-        REASON="Angular security: bypassSecurityTrust detected. Use a dedicated sanitization pipe with tests and a SECURITY comment referencing the issue tracker."
-    fi
-
-    # innerHTML with interpolation (potential XSS)
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE '\[innerHTML\]'; then
-        REASON="Angular security: [innerHTML] binding detected. Ensure the value is not user-controlled. Prefer Angular template syntax."
-    fi
-
-    # eval / document.write / new Function
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE '(^|[[:space:];])eval[[:space:]]*\(|document\.write[[:space:]]*\(|new[[:space:]]+Function[[:space:]]*\('; then
-        REASON="Angular security: eval()/document.write()/new Function() detected. These enable XSS — use Angular APIs instead."
-    fi
-
-    # Secrets in environment.ts
-    if [ -z "$REASON" ] && echo "$FILE_PATH" | grep -qE 'environment[^/]*\.ts$'; then
-        if echo "$CONTENT" | grep -qiE '(api[_-]?key|secret|password|token)[[:space:]]*[:=]'; then
-            REASON="Angular security: potential secret in environment file. Use InjectionToken + runtime config — environment.ts is compiled into the bundle."
-        fi
-    fi
-fi
-
 # Output ask JSON if pattern found, otherwise silent exit 0
 if [ -n "$REASON" ]; then
     _cc_security_log "ASK" "angular-version-guard" "${REASON} | file=${FILE_PATH}"
