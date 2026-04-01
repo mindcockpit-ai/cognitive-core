@@ -182,7 +182,10 @@ except Exception:
         _pb_die "Cannot close #$number — already Canceled ($current_status)"
     fi
 
-    # Guard 2: Approval gate (skip for cancel path)
+    # Guard 2: Approval gate — only enforced for "testing" (To Be Tested) status.
+    # Issues in other statuses (todo, progress, backlog) can be closed without approval.
+    # This is intentional: only code-complete items need human verification.
+    # Skip for cancel path.
     if [[ "$is_cancel" == "false" ]]; then
         local approval_required="${CC_REQUIRE_HUMAN_APPROVAL:-true}"
         if [[ "$approval_required" == "true" && "$canonical_status" == "testing" ]]; then

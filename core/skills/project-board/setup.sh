@@ -197,6 +197,8 @@ declare -A LABELS=(
     ["area:testing"]="FFDD57:Testing framework"
     ["area:security"]="E11D48:Security"
     ["area:infrastructure"]="F9A825:Infrastructure"
+    ["approved"]="0075CA:Closure approved by reviewer"
+    ["blocked"]="B60205:Blocked by impediment"
 )
 
 for label in "${!LABELS[@]}"; do

@@ -50,7 +50,7 @@ paths: ["**/*.java", "**/*.kt"]
 - Use test slices (`@WebMvcTest`, `@DataJpaTest`, `@JsonTest`) for focused tests — do NOT default to `@SpringBootTest`
 - Use `@SpringBootTest` only for integration tests that require the full application context
 - Use Testcontainers with `@ServiceConnection` (v3.1+) for integration tests against real databases
-- Use `@MockitoBean` / `@MockitoSpyBean` (v3.5+/v4+) — do NOT use `@MockBean` / `@SpyBean` (removed in v4)
+- Use `@MockitoBean` / `@MockitoSpyBean` (v3.4+) — do NOT use `@MockBean` / `@SpyBean` (removed in v4)
 - Assert JSON responses with `MockMvcResultMatchers.jsonPath` — do NOT deserialise and inspect manually when a path check suffices
 
 ## Code Quality

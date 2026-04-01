@@ -297,7 +297,7 @@ assert_contains "youtrack: missing config error" "$yt_noconfig" "Missing YouTrac
 # Section 9: Jira status mapping (via mock sourcing)
 # =============================================================================
 
-for pair in "roadmap:To Do" "backlog:Backlog" "todo:To Do" \
+for pair in "roadmap:Roadmap" "backlog:Backlog" "todo:To Do" \
             "progress:In Progress" "testing:In Review" \
             "done:Done" "canceled:Canceled"; do
     key="${pair%%:*}"

@@ -154,8 +154,10 @@ fi
 # --- Security patterns (all versions, Java/Kotlin only) ---
 if [ -z "$REASON" ] && [ "$_IS_CONFIG" = "false" ]; then
     # @Autowired on fields — use constructor injection
-    if echo "$CONTENT" | grep -qE '@Autowired[[:space:]]*$|@Autowired[[:space:]]+[a-z]'; then
-        REASON="Spring Boot security: @Autowired on field detected. Use constructor injection instead (immutable, testable)."
+    # Only flag field injection: @Autowired followed by private/protected/public or on its own line
+    # Skip constructor injection: @Autowired followed by a method/constructor signature
+    if echo "$CONTENT" | grep -qE '@Autowired[[:space:]]*$|@Autowired[[:space:]]+(private|protected)[[:space:]]'; then
+        REASON="Spring Boot security: @Autowired field injection detected. Use constructor injection instead (immutable, testable)."
     fi
 
     # CSRF disabled in non-test code

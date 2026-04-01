@@ -401,11 +401,7 @@ for item in json.load(sys.stdin).get('items', []):
     [[ -n "$comment" ]] && approval_comment="Approved by @${approver}: ${comment}"
     gh issue close "$number" --repo "$CC_GITHUB_REPO" --comment "$approval_comment" >/dev/null 2>&1
 
-    # Move to Done - need the status option ID passed as argument or discovered
-    local done_option_id="${1:-}"
-    if [[ -n "$done_option_id" ]]; then
-        _gh_set_field "$item_id" "$CC_STATUS_FIELD_ID" "$done_option_id" >/dev/null
-    fi
+    # Board move to Done is handled by CI workflow (issue-closed event)
 
     _pb_success "Issue #$number approved and moved to Done by @$approver"
 }

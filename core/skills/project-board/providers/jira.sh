@@ -329,7 +329,7 @@ print(json.dumps(doc))
 
 _jira_status_name() {
     local key="$1"
-    local map="${CC_JIRA_STATUS_MAP:-roadmap=To Do|backlog=Backlog|todo=To Do|progress=In Progress|testing=In Review|done=Done|canceled=Canceled}"
+    local map="${CC_JIRA_STATUS_MAP:-roadmap=Roadmap|backlog=Backlog|todo=To Do|progress=In Progress|testing=In Review|done=Done|canceled=Canceled}"
 
     local pair
     IFS='|' read -ra pairs <<< "$map"
