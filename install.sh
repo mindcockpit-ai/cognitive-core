@@ -203,7 +203,7 @@ else
     prompt_default CC_SKILLS "Skills to install" "session-resume skill-sync code-review pre-commit fitness project-status project-board acceptance-verification security-baseline"
 
     # Hooks
-    prompt_default CC_HOOKS "Hooks to enable" "setup-env compact-reminder validate-bash validate-read validate-fetch validate-write post-edit-lint post-fetch-cache"
+    prompt_default CC_HOOKS "Hooks to enable" "setup-env compact-reminder validate-bash validate-read validate-fetch validate-write post-edit-lint notify-complete"
 
     # Auto-append language-specific version guard hooks
     case "${CC_LANGUAGE:-}" in
