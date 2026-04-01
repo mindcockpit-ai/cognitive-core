@@ -71,7 +71,7 @@ if [ -n "$WARNINGS" ]; then
         pem)
             _cc_json_pretool_deny_structured \
                 "Private key (PEM format) detected in ${FILE_PATH}" \
-                "security" "true" "Store in secure vault"
+                "security" "true" "Store in 1Password, macOS Keychain, or a secrets manager. For dev: use .env with .gitignore"
             ;;
         *)
             _cc_json_posttool_context "SECRET SCAN WARNING in ${FILE_PATH}:${WARNINGS}\nConsider using environment variables or a secrets manager instead of hardcoding credentials."

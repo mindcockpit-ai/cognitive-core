@@ -47,7 +47,7 @@ fi
 
 # DELETE FROM without WHERE
 if [ -z "$REASON" ] && echo "$CMD_LOWER" | grep -qiE 'delete[[:space:]]+from[[:space:]]+[a-zA-Z0-9_]+[[:space:]]*$|delete[[:space:]]+from[[:space:]]+[a-zA-Z0-9_]+[[:space:]]*;'; then
-    REASON="Blocked: DELETE FROM without WHERE clause"
+    REASON="Blocked: DELETE FROM without WHERE clause (would delete all rows). Add a WHERE clause to limit scope"
 fi
 
 # rm .git
@@ -57,12 +57,12 @@ fi
 
 # chmod 777
 if [ -z "$REASON" ] && echo "$CMD_LOWER" | grep -qE 'chmod[[:space:]]+777'; then
-    REASON="Blocked: chmod 777 (insecure permissions)"
+    REASON="Blocked: chmod 777 (world-writable is insecure). Use 755 for directories, 644 for files, or 700 for private"
 fi
 
 # git clean -f (without dry-run)
 if [ -z "$REASON" ] && echo "$CMD_LOWER" | grep -qE 'git[[:space:]]+clean[[:space:]]+-[a-z]*f' && ! echo "$CMD_LOWER" | grep -qE 'git[[:space:]]+clean[[:space:]]+-[a-z]*n'; then
-    REASON="Blocked: git clean -f (removes untracked files)"
+    REASON="Blocked: git clean -f (removes untracked files). Use 'git clean -n' to preview first, then 'git clean -fd' if confirmed"
 fi
 
 # --- Security level gated patterns ---
@@ -136,7 +136,7 @@ fi
 if [ -z "$REASON" ] && [ -n "${CC_BLOCKED_PATTERNS:-}" ]; then
     for pattern in $CC_BLOCKED_PATTERNS; do
         if echo "$CMD_LOWER" | grep -qE "$pattern"; then
-            REASON="Blocked: matches project safety rule: ${pattern}"
+            REASON="Blocked: matches project safety rule '${pattern}'. Check CC_BLOCKED_PATTERNS in cognitive-core.conf"
             break
         fi
     done
