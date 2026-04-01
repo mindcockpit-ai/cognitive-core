@@ -13,23 +13,23 @@ Everything in one view — what cognitive-core is made of.
 │                            cognitive-core                                │
 ├──────────┬──────────┬──────────┬─────────────────────────────────────────┤
 │          │          │          │                                         │
-│  HOOKS   │  AGENTS  │  SKILLS  │  EXTENSION PACKS                       │
+│  HOOKS   │  AGENTS  │  SKILLS  │  EXTENSION PACKS                        │
 │  (safety)│  (team)  │  (tasks) │                                         │
-│          │          │          │  ┌─────────────┐  ┌─────────────┐      │
-│  15 hooks│ 10 agents│ 20 skills│  │ 11 Language  │  │ 3 Database  │      │
-│          │          │          │  │ Packs        │  │ Packs       │      │
-│          │          │          │  └─────────────┘  └─────────────┘      │
+│          │          │          │  ┌─────────────┐  ┌─────────────┐       │
+│  15 hooks│ 10 agents│ 20 skills│  │ 11 Language │  │ 3 Database  │       │
+│          │          │          │  │ Packs       │  │ Packs       │       │
+│          │          │          │  └─────────────┘  └─────────────┘       │
 ├──────────┴──────────┴──────────┴─────────────────────────────────────────┤
 │                                                                          │
-│  ADAPTERS              CICD                TESTING                        │
+│  ADAPTERS              CICD                TESTING                       │
 │  6 platforms           Workflows           20 suites                     │
 │  (Claude, Aider,       Docker, K8s         800+ assertions               │
 │   IntelliJ, VSCode,    Monitoring                                        │
 │   Ollama, OpenAI)                                                        │
 │                                                                          │
 ├──────────────────────────────────────────────────────────────────────────┤
-│  install.sh ──→ cognitive-core.conf ──→ .claude/ (or .cognitive-core/)  │
-│  update.sh ──→ version.json (checksums) ──→ safe incremental update     │
+│  install.sh ──→ cognitive-core.conf ──→ .claude/ (or .cognitive-core/)   │
+│  update.sh ──→ version.json (checksums) ──→ safe incremental update      │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -47,8 +47,8 @@ What happens when a user types something in a Claude Code session.
          ▼
 ┌───────────────────────────────────┐
 │  SESSION START (once per session) │
-│  setup-env.sh → env vars, branch │
-│  compact-reminder.sh → rules     │
+│  setup-env.sh → env vars, branch  │
+│  compact-reminder.sh → rules      │
 │  session-resume → prior context   │
 └────────────────┬──────────────────┘
                  │
@@ -56,27 +56,27 @@ What happens when a user types something in a Claude Code session.
 ┌───────────────────────────────────┐
 │  CLAUDE (LLM) decides actions     │
 │  Reads: CLAUDE.md, agent defs,    │
-│         skill definitions          │
-│                                    │
-│  Routes to: @security-analyst      │
-│  Plans: Read files, run grep,      │
-│         generate review            │
+│         skill definitions         │
+│                                   │
+│  Routes to: @security-analyst     │
+│  Plans: Read files, run grep,     │
+│         generate review           │
 └────────────────┬──────────────────┘
                  │
                  ▼  (for each tool call)
 ┌───────────────────────────────────┐
 │  PreToolUse HOOKS                 │
-│                                    │
+│                                   │
 │  Bash?   → validate-bash.sh       │
 │  Read?   → validate-read.sh       │
 │  Fetch?  → validate-fetch.sh      │
-│                                    │
+│                                   │
 │  ┌──────────┐   ┌──────────────┐  │
 │  │  DENY    │   │   ALLOW      │  │
 │  │  (JSON)  │   │   (silent)   │  │
 │  └────┬─────┘   └──────┬───────┘  │
-│       │                 │          │
-│   blocked           executes       │
+│       │                 │         │
+│   blocked           executes      │
 └───────┘─────────────────┬─────────┘
                           │
                           ▼
@@ -89,13 +89,13 @@ What happens when a user types something in a Claude Code session.
                         ▼
 ┌───────────────────────────────────┐
 │  PostToolUse HOOKS                │
-│                                    │
+│                                   │
 │  Write/Edit? → validate-write.sh  │
 │               → post-edit-lint.sh │
 │  Fetch?      → post-fetch-cache   │
-│                                    │
-│  Cannot block (already happened)   │
-│  Can warn via additionalContext    │
+│                                   │
+│  Cannot block (already happened)  │
+│  Can warn via additionalContext   │
 └────────────────┬──────────────────┘
                  │
                  ▼
@@ -122,9 +122,9 @@ The immune system — intercepts every tool call.
 │  Tool call    ──── stdin JSON ───→  INPUT=$(cat)             │
 │  happens                            parse with _lib.sh       │
 │                                                              │
-│                                   ┌─ ALLOW: exit 0 (silent) │
+│                                   ┌─ ALLOW: exit 0 (silent)  │
 │               ◄── stdout JSON ───┤                           │
-│                                   └─ DENY: JSON response    │
+│                                   └─ DENY: JSON response     │
 │                                      {"permissionDecision":  │
 │                                       "deny",                │
 │                                       "permissionDecision-   │
@@ -177,13 +177,13 @@ Hub-and-spoke — the project-coordinator routes to specialists.
                          └────────┬─────────┘
                                   │
                     ┌─────────────▼─────────────┐
-                    │   project-coordinator      │
-                    │   (Hub — Opus)              │
-                    │                             │
-                    │  Analyzes request           │
-                    │  Matches keywords           │
-                    │  Delegates to specialist    │
-                    │  Synthesizes results        │
+                    │   project-coordinator     │
+                    │   (Hub — Opus)            │
+                    │                           │
+                    │  Analyzes request         │
+                    │  Matches keywords         │
+                    │  Delegates to specialist  │
+                    │  Synthesizes results      │
                     └──┬───┬───┬───┬───┬───┬────┘
                        │   │   │   │   │   │
          ┌─────────────┘   │   │   │   │   └──────────────┐
@@ -191,9 +191,9 @@ Hub-and-spoke — the project-coordinator routes to specialists.
   ┌─────────────┐  ┌──────────┐│┌──────────┐  ┌──────────────────┐
   │  solution-  │  │  code-   │││ test-    │  │   security-      │
   │  architect  │  │ standards│││ special- │  │   analyst        │
-  │  (Opus)     │  │ reviewer ││  ist     │  │   (Opus)         │
+  │  (Opus)     │  │ reviewer ││  ist      │  │   (Opus)         │
   │             │  │ (Sonnet) │││ (Sonnet) │  │                  │
-  │ "design"    │  │ "review" │││ "test"   │  │ "pentest"       │
+  │ "design"    │  │ "review" │││ "test"   │  │ "pentest"        │
   │ "workflow"  │  │ "lint"   │││ "cover"  │  │ "vulnerability"  │
   └─────────────┘  └──────────┘│└──────────┘  └──────────────────┘
                                │
@@ -237,7 +237,7 @@ How a SKILL.md is structured and how ability types work.
 │  │  allowed-tools: [Bash, Read, Grep]       │   E    │
 │  │  user-invocable: true                    │   T    │
 │  └──────────────────────────────────────────┘   E    │
-│                                                  R    │
+│                                                 R    │
 │  ┌──────────────────────────────────────────┐   M    │
 │  │  ABILITY REGISTRY (type annotations)     │   I    │
 │  │                                          │   N    │
@@ -259,7 +259,7 @@ How a SKILL.md is structured and how ability types work.
 │  │  Step 6 [D/S]: Run create-issue.sh       │   S    │
 │  │  Step 7 [H]: Ask human about closures    │   T    │
 │  └──────────────────────────────────────────┘   I    │
-│                                                  C    │
+│                                                 C    │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -307,37 +307,37 @@ How cognitive-core gets into your project.
 │  ./install.sh /path/to/project                                       │
 │       │                                                              │
 │       ▼                                                              │
-│  ┌───────────────┐  ┌───────────────┐  ┌──────────────────────┐     │
-│  │ 1. PROMPTS    │─→│ 2. DETECT     │─→│ 3. SELECT ADAPTER    │     │
-│  │               │  │               │  │                      │     │
-│  │ Project name  │  │ Language      │  │ Claude  → .claude/   │     │
-│  │ Language      │  │ Database      │  │ Aider   → .cog-core/ │     │
-│  │ Database      │  │ Platform      │  │ IntelliJ→ .cog-core/ │     │
-│  │ Security lvl  │  │               │  │ VSCode  → .vscode/   │     │
-│  └───────────────┘  └───────────────┘  └──────────┬───────────┘     │
-│                                                    │                 │
-│       ┌────────────────────────────────────────────┘                 │
+│  ┌───────────────┐  ┌───────────────┐  ┌──────────────────────┐      │
+│  │ 1. PROMPTS    │─→│ 2. DETECT     │─→│ 3. SELECT ADAPTER    │      │
+│  │               │  │               │  │                      │      │
+│  │ Project name  │  │ Language      │  │ Claude  → .claude/   │      │
+│  │ Language      │  │ Database      │  │ Aider   → .cog-core/ │      │
+│  │ Database      │  │ Platform      │  │ IntelliJ→ .cog-core/ │      │
+│  │ Security lvl  │  │               │  │ VSCode  → .vscode/   │      │
+│  └───────────────┘  └───────────────┘  └──────────┬───────────┘      │
+│                                                   │                  │
+│       ┌───────────────────────────────────────────┘                  │
 │       ▼                                                              │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │ 4. COPY COMPONENTS via adapter                               │   │
-│  │                                                               │   │
-│  │  cognitive-core.conf  ← generated from user answers           │   │
-│  │  settings.json        ← hooks + permissions                   │   │
-│  │  CLAUDE.md            ← project rules (or CONVENTIONS.md)     │   │
-│  │  hooks/*.sh           ← selected hooks                        │   │
-│  │  agents/*.md          ← selected agents                       │   │
-│  │  skills/*/SKILL.md    ← selected skills                       │   │
-│  │  language-pack/*      ← if language selected                  │   │
-│  │  database-pack/*      ← if database selected                  │   │
-│  │  .gitignore merge     ← from gitignore-base + pack fragments  │   │
-│  └──────────────────────────────────────────────┬───────────────┘   │
-│                                                  │                   │
-│       ┌──────────────────────────────────────────┘                   │
+│  ┌──────────────────────────────────────────────────────────────┐    │
+│  │ 4. COPY COMPONENTS via adapter                               │    │
+│  │                                                              │    │
+│  │  cognitive-core.conf  ← generated from user answers          │    │
+│  │  settings.json        ← hooks + permissions                  │    │
+│  │  CLAUDE.md            ← project rules (or CONVENTIONS.md)    │    │
+│  │  hooks/*.sh           ← selected hooks                       │    │
+│  │  agents/*.md          ← selected agents                      │    │
+│  │  skills/*/SKILL.md    ← selected skills                      │    │
+│  │  language-pack/*      ← if language selected                 │    │
+│  │  database-pack/*      ← if database selected                 │    │
+│  │  .gitignore merge     ← from gitignore-base + pack fragments │    │
+│  └──────────────────────────────────────────────┬───────────────┘    │
+│                                                 │                    │
+│       ┌─────────────────────────────────────────┘                    │
 │       ▼                                                              │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │ 5. WRITE MANIFEST                                            │   │
-│  │ version.json ← SHA256 checksums of every installed file      │   │
-│  └──────────────────────────────────────────────────────────────┘   │
+│  ┌──────────────────────────────────────────────────────────────┐    │
+│  │ 5. WRITE MANIFEST                                            │    │
+│  │ version.json ← SHA256 checksums of every installed file      │    │
+│  └──────────────────────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────────────────┘
 
 
@@ -347,21 +347,21 @@ How cognitive-core gets into your project.
 │  ./update.sh /path/to/project                                        │
 │       │                                                              │
 │       ▼                                                              │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │ 1. Read version.json                                         │   │
-│  │ 2. For each tracked file:                                    │   │
-│  │    current_hash  = SHA256(installed file)                     │   │
-│  │    manifest_hash = version.json recorded hash                │   │
-│  │    framework_hash = SHA256(framework source file)            │   │
-│  │                                                               │   │
-│  │    ┌─ current == manifest?                                   │   │
-│  │    │  YES → user did NOT modify → safe to update             │   │
-│  │    │  NO  → user modified → SKIP (warn to review)            │   │
-│  │    └─────────────────────────────────────────────            │   │
-│  │                                                               │   │
-│  │ 3. Copy new files not in manifest (new framework features)   │   │
-│  │ 4. Write updated version.json                                │   │
-│  └──────────────────────────────────────────────────────────────┘   │
+│  ┌──────────────────────────────────────────────────────────────┐    │
+│  │ 1. Read version.json                                         │    │
+│  │ 2. For each tracked file:                                    │    │
+│  │    current_hash  = SHA256(installed file)                    │    │
+│  │    manifest_hash = version.json recorded hash                │    │
+│  │    framework_hash = SHA256(framework source file)            │    │
+│  │                                                              │    │
+│  │    ┌─ current == manifest?                                   │    │
+│  │    │  YES → user did NOT modify → safe to update             │    │
+│  │    │  NO  → user modified → SKIP (warn to review)            │    │
+│  │    └─────────────────────────────────────────────            │    │
+│  │                                                              │    │
+│  │ 3. Copy new files not in manifest (new framework features)   │    │
+│  │ 4. Write updated version.json                                │    │
+│  └──────────────────────────────────────────────────────────────┘    │
 │                                                                      │
 │  KEY INVARIANT: update never overwrites your customizations          │
 └──────────────────────────────────────────────────────────────────────┘
@@ -379,26 +379,26 @@ Three ways to extend cognitive-core without modifying the core.
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐  │
 │  │  LANGUAGE PACKS (11)                                       │  │
-│  │                                                             │  │
-│  │  language-packs/<lang>/                                     │  │
-│  │  ├── skills/         ← language-specific skills             │  │
-│  │  ├── rules/          ← path-scoped coding rules             │  │
+│  │                                                            │  │
+│  │  language-packs/<lang>/                                    │  │
+│  │  ├── skills/         ← language-specific skills            │  │
+│  │  ├── rules/          ← path-scoped coding rules            │  │
 │  │  ├── gitignore.frag  ← merged into project .gitignore      │  │
 │  │  └── pack.conf       ← defaults (linter, formatter, etc.)  │  │
-│  │                                                             │  │
-│  │  angular  csharp  go  java  node  perl  python              │  │
-│  │  react  rust  spring-boot  struts-jsp                       │  │
+│  │                                                            │  │
+│  │  angular  csharp  go  java  node  perl  python             │  │
+│  │  react  rust  spring-boot  struts-jsp                      │  │
 │  └────────────────────────────────────────────────────────────┘  │
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐  │
 │  │  DATABASE PACKS (3)                                        │  │
-│  │                                                             │  │
-│  │  database-packs/<db>/                                       │  │
-│  │  ├── skills/         ← DB-specific patterns & optimization  │  │
-│  │  ├── rules/          ← SQL conventions                      │  │
+│  │                                                            │  │
+│  │  database-packs/<db>/                                      │  │
+│  │  ├── skills/         ← DB-specific patterns & optimization │  │
+│  │  ├── rules/          ← SQL conventions                     │  │
 │  │  └── pack.conf       ← defaults (client tool, port, etc.)  │  │
-│  │                                                             │  │
-│  │  oracle  postgresql  mysql                                  │  │
+│  │                                                            │  │
+│  │  oracle  postgresql  mysql                                 │  │
 │  └────────────────────────────────────────────────────────────┘  │
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐  │
