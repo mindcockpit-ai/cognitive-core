@@ -15,6 +15,8 @@
 name: Project Board Automation
 
 on:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 06:00 UTC
   pull_request:
     types: [opened, ready_for_review, closed]
   issues:
@@ -66,7 +68,7 @@ jobs:
             exit 0
           fi
 
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1) || {
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1 | tr -d '\000-\037') || {
             echo "::warning::Cannot access project board (ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
@@ -123,7 +125,7 @@ jobs:
             exit 0
           fi
 
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1) || {
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1 | tr -d '\000-\037') || {
             echo "::warning::Cannot access project board (ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
@@ -161,7 +163,7 @@ jobs:
         run: |
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
           ISSUE_NUM=${{ github.event.issue.number }}
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1) || {
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1 | tr -d '\000-\037') || {
             echo "::warning::Cannot access project board (ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
@@ -240,7 +242,7 @@ jobs:
         run: |
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
           ISSUE_NUM=${{ github.event.issue.number }}
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1) || {
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1 | tr -d '\000-\037') || {
             echo "::warning::Cannot access project board (ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
@@ -306,7 +308,8 @@ jobs:
           fi
 
           # --- Move to Done on board ---
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1) || {
+          # Strip control chars (U+0000-U+001F) to prevent jq parse failures
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1 | tr -d '\000-\037') || {
             echo "::warning::Cannot access project board (ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
@@ -328,3 +331,48 @@ jobs:
             }) { projectV2Item { id } }
           }'
           echo "Moved #$ISSUE_NUM → Done (closed, criteria verified)"
+
+  # ── Weekly reconciliation — catch any closed issues with stale board status ──
+  board-reconcile:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reconcile closed issues with board status
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then exit 0; fi
+
+          # Get all board items, strip control chars
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1 | tr -d '\000-\037') || exit 0
+
+          # Find items NOT in Done/Canceled
+          ACTIVE_NUMS=$(echo "$ITEMS" | jq -r '
+            .items[] |
+            select(.content.type == "Issue") |
+            select(.status != "Done" and .status != "Canceled") |
+            .content.number
+          ' | sort -n -u)
+
+          FIXED=0
+          for NUM in $ACTIVE_NUMS; do
+            STATE=$(gh issue view "$NUM" --repo "$GH_REPO" --json state --jq '.state' 2>/dev/null)
+            if [ "$STATE" = "CLOSED" ]; then
+              ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$NUM" \
+                '.items[] | select(.content.number == $n) | .id' | head -1)
+              if [ -n "$ITEM_ID" ] && [ "$ITEM_ID" != "null" ]; then
+                gh api graphql -f query='mutation {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: "'"$PROJECT_ID"'"
+                    itemId: "'"$ITEM_ID"'"
+                    fieldId: "'"$STATUS_FIELD_ID"'"
+                    value: { singleSelectOptionId: "'"$DONE_ID"'" }
+                  }) { projectV2Item { id } }
+                }' --silent
+                echo "Reconciled #$NUM → Done (was closed but board status stale)"
+                FIXED=$((FIXED + 1))
+              fi
+            fi
+          done
+          echo "Reconciliation complete: $FIXED issues fixed"
