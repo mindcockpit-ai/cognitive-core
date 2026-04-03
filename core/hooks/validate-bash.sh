@@ -123,6 +123,26 @@ if [ "$_SECURITY_LEVEL" != "minimal" ]; then
     fi
 fi
 
+# --- Branch guard: prevent direct feature/fix commits to main ---
+# Agents should work on feature branches, not commit directly to main.
+# Allowed on main: chore(), docs(), revert, merge commits, and git push.
+if [ -z "$REASON" ] && echo "$_CMD_CHECK" | grep -qE 'git[[:space:]]+commit'; then
+    _CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+    _MAIN_BRANCH="${CC_MAIN_BRANCH:-main}"
+    if [ "$_CURRENT_BRANCH" = "$_MAIN_BRANCH" ]; then
+        # Extract commit message from -m flag (check CMD_LOWER for the type prefix)
+        if echo "$CMD_LOWER" | grep -qE 'git[[:space:]]+commit.*-m'; then
+            # Allow: chore(), docs(), revert, ci(), build(), style()
+            if ! echo "$CMD_LOWER" | grep -qE '(chore|docs|revert|ci|build|style)[[:space:]]*(\(|:)'; then
+                REASON="Blocked: direct feat/fix commit to ${_MAIN_BRANCH}. Create a feature branch first: git checkout -b feat/N-description"
+                _cc_security_log "DENY" "branch-guard" "${REASON} | cmd=${CMD}"
+                _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Create a branch with 'git checkout -b feat/N-slug' or 'fix/N-slug', commit there, then open a PR"
+                exit 0
+            fi
+        fi
+    fi
+fi
+
 # --- Closure guard: prevent direct gh issue close (policy) ---
 # Gate behind CC_REQUIRE_CLOSURE_VERIFICATION (default: follows CC_REQUIRE_HUMAN_APPROVAL)
 _CLOSURE_GUARD="${CC_REQUIRE_CLOSURE_VERIFICATION:-${CC_REQUIRE_HUMAN_APPROVAL:-true}}"
