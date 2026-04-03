@@ -18,31 +18,7 @@
 _ADAPTER_NAME="vscode"
 _ADAPTER_INSTALL_DIR=".cognitive-core"
 
-# Internal: collect hooks for later convention extraction
-_VSCODE_QUEUED_HOOKS=""
-
-# ---- Required functions ----
-
-_adapter_install_hook() {
-    local source_path="$1" hook_name="$2"
-    # Copy to .cognitive-core/hooks/ for reference and convention extraction
-    mkdir -p "${CC_INSTALL_DIR}/hooks"
-    cp "$source_path" "${CC_INSTALL_DIR}/hooks/${hook_name}"
-    # Queue for convention extraction during post-install
-    _VSCODE_QUEUED_HOOKS="${_VSCODE_QUEUED_HOOKS} ${hook_name}"
-}
-
-_adapter_install_agent() {
-    local source_path="$1" agent_name="$2"
-    mkdir -p "${CC_INSTALL_DIR}/agents"
-    cp "$source_path" "${CC_INSTALL_DIR}/agents/${agent_name}"
-}
-
-_adapter_install_skill() {
-    local source_dir="$1" skill_name="$2"
-    mkdir -p "${CC_INSTALL_DIR}/skills/${skill_name}"
-    cp -R "${source_dir}/"* "${CC_INSTALL_DIR}/skills/${skill_name}/" 2>/dev/null || true
-}
+# ---- Platform-specific functions (install_hook/agent/skill use lib defaults) ----
 
 _adapter_generate_settings() {
     local project_dir="$1"
@@ -116,7 +92,7 @@ _adapter_generate_project_readme() {
 - **Database**: ${CC_DATABASE:-none}
 
 ## Code Standards
-- Follow ${CC_LANGUAGE:-the project} community best practices
+- Follow ${CC_LANGUAGE:-the project's} community best practices
 - Run lint before every commit: \`${CC_LINT_COMMAND:-echo no-lint}\`
 - Run tests: \`${CC_TEST_COMMAND:-echo no-tests}\`
 - All new code must have tests
@@ -130,18 +106,7 @@ _adapter_generate_project_readme() {
 ## Safety Rules (CRITICAL)
 These rules MUST be followed at all times:
 
-1. NEVER execute: rm -rf targeting /, /etc, /usr, /var, /home, /System, /Library
-2. NEVER execute: git push --force to main/master
-3. NEVER execute: git reset --hard
-4. NEVER execute: DROP TABLE or TRUNCATE TABLE
-5. NEVER execute: DELETE FROM without WHERE clause
-6. NEVER execute: rm .git
-7. NEVER execute: chmod 777
-8. NEVER execute: git clean -f (without -n dry-run)
-9. NEVER pipe curl/wget output to sh/bash (supply chain risk)
-10. NEVER use base64 -d | sh (encoded command execution)
-11. NEVER use eval with command substitution
-12. NEVER pipe environment variables (env |) to external commands
+$(_adapter_common_safety_rules)
 
 ## Architecture
 Pattern: **${CC_ARCHITECTURE:-none}**

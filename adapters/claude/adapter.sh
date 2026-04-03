@@ -8,17 +8,7 @@
 _ADAPTER_NAME="claude-code"
 _ADAPTER_INSTALL_DIR=".claude"
 
-# ---- Required functions ----
-
-_adapter_install_hook() {
-    local source_path="$1" hook_name="$2"
-    cp "$source_path" "${CC_INSTALL_DIR}/hooks/${hook_name}"
-}
-
-_adapter_install_agent() {
-    local source_path="$1" agent_name="$2"
-    cp "$source_path" "${CC_INSTALL_DIR}/agents/${agent_name}"
-}
+# ---- Platform-specific functions (install_hook/agent use lib defaults) ----
 
 _adapter_install_skill() {
     local source_dir="$1" skill_name="$2"
