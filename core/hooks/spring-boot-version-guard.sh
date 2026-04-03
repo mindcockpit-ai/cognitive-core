@@ -154,9 +154,9 @@ fi
 # --- Security patterns (all versions, Java/Kotlin only) ---
 if [ -z "$REASON" ] && [ "$_IS_CONFIG" = "false" ]; then
     # @Autowired on fields — use constructor injection
-    # Only flag field injection: @Autowired followed by private/protected/public or on its own line
-    # Skip constructor injection: @Autowired followed by a method/constructor signature
-    if echo "$CONTENT" | grep -qE '@Autowired[[:space:]]*$|@Autowired[[:space:]]+(private|protected)[[:space:]]'; then
+    # Only flag when @Autowired and field type are on the SAME line (unambiguous field injection)
+    # Standalone @Autowired on its own line is ambiguous (could be constructor) — skip
+    if echo "$CONTENT" | grep -qE '@Autowired[[:space:]]+(private|protected)[[:space:]]'; then
         REASON="Spring Boot security: @Autowired field injection detected. Use constructor injection instead (immutable, testable)."
     fi
 
