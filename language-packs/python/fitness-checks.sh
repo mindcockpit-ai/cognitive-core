@@ -13,19 +13,8 @@ PROJECT_DIR="${1:-.}"
 SRC_DIR="$PROJECT_DIR/src"
 [ ! -d "$SRC_DIR" ] && SRC_DIR="$PROJECT_DIR"
 
-TOTAL_CHECKS=0
-PASSED_CHECKS=0
-DETAILS=""
-
-add_check() {
-    local name="$1" passed="$2" detail="${3:-}"
-    TOTAL_CHECKS=$((TOTAL_CHECKS + 1))
-    if [ "$passed" -eq 1 ]; then
-        PASSED_CHECKS=$((PASSED_CHECKS + 1))
-    else
-        DETAILS="${DETAILS}FAIL: ${name}${detail:+ ($detail)}; "
-    fi
-}
+_cc_fitness_init
+add_check() { _cc_fitness_check "$@"; }
 
 # --- Check 1: Type hints in function definitions ---
 FUNC_COUNT=$(_cc_rg -n 'def ' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | wc -l | tr -d ' ')
@@ -83,13 +72,4 @@ else
     add_check "Async context managers" 1 "few async functions"
 fi
 
-# Calculate score
-if [ "$TOTAL_CHECKS" -gt 0 ]; then
-    SCORE=$(( (PASSED_CHECKS * 100) / TOTAL_CHECKS ))
-else
-    SCORE=50
-fi
-
-DETAILS="${DETAILS%; }"
-
-echo "$SCORE ${PASSED_CHECKS}/${TOTAL_CHECKS} Python checks passed${DETAILS:+. $DETAILS}"
+_cc_fitness_result "Python checks"

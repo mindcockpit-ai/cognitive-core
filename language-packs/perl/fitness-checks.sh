@@ -10,19 +10,8 @@ _CC_COMMON="$(cd "$(dirname "$0")/.." && pwd)/_common.sh"
 [ -f "$_CC_COMMON" ] && source "$_CC_COMMON"
 
 PROJECT_DIR="${1:-.}"
-TOTAL_CHECKS=0
-PASSED_CHECKS=0
-DETAILS=""
-
-add_check() {
-    local name="$1" passed="$2" detail="${3:-}"
-    TOTAL_CHECKS=$((TOTAL_CHECKS + 1))
-    if [ "$passed" -eq 1 ]; then
-        PASSED_CHECKS=$((PASSED_CHECKS + 1))
-    else
-        DETAILS="${DETAILS}FAIL: ${name}${detail:+ ($detail)}; "
-    fi
-}
+_cc_fitness_init
+add_check() { _cc_fitness_check "$@"; }
 
 # --- Check 1: Moose usage in lib/ modules ---
 MOOSE_MISSING=0
@@ -68,14 +57,4 @@ while IFS= read -r pm_file; do
 done < <(find "$PROJECT_DIR/lib" -name "*.pm" -type f 2>/dev/null)
 add_check "use strict in all modules" "$( [ "$STRICT_MISSING" -eq 0 ] && echo 1 || echo 0 )" "${STRICT_MISSING} modules missing strict"
 
-# Calculate score
-if [ "$TOTAL_CHECKS" -gt 0 ]; then
-    SCORE=$(( (PASSED_CHECKS * 100) / TOTAL_CHECKS ))
-else
-    SCORE=50
-fi
-
-# Trim trailing separator from details
-DETAILS="${DETAILS%; }"
-
-echo "$SCORE ${PASSED_CHECKS}/${TOTAL_CHECKS} Perl checks passed${DETAILS:+. $DETAILS}"
+_cc_fitness_result "Perl checks"

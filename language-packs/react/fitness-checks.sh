@@ -13,19 +13,8 @@ PROJECT_DIR="${1:-.}"
 SRC_DIR="$PROJECT_DIR/src"
 [ ! -d "$SRC_DIR" ] && SRC_DIR="$PROJECT_DIR"
 
-TOTAL_CHECKS=0
-PASSED_CHECKS=0
-DETAILS=""
-
-add_check() {
-    local name="$1" passed="$2" detail="${3:-}"
-    TOTAL_CHECKS=$((TOTAL_CHECKS + 1))
-    if [ "$passed" -eq 1 ]; then
-        PASSED_CHECKS=$((PASSED_CHECKS + 1))
-    else
-        DETAILS="${DETAILS}FAIL: ${name}${detail:+ ($detail)}; "
-    fi
-}
+_cc_fitness_init
+add_check() { _cc_fitness_check "$@"; }
 
 # === TYPE SAFETY CHECKS ===
 
@@ -131,13 +120,4 @@ add_check "ES imports (no require)" "$( [ "$REQUIRE_COUNT" -eq 0 ] && echo 1 || 
 JQUERY=$(_cc_rg -n '\$(\|\bjQuery\b' "$SRC_DIR" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" 2>/dev/null | grep -v node_modules | wc -l | tr -d ' ')
 add_check "No jQuery" "$( [ "$JQUERY" -eq 0 ] && echo 1 || echo 0 )" "${JQUERY} jQuery usages"
 
-# Calculate score
-if [ "$TOTAL_CHECKS" -gt 0 ]; then
-    SCORE=$(( (PASSED_CHECKS * 100) / TOTAL_CHECKS ))
-else
-    SCORE=50
-fi
-
-DETAILS="${DETAILS%; }"
-
-echo "$SCORE ${PASSED_CHECKS}/${TOTAL_CHECKS} React checks passed${DETAILS:+. $DETAILS}"
+_cc_fitness_result "React checks"

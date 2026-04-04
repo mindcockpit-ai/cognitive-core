@@ -4,9 +4,9 @@
 cc82b99c354b66bc8d4603467f0e69c1	./.claude/cognitive-core/check-update.sh
 2fc08fe8f49e21e94118f1a82877a374	./.claude/cognitive-core/context-cleanup.sh
 9d9bcd18cfc0ea29ab5b2c17b510c6e5	./.claude/cognitive-core/health-check.sh
-ace0a595c8b03d6a321f2ff2d58dc629	./.claude/cognitive-core/version.json
+26405b5465583a16b52d10e728835943	./.claude/cognitive-core/version.json
 47b561a9cb3594c789ecad8b6b8e6766	./.claude/compact-rules.md
-d8f4f67af7e1acbc6970dce693926f99	./.claude/fitness-checks.sh
+7f3cfa96a9afa2db9b937b1e32cb56a0	./.claude/fitness-checks.sh
 c3e0c99f2107171af0da02169a507681	./.claude/gitignore
 e076b7b76bbc16292472b1df2a1e6753	./.claude/hooks/_lib.sh
 998c3d57a17cfe692e8233c4cdd56fe7	./.claude/hooks/setup-env.sh
