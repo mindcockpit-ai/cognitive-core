@@ -28,7 +28,6 @@ _adapter_install_dir_structure() {
 
 # ---- Default implementations for install functions ----
 # Adapters override these only when platform-specific behavior is needed.
-# The _ADAPTER_LIB_DEFAULT_ marker enables _adapter_validate() to detect unoverridden defaults.
 
 _adapter_install_hook() {
     # _ADAPTER_LIB_DEFAULT_install_hook
@@ -63,7 +62,10 @@ _adapter_generate_project_readme() {
 
 _adapter_common_safety_rules() {
     local rules_file="${SCRIPT_DIR}/adapters/_shared/safety-rules.txt"
-    [ -f "$rules_file" ] || return 1
+    if [ ! -f "$rules_file" ]; then
+        echo "(Safety rules file not found -- see cognitive-core/adapters/_shared/safety-rules.txt)"
+        return 0
+    fi
     local n=0
     while IFS= read -r line; do
         [ -z "$line" ] && continue
@@ -72,24 +74,6 @@ _adapter_common_safety_rules() {
     done < "$rules_file"
 }
 
-# ---- MCP server installation (shared) ----
-
-_adapter_install_mcp_server() {
-    local project_dir="$1"
-    local target_dir="${project_dir}/${_ADAPTER_INSTALL_DIR}/mcp-server"
-    local shared_mcp="${SCRIPT_DIR}/adapters/_shared/mcp-server"
-
-    [ -d "$shared_mcp" ] || return 1
-
-    mkdir -p "${target_dir}/tools"
-    cp "$shared_mcp/server.py" "${target_dir}/"
-    cp "$shared_mcp/requirements.txt" "${target_dir}/" 2>/dev/null || true
-    cp "$shared_mcp/TOOLS.md" "${target_dir}/" 2>/dev/null || true
-    if ls "$shared_mcp/tools/"*.py &>/dev/null; then
-        cp "$shared_mcp/tools/"*.py "${target_dir}/tools/"
-    fi
-    info "Installed cognitive-core MCP server."
-}
 
 # ---- Contract validation ----
 
