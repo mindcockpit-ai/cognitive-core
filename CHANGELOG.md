@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.5.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.4.1...v1.5.0) (2026-04-03)
+
+
+### Features
+
+* **rules:** add Angular 21 conventions rule with security enforcement ([#213](https://github.com/mindcockpit-ai/cognitive-core/issues/213)) ([cf1a584](https://github.com/mindcockpit-ai/cognitive-core/commit/cf1a584c206cf47d097a1d058f8bbdc0ff236415))
+* **rules:** add Angular 21 conventions rule with security enforcement ([#213](https://github.com/mindcockpit-ai/cognitive-core/issues/213)) ([#214](https://github.com/mindcockpit-ai/cognitive-core/issues/214)) ([c5b7247](https://github.com/mindcockpit-ai/cognitive-core/commit/c5b724792c8ae0d491460b4dfd2c4621d18c78af))
+* **rules:** add Spring Boot conventions rule with security enforcement ([#177](https://github.com/mindcockpit-ai/cognitive-core/issues/177)) ([e4a7f94](https://github.com/mindcockpit-ai/cognitive-core/commit/e4a7f948d1044109f11b41cde34f71268c4a9055))
+
+
+### Bug Fixes
+
+* **cicd:** add daily board reconciliation + harden jq parsing ([9dc1e00](https://github.com/mindcockpit-ai/cognitive-core/commit/9dc1e004061887a0e626dc7bc8af7c4be2a02116))
+* **cicd:** replace last-comment check with label-based approval signal ([#188](https://github.com/mindcockpit-ai/cognitive-core/issues/188)) ([77f88d5](https://github.com/mindcockpit-ai/cognitive-core/commit/77f88d5cd64d30d5028a91916a234cf8d991c7f4))
+* **hooks:** add 14 missing Spring Boot patterns to version guard ([#174](https://github.com/mindcockpit-ai/cognitive-core/issues/174)) ([c6818c6](https://github.com/mindcockpit-ai/cognitive-core/commit/c6818c658508367c048a96e8d3a751de64b1716c))
+* **hooks:** require approved label for closure guard exemption ([#188](https://github.com/mindcockpit-ai/cognitive-core/issues/188)) ([0bd558c](https://github.com/mindcockpit-ai/cognitive-core/commit/0bd558c1df210b3bbd9adb89ee9cced176e26ed8))
+* **project-board:** address v1.5.0 peer review findings ([2d1dddd](https://github.com/mindcockpit-ai/cognitive-core/commit/2d1dddd53aa2ce326b0a9ed1691abf6030c1a9e5))
+* **security:** add gh api state-change detection to validate-bash hook ([#189](https://github.com/mindcockpit-ai/cognitive-core/issues/189)) ([4c33746](https://github.com/mindcockpit-ai/cognitive-core/commit/4c33746de518a79d197a145d564a3b3eef9bba44))
+
 ## [1.4.1](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.4.0...v1.4.1) (2026-04-01)
 
 
