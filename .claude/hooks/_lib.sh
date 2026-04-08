@@ -124,7 +124,7 @@ _cc_json_pretool_deny() {
         }'
     else
         local escaped
-        escaped=$(printf '%s' "$reason" | sed 's/"/\\"/g')
+        escaped=$(printf '%s' "$reason" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' ')
         printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}' "$escaped"
     fi
 }
@@ -166,11 +166,11 @@ _cc_json_pretool_deny_structured() {
         fi
     else
         local escaped
-        escaped=$(printf '%s' "$reason" | sed 's/"/\\"/g')
+        escaped=$(printf '%s' "$reason" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' ')
         local suggestion_field=""
         if [ -n "$suggestion" ]; then
             local escaped_sug
-            escaped_sug=$(printf '%s' "$suggestion" | sed 's/"/\\"/g')
+            escaped_sug=$(printf '%s' "$suggestion" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' ')
             suggestion_field=$(printf ',"suggestion":"%s"' "$escaped_sug")
         fi
         printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s","errorCategory":"%s","isRetryable":%s%s}}' \
@@ -207,7 +207,7 @@ _cc_json_pretool_ask() {
         }'
     else
         local escaped
-        escaped=$(printf '%s' "$reason" | sed 's/"/\\"/g')
+        escaped=$(printf '%s' "$reason" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' ')
         printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s"}}' "$escaped"
     fi
 }

@@ -64,117 +64,94 @@ fi
 
 [ "$NG_VERSION" -eq 0 ] && exit 0
 
-REASON=""
+DENY_REASONS=()
+ASK_REASONS=()
 
-# --- v18+ patterns ---
+# --- v18+ patterns — ASK: deprecated but functional ---
 if [ "$NG_VERSION" -ge 18 ]; then
-    # Warn about NgModule declarations in feature code
     if echo "$CONTENT" | grep -qE '@NgModule'; then
         case "$FILE_PATH" in
-            *app.module.ts|*app.config.ts) ;;  # Root module is acceptable
-            *) REASON="Angular v${NG_VERSION}: Use standalone components instead of @NgModule. Standalone is the modern pattern since v14+." ;;
+            *app.module.ts|*app.config.ts) ;;
+            *) ASK_REASONS+=("Use standalone components instead of @NgModule (modern pattern since v14+).") ;;
         esac
     fi
-
-    # Warn about legacy structural directives
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE '\*ngIf|\*ngFor|\*ngSwitch'; then
-        REASON="Angular v${NG_VERSION}: Use built-in control flow (@if, @for, @switch) instead of *ngIf/*ngFor/*ngSwitch. Run: ng generate @angular/core:control-flow"
+    if echo "$CONTENT" | grep -qE '\*ngIf|\*ngFor|\*ngSwitch'; then
+        ASK_REASONS+=("Use built-in control flow (@if, @for, @switch) instead of *ngIf/*ngFor/*ngSwitch.")
     fi
-
-    # Warn about HttpClientModule
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE 'HttpClientModule'; then
-        REASON="Angular v${NG_VERSION}: Use provideHttpClient() instead of HttpClientModule. Module-based HTTP setup is deprecated."
+    if echo "$CONTENT" | grep -qE 'HttpClientModule'; then
+        ASK_REASONS+=("Use provideHttpClient() instead of HttpClientModule.")
     fi
-
-    # Warn about class-based interceptors
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE 'implements[[:space:]]+HttpInterceptor'; then
-        REASON="Angular v${NG_VERSION}: Use HttpInterceptorFn (functional interceptor) instead of class-based HttpInterceptor."
+    if echo "$CONTENT" | grep -qE 'implements[[:space:]]+HttpInterceptor'; then
+        ASK_REASONS+=("Use HttpInterceptorFn (functional) instead of class-based HttpInterceptor.")
     fi
 fi
 
-# --- v19+ patterns ---
-if [ "$NG_VERSION" -ge 19 ] && [ -z "$REASON" ]; then
-    # Warn about @Input/@Output decorators (signal APIs are stable in v19)
+# --- v19+ patterns — ASK ---
+if [ "$NG_VERSION" -ge 19 ]; then
     if echo "$CONTENT" | grep -qE '@Input\(\)|@Output\(\)'; then
-        REASON="Angular v${NG_VERSION}: Use input()/input.required()/output() signal APIs instead of @Input()/@Output() decorators. Signal APIs are stable since v19."
+        ASK_REASONS+=("Use input()/output() signal APIs instead of @Input()/@Output() decorators.")
     fi
-
-    # Warn about CommonModule import (not needed with built-in control flow)
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE 'CommonModule'; then
-        REASON="Angular v${NG_VERSION}: CommonModule is not needed. Built-in control flow (@if, @for) and standalone pipes replace it."
+    if echo "$CONTENT" | grep -qE 'CommonModule'; then
+        ASK_REASONS+=("CommonModule not needed. Built-in control flow and standalone pipes replace it.")
     fi
 fi
 
-# --- v20+ patterns ---
-if [ "$NG_VERSION" -ge 20 ] && [ -z "$REASON" ]; then
-    # Warn about Zone.js imports
+# --- v20+ patterns — ASK ---
+if [ "$NG_VERSION" -ge 20 ]; then
     if echo "$CONTENT" | grep -qE "import[[:space:]]+'zone\.js'|import[[:space:]]+\"zone\.js\""; then
-        REASON="Angular v${NG_VERSION}: Zone.js is no longer needed. Use provideZonelessChangeDetection() and signal-based reactivity."
+        ASK_REASONS+=("Zone.js no longer needed. Use provideZonelessChangeDetection().")
     fi
-
-    # Warn about NgZone usage
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE 'NgZone'; then
-        REASON="Angular v${NG_VERSION}: NgZone is deprecated with zoneless change detection. Use signals and effect() instead."
+    if echo "$CONTENT" | grep -qE 'NgZone'; then
+        ASK_REASONS+=("NgZone deprecated with zoneless. Use signals and effect().")
     fi
-
-    # Warn about renamed afterRender()
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE 'afterRender[[:space:]]*\('; then
+    if echo "$CONTENT" | grep -qE 'afterRender[[:space:]]*\('; then
         if ! echo "$CONTENT" | grep -qE 'afterRenderEffect\(|afterEveryRender\(|afterNextRender\('; then
-            REASON="Angular v${NG_VERSION}: afterRender() was renamed to afterEveryRender() in v20."
+            ASK_REASONS+=("afterRender() renamed to afterEveryRender() in v20.")
         fi
     fi
-
-    # Warn about @angular-devkit/build-angular (replaced by @angular/build)
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE '@angular-devkit/build-angular'; then
-        REASON="Angular v${NG_VERSION}: @angular-devkit/build-angular is replaced by @angular/build (saves ~200MB)."
+    if echo "$CONTENT" | grep -qE '@angular-devkit/build-angular'; then
+        ASK_REASONS+=("@angular-devkit/build-angular replaced by @angular/build (saves ~200MB).")
     fi
 fi
 
-# --- v21+ patterns ---
-if [ "$NG_VERSION" -ge 21 ] && [ -z "$REASON" ]; then
-    # Warn about Karma/Jest (deprecated in v21, Vitest is default)
+# --- v21+ patterns — ASK ---
+if [ "$NG_VERSION" -ge 21 ]; then
     if echo "$CONTENT" | grep -qE 'karma\.conf|karma-'; then
-        REASON="Angular v${NG_VERSION}: Karma is removed. Vitest is the default test runner. Migrate to Vitest."
+        ASK_REASONS+=("Karma removed in v21. Vitest is the default test runner.")
     fi
-
-    # Info about provideHttpClient() being optional
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE 'provideHttpClient\(\)'; then
-        # Only warn if it's provideHttpClient() with no arguments
+    if echo "$CONTENT" | grep -qE 'provideHttpClient\(\)'; then
         if ! echo "$CONTENT" | grep -qE 'provideHttpClient\(with'; then
-            REASON="Angular v${NG_VERSION}: HttpClient is auto-provided. provideHttpClient() is only needed when passing options like withInterceptors()."
+            ASK_REASONS+=("HttpClient is auto-provided. provideHttpClient() only needed with withInterceptors().")
         fi
     fi
 fi
 
-# --- Security patterns (all versions) ---
-if [ -z "$REASON" ]; then
-    # bypassSecurityTrust (DomSanitizer bypass)
-    if echo "$CONTENT" | grep -qE 'bypassSecurityTrust(Html|Url|Script|Style|ResourceUrl)'; then
-        REASON="Angular security: bypassSecurityTrust detected. Use a dedicated sanitization pipe with tests and a SECURITY comment referencing the issue tracker."
-    fi
-
-    # innerHTML with interpolation (potential XSS)
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE '\[innerHTML\]'; then
-        REASON="Angular security: [innerHTML] binding detected. Ensure the value is not user-controlled. Prefer Angular template syntax."
-    fi
-
-    # eval / document.write / new Function
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE '(^|[[:space:];])eval[[:space:]]*\(|document\.write[[:space:]]*\(|new[[:space:]]+Function[[:space:]]*\('; then
-        REASON="Angular security: eval()/document.write()/new Function() detected. These enable XSS — use Angular APIs instead."
-    fi
-
-    # Secrets in environment.ts
-    if [ -z "$REASON" ] && echo "$FILE_PATH" | grep -qE 'environment[^/]*\.ts$'; then
-        if echo "$CONTENT" | grep -qiE '(api[_-]?key|secret|password|token)[[:space:]]*[:=]'; then
-            REASON="Angular security: potential secret in environment file. Use InjectionToken + runtime config — environment.ts is compiled into the bundle."
-        fi
+# --- Security patterns (all versions) — DENY: XSS, injection, secrets ---
+if echo "$CONTENT" | grep -qE 'bypassSecurityTrust(Html|Url|Script|Style|ResourceUrl)'; then
+    DENY_REASONS+=("bypassSecurityTrust detected — XSS bypass. Use a sanitization pipe with tests.")
+fi
+if echo "$CONTENT" | grep -qE '\[innerHTML\]'; then
+    DENY_REASONS+=("[innerHTML] binding — XSS risk if user-controlled. Prefer Angular template syntax.")
+fi
+if echo "$CONTENT" | grep -qE '(^|[[:space:];])eval[[:space:]]*\(|document\.write[[:space:]]*\(|new[[:space:]]+Function[[:space:]]*\('; then
+    DENY_REASONS+=("eval()/document.write()/new Function() — code injection. Use Angular APIs instead.")
+fi
+if echo "$FILE_PATH" | grep -qE 'environment[^/]*\.ts$'; then
+    if echo "$CONTENT" | grep -qiE '(api[_-]?key|secret|password|token)[[:space:]]*[:=]'; then
+        DENY_REASONS+=("Secret in environment file — compiled into browser bundle. Use InjectionToken + runtime config.")
     fi
 fi
 
-# Output ask JSON if pattern found, otherwise silent exit 0
-if [ -n "$REASON" ]; then
-    _cc_security_log "ASK" "angular-version-guard" "${REASON} | file=${FILE_PATH}"
-    _cc_json_pretool_ask "$REASON"
+# --- Output: deny wins over ask, all violations reported (#171) ---
+if [ ${#DENY_REASONS[@]} -gt 0 ]; then
+    ALL=("${DENY_REASONS[@]}" "${ASK_REASONS[@]}")
+    COMBINED=$(printf '• %s\n' "${ALL[@]}")
+    _cc_security_log "DENY" "angular-version-guard" "${COMBINED} | file=${FILE_PATH}"
+    _cc_json_pretool_deny_structured "$COMBINED" "security" "true"
+elif [ ${#ASK_REASONS[@]} -gt 0 ]; then
+    COMBINED=$(printf '• %s\n' "${ASK_REASONS[@]}")
+    _cc_security_log "ASK" "angular-version-guard" "${COMBINED} | file=${FILE_PATH}"
+    _cc_json_pretool_ask "$COMBINED"
 fi
 
 exit 0
