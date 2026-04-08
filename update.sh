@@ -49,6 +49,38 @@ SOURCE_DIR=$(grep -o '"source"[[:space:]]*:[[:space:]]*"[^"]*"' "$VERSION_FILE" 
 info "Installed version: ${CURRENT_VERSION}"
 info "Source: ${SOURCE_DIR}"
 
+# ---- Branch guard: prevent PR contamination (#199) ----
+# If the target project is a connected git repo on a feature branch,
+# auto-switch to a dedicated sync branch to keep updates out of feature PRs.
+_CC_SYNC_BRANCH="${CC_SYNC_BRANCH:-chore/cognitive-core-sync}"
+_CC_SYNC_ENFORCE="${CC_SYNC_ENFORCE:-true}"
+_CC_ORIGINAL_BRANCH=""
+
+if [ "$_CC_SYNC_ENFORCE" = "true" ] && git -C "$PROJECT_DIR" rev-parse --git-dir &>/dev/null; then
+    # Git repo detected — check if it has a remote (connected vs local-only)
+    if git -C "$PROJECT_DIR" remote get-url origin &>/dev/null; then
+        _CC_CURRENT_BRANCH=$(git -C "$PROJECT_DIR" branch --show-current 2>/dev/null || true)
+        # Allow updates on: main, develop, master, the sync branch itself
+        case "$_CC_CURRENT_BRANCH" in
+            main|develop|master|"$_CC_SYNC_BRANCH") ;;
+            *)
+                info "Feature branch detected: ${_CC_CURRENT_BRANCH}"
+                info "Switching to ${_CC_SYNC_BRANCH} to prevent PR contamination"
+                _CC_ORIGINAL_BRANCH="$_CC_CURRENT_BRANCH"
+                git -C "$PROJECT_DIR" stash push -m "cognitive-core: stash before sync" --quiet 2>/dev/null || true
+                _CC_SYNC_BASE="${CC_SYNC_BASE:-$(git -C "$PROJECT_DIR" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||' || echo main)}"
+                if git -C "$PROJECT_DIR" show-ref --verify --quiet "refs/heads/${_CC_SYNC_BRANCH}" 2>/dev/null; then
+                    git -C "$PROJECT_DIR" checkout "$_CC_SYNC_BRANCH" --quiet
+                else
+                    git -C "$PROJECT_DIR" checkout -b "$_CC_SYNC_BRANCH" "origin/${_CC_SYNC_BASE}" --quiet 2>/dev/null \
+                        || git -C "$PROJECT_DIR" checkout -b "$_CC_SYNC_BRANCH" --quiet
+                fi
+                info "Now on: ${_CC_SYNC_BRANCH}"
+                ;;
+        esac
+    fi
+fi
+
 # Use the script's own directory as the framework source (may have been updated via git pull)
 FRAMEWORK_DIR="$SCRIPT_DIR"
 if [ ! -d "${FRAMEWORK_DIR}/core" ]; then
@@ -420,7 +452,19 @@ fi
 if [ "$UPDATED" -gt 0 ] || [ "$NEW_FILES" -gt 0 ]; then
     info "Commit the updates:"
     printf "  ${CYAN}git add .claude/ && git commit -m \"chore: update cognitive-core to v${FRAMEWORK_VERSION}\"${RESET}\n"
+    if [ -n "$_CC_ORIGINAL_BRANCH" ]; then
+        printf "  ${CYAN}git push -u origin ${_CC_SYNC_BRANCH}${RESET}\n"
+        echo ""
+        info "Then return to your feature branch:"
+        printf "  ${CYAN}git checkout ${_CC_ORIGINAL_BRANCH} && git stash pop${RESET}\n"
+    fi
 else
     info "Everything is up to date. No changes needed."
+    # Restore original branch if we switched and nothing changed
+    if [ -n "$_CC_ORIGINAL_BRANCH" ]; then
+        info "No updates — switching back to ${_CC_ORIGINAL_BRANCH}"
+        git -C "$PROJECT_DIR" checkout "$_CC_ORIGINAL_BRANCH" --quiet 2>/dev/null || true
+        git -C "$PROJECT_DIR" stash pop --quiet 2>/dev/null || true
+    fi
 fi
 echo ""
