@@ -1,0 +1,5 @@
+# Perl specific
+*.pl text eol=lf diff=perl
+*.pm text eol=lf diff=perl
+*.t text eol=lf
+*.cgi text eol=lf

@@ -1,0 +1,10 @@
+# Java/Spring Boot specific
+*.java text eol=lf diff=java
+*.kt text eol=lf
+*.properties text eol=lf
+*.gradle text eol=lf
+*.gradle.kts text eol=lf
+*.jar binary
+*.war binary
+*.ear binary
+*.class binary
