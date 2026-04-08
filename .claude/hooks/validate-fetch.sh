@@ -51,7 +51,7 @@ if [ "$_SECURITY_LEVEL" = "strict" ] && [ -n "${CC_ALLOWED_DOMAINS:-}" ]; then
         fi
     done
     if ! $allowed; then
-        REASON="Blocked: domain '${DOMAIN}' not in CC_ALLOWED_DOMAINS (strict mode)"
+        REASON="Blocked: domain '${DOMAIN}' not in CC_ALLOWED_DOMAINS (strict mode). Add it to CC_ALLOWED_DOMAINS in cognitive-core.conf or set CC_SECURITY_LEVEL=standard for prompts"
         _cc_security_log "DENY" "fetch-blocked" "${REASON}"
         _cc_json_pretool_deny "$REASON"
         exit 0

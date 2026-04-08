@@ -13,19 +13,8 @@ PROJECT_DIR="${1:-.}"
 SRC_DIR="$PROJECT_DIR/src"
 [ ! -d "$SRC_DIR" ] && SRC_DIR="$PROJECT_DIR"
 
-TOTAL_CHECKS=0
-PASSED_CHECKS=0
-DETAILS=""
-
-add_check() {
-    local name="$1" passed="$2" detail="${3:-}"
-    TOTAL_CHECKS=$((TOTAL_CHECKS + 1))
-    if [ "$passed" -eq 1 ]; then
-        PASSED_CHECKS=$((PASSED_CHECKS + 1))
-    else
-        DETAILS="${DETAILS}FAIL: ${name}${detail:+ ($detail)}; "
-    fi
-}
+_cc_fitness_init
+add_check() { _cc_fitness_check "$@"; }
 
 # --- Check 1: No var usage ---
 VAR_COUNT=$(_cc_rg -n '\bvar\s' "$SRC_DIR" --include="*.ts" --include="*.js" --include="*.tsx" --include="*.jsx" 2>/dev/null | grep -v node_modules | grep -v '\.d\.ts' | wc -l | tr -d ' ')
@@ -51,13 +40,4 @@ add_check "ES imports (no require)" "$( [ "$REQUIRE_COUNT" -eq 0 ] && echo 1 || 
 LOOSE_EQ=$(_cc_rg -n '[^!=]=[^=]' "$SRC_DIR" --include="*.ts" --include="*.js" 2>/dev/null | grep -v node_modules | grep -c '==[^=]' || echo 0)
 add_check "Strict equality (===)" "$( [ "$LOOSE_EQ" -le 2 ] && echo 1 || echo 0 )" "${LOOSE_EQ} loose equality checks"
 
-# Calculate score
-if [ "$TOTAL_CHECKS" -gt 0 ]; then
-    SCORE=$(( (PASSED_CHECKS * 100) / TOTAL_CHECKS ))
-else
-    SCORE=50
-fi
-
-DETAILS="${DETAILS%; }"
-
-echo "$SCORE ${PASSED_CHECKS}/${TOTAL_CHECKS} Node.js checks passed${DETAILS:+. $DETAILS}"
+_cc_fitness_result "js checks"

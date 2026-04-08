@@ -1,0 +1,12 @@
+NEVER execute: rm -rf targeting system-critical paths (/, /etc, /usr, /var, /home)
+NEVER execute: git push --force to main/master
+NEVER execute: git reset --hard (destructive, may lose work)
+NEVER execute: DROP TABLE or TRUNCATE TABLE
+NEVER execute: DELETE FROM without WHERE clause
+NEVER execute: rm .git directory
+NEVER execute: chmod 777 (insecure permissions)
+NEVER execute: git clean -f without -n dry-run
+NEVER pipe curl/wget output to sh/bash (supply chain risk)
+NEVER use base64 -d | sh (encoded command execution)
+NEVER use eval with command substitution
+NEVER pipe environment variables to external commands

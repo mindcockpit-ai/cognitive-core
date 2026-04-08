@@ -10,19 +10,8 @@ _CC_COMMON="$(cd "$(dirname "$0")/.." && pwd)/_common.sh"
 [ -f "$_CC_COMMON" ] && source "$_CC_COMMON"
 
 PROJECT_DIR="${1:-.}"
-TOTAL_CHECKS=0
-PASSED_CHECKS=0
-DETAILS=""
-
-add_check() {
-    local name="$1" passed="$2" detail="${3:-}"
-    TOTAL_CHECKS=$((TOTAL_CHECKS + 1))
-    if [ "$passed" -eq 1 ]; then
-        PASSED_CHECKS=$((PASSED_CHECKS + 1))
-    else
-        DETAILS="${DETAILS}FAIL: ${name}${detail:+ ($detail)}; "
-    fi
-}
+_cc_fitness_init
+add_check() { _cc_fitness_check "$@"; }
 
 # ---- Detect project structure ----
 # Find Java source root
@@ -179,10 +168,9 @@ else
 fi
 
 # ---- Output ----
-if [ "$TOTAL_CHECKS" -eq 0 ]; then
+if [ "$_CC_FITNESS_TOTAL" -eq 0 ]; then
     echo "0 No Struts/JSP project structure detected"
     exit 0
 fi
 
-SCORE=$(( (PASSED_CHECKS * 100) / TOTAL_CHECKS ))
-echo "$SCORE ${PASSED_CHECKS}/${TOTAL_CHECKS} Struts/JSP checks passed${DETAILS:+. $DETAILS}"
+_cc_fitness_result "Struts/JSP checks"

@@ -7,67 +7,15 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
+source "${SCRIPT_DIR}/../lib/adapter-test-helpers.sh"
 
 suite_start "18 — VS Code Adapter"
 
-# ---- Test adapter.sh passes contract validation ----
-vscode_validate=$(bash -c "
-    err() { printf '%s\n' \"\$*\" >&2; }
-    info() { printf '%s\n' \"\$*\"; }
-    warn() { printf '%s\n' \"\$*\"; }
-    SCRIPT_DIR='${ROOT_DIR}'
-    FORCE=false
-    CC_INSTALL_DIR='/tmp/test-cc'
-    source '${ROOT_DIR}/adapters/_adapter-lib.sh'
-    source '${ROOT_DIR}/adapters/vscode/adapter.sh'
-    _adapter_validate && echo 'VALID'
-" 2>&1)
-assert_contains "vscode adapter: passes validation" "$vscode_validate" "VALID"
-
-# ---- Test adapter variables ----
-adapter_name=$(bash -c "
-    err() { : ; }; info() { : ; }; warn() { : ; }
-    SCRIPT_DIR='${ROOT_DIR}'; FORCE=false; CC_INSTALL_DIR='/tmp/test-cc'
-    source '${ROOT_DIR}/adapters/_adapter-lib.sh'
-    source '${ROOT_DIR}/adapters/vscode/adapter.sh'
-    echo \"\$_ADAPTER_NAME\"
-" 2>&1)
-assert_eq "vscode adapter: _ADAPTER_NAME=vscode" "vscode" "$adapter_name"
-
-install_dir=$(bash -c "
-    err() { : ; }; info() { : ; }; warn() { : ; }
-    SCRIPT_DIR='${ROOT_DIR}'; FORCE=false; CC_INSTALL_DIR='/tmp/test-cc'
-    source '${ROOT_DIR}/adapters/_adapter-lib.sh'
-    source '${ROOT_DIR}/adapters/vscode/adapter.sh'
-    echo \"\$_ADAPTER_INSTALL_DIR\"
-" 2>&1)
-assert_eq "vscode adapter: _ADAPTER_INSTALL_DIR=.cognitive-core" ".cognitive-core" "$install_dir"
-
-# ---- Test all 5 required functions are defined ----
-for fn in _adapter_install_hook _adapter_install_agent _adapter_install_skill _adapter_generate_settings _adapter_generate_project_readme; do
-    fn_check=$(bash -c "
-        err() { : ; }; info() { : ; }; warn() { : ; }
-        SCRIPT_DIR='${ROOT_DIR}'; FORCE=false; CC_INSTALL_DIR='/tmp/test-cc'
-        source '${ROOT_DIR}/adapters/_adapter-lib.sh'
-        source '${ROOT_DIR}/adapters/vscode/adapter.sh'
-        type $fn &>/dev/null && echo 'DEFINED'
-    " 2>&1)
-    assert_eq "vscode adapter: ${fn} defined" "DEFINED" "$fn_check"
-done
-
-# ---- Test generate.py exists and is valid Python ----
-assert_file_exists "vscode: generate.py exists" "${ROOT_DIR}/adapters/vscode/generate.py"
-
-if command -v python3 &>/dev/null; then
-    py_check=$(python3 -c "import py_compile; py_compile.compile('${ROOT_DIR}/adapters/vscode/generate.py', doraise=True)" 2>&1) || true
-    if [ -z "$py_check" ]; then
-        _pass "vscode: generate.py compiles without error"
-    else
-        _fail "vscode: generate.py compiles without error" "$py_check"
-    fi
-else
-    _skip "vscode: generate.py compile check (python3 not available)"
-fi
+# ---- Adapter contract (#139 P5: shared helpers) ----
+assert_adapter_validates "vscode"
+assert_adapter_variables "vscode" ".cognitive-core"
+assert_adapter_required_functions "vscode"
+assert_adapter_py_compiles "vscode"
 
 # ---- Test tool-map.yaml ----
 assert_file_exists "vscode: tool-map.yaml exists" "${ROOT_DIR}/adapters/vscode/tool-map.yaml"

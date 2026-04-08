@@ -2,15 +2,18 @@
 Shared utilities for cognitive-core MCP server tools.
 """
 import os
-import subprocess
+import sys
+from pathlib import Path
+
+# Import load_config from the canonical shared module (#139 P3)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from generate_utils import load_config as _load_config
 
 
 def load_config(project_dir: str) -> dict:
-    """
-    Load CC_ variables from cognitive-core.conf.
+    """Load CC_ variables from cognitive-core.conf.
 
-    Searches for config in the project directory, then falls back
-    to the .cognitive-core subdirectory.
+    Delegates to generate_utils.load_config() — single source of truth.
 
     Args:
         project_dir: Project root directory.
@@ -18,27 +21,7 @@ def load_config(project_dir: str) -> dict:
     Returns:
         dict of CC_* environment variables.
     """
-    conf_paths = [
-        os.path.join(project_dir, "cognitive-core.conf"),
-        os.path.join(project_dir, ".cognitive-core", "cognitive-core.conf"),
-    ]
-    for conf_path in conf_paths:
-        if os.path.isfile(conf_path):
-            try:
-                cmd = f'set -a; source "{conf_path}" 2>/dev/null; env | grep "^CC_"'
-                result = subprocess.run(
-                    ["bash", "-c", cmd],
-                    capture_output=True, text=True, timeout=5,
-                )
-                config: dict[str, str] = {}
-                for line in result.stdout.strip().split("\n"):
-                    if "=" in line:
-                        key, _, value = line.partition("=")
-                        config[key] = value
-                return config
-            except (subprocess.TimeoutExpired, FileNotFoundError):
-                continue
-    return {}
+    return _load_config(project_dir=project_dir)
 
 
 def list_dir_contents(install_dir: str, subdir: str) -> list[str]:

@@ -26,6 +26,55 @@ _adapter_install_dir_structure() {
     mkdir -p "${install_dir}/cognitive-core"
 }
 
+# ---- Default implementations for install functions ----
+# Adapters override these only when platform-specific behavior is needed.
+
+_adapter_install_hook() {
+    # _ADAPTER_LIB_DEFAULT_install_hook
+    local source_path="$1" hook_name="$2"
+    cp "$source_path" "${CC_INSTALL_DIR}/hooks/${hook_name}"
+}
+
+_adapter_install_agent() {
+    # _ADAPTER_LIB_DEFAULT_install_agent
+    local source_path="$1" agent_name="$2"
+    cp "$source_path" "${CC_INSTALL_DIR}/agents/${agent_name}"
+}
+
+_adapter_install_skill() {
+    # _ADAPTER_LIB_DEFAULT_install_skill
+    local source_dir="$1" skill_name="$2"
+    mkdir -p "${CC_INSTALL_DIR}/skills/${skill_name}"
+    cp -R "${source_dir}/"* "${CC_INSTALL_DIR}/skills/${skill_name}/" 2>/dev/null || true
+}
+
+_adapter_generate_settings() {
+    # _ADAPTER_LIB_DEFAULT_generate_settings
+    warn "Adapter '${_ADAPTER_NAME:-unknown}' has no platform-specific settings generator."
+}
+
+_adapter_generate_project_readme() {
+    # _ADAPTER_LIB_DEFAULT_generate_project_readme
+    warn "Adapter '${_ADAPTER_NAME:-unknown}' has no platform-specific readme generator."
+}
+
+# ---- Safety rules from shared data file ----
+
+_adapter_common_safety_rules() {
+    local rules_file="${SCRIPT_DIR}/adapters/_shared/safety-rules.txt"
+    if [ ! -f "$rules_file" ]; then
+        echo "(Safety rules file not found -- see cognitive-core/adapters/_shared/safety-rules.txt)"
+        return 0
+    fi
+    local n=0
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        n=$((n + 1))
+        printf '%d. %s\n' "$n" "$line"
+    done < "$rules_file"
+}
+
+
 # ---- Contract validation ----
 
 _adapter_validate() {

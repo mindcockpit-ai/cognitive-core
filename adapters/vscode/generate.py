@@ -15,31 +15,12 @@ Usage:
 """
 import argparse
 import json
-import os
-import re
-import subprocess
 import sys
 from pathlib import Path
 
-
-def load_config(config_file: str) -> dict:
-    """Load cognitive-core.conf by sourcing it in bash and capturing variables."""
-    if not config_file or not os.path.isfile(config_file):
-        return {}
-
-    cmd = f'set -a; source "{config_file}" 2>/dev/null; env | grep "^CC_"'
-    try:
-        result = subprocess.run(
-            ["bash", "-c", cmd], capture_output=True, text=True, timeout=5
-        )
-        config: dict[str, str] = {}
-        for line in result.stdout.strip().split("\n"):
-            if "=" in line:
-                key, _, value = line.partition("=")
-                config[key] = value
-        return config
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        return {}
+# Shared utilities — single source of truth (#139 P3)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from _shared.generate_utils import load_config, extract_safety_rules, build_agent_refs
 
 
 def generate_settings(project_dir: str, install_dir: str, config: dict) -> None:
@@ -112,18 +93,18 @@ def generate_instructions(project_dir: str, install_dir: str, config: dict) -> N
             content = content.replace(placeholder, value)
 
         # Extract safety rules from validate-bash.sh if available
-        safety_rules = _extract_safety_rules(install_dir)
+        safety_rules = extract_safety_rules(install_dir)
         content = content.replace("{{SAFETY_RULES}}", safety_rules)
 
         # Build agent context references
-        agent_refs = _build_agent_refs(install_dir)
+        agent_refs = build_agent_refs(install_dir)
         content = content.replace("{{AGENT_CONTEXT}}", agent_refs)
 
         instructions_path.write_text(content, encoding="utf-8")
     else:
         # Direct generation without template
-        safety_rules = _extract_safety_rules(install_dir)
-        agent_refs = _build_agent_refs(install_dir)
+        safety_rules = extract_safety_rules(install_dir)
+        agent_refs = build_agent_refs(install_dir)
 
         content = f"""# Project Conventions — {project_name}
 
@@ -160,67 +141,6 @@ Test root: `{test_root}`
 {agent_refs}
 """
         instructions_path.write_text(content, encoding="utf-8")
-
-
-def _extract_safety_rules(install_dir: str) -> str:
-    """Extract safety rules from validate-bash.sh hook."""
-    hook_path = Path(install_dir) / "hooks" / "validate-bash.sh"
-    if not hook_path.is_file():
-        return _default_safety_rules()
-
-    rules: list[str] = []
-    try:
-        content = hook_path.read_text(encoding="utf-8")
-        reason_pattern = re.compile(r'REASON="Blocked:\s*(.+?)"')
-        for match in reason_pattern.finditer(content):
-            reason = match.group(1).strip()
-            rules.append(f"- NEVER: {reason}")
-    except (OSError, UnicodeDecodeError):
-        return _default_safety_rules()
-
-    if not rules:
-        return _default_safety_rules()
-
-    return "\n".join(rules)
-
-
-def _default_safety_rules() -> str:
-    """Default safety rules when hook is not available."""
-    return """- NEVER execute: rm -rf targeting system-critical paths (/, /etc, /usr, /var, /home)
-- NEVER execute: git push --force to main/master
-- NEVER execute: git reset --hard (destructive, may lose work)
-- NEVER execute: DROP TABLE or TRUNCATE TABLE
-- NEVER execute: DELETE FROM without WHERE clause
-- NEVER execute: rm .git directory
-- NEVER execute: chmod 777 (insecure permissions)
-- NEVER execute: git clean -f without -n dry-run
-- NEVER pipe curl/wget output to sh/bash (supply chain risk)
-- NEVER use base64 -d | sh (encoded command execution)
-- NEVER use eval with command substitution
-- NEVER pipe environment variables to external commands"""
-
-
-def _build_agent_refs(install_dir: str) -> str:
-    """Build agent context reference section."""
-    agents_dir = Path(install_dir) / "agents"
-    if not agents_dir.is_dir():
-        return "No agent documentation installed."
-
-    refs: list[str] = []
-    for agent_file in sorted(agents_dir.iterdir()):
-        if agent_file.suffix == ".md":
-            name = agent_file.stem.replace("-", " ").title()
-            rel_path = Path(".cognitive-core") / "agents" / agent_file.name
-            refs.append(f"- **{name}**: `{rel_path}`")
-
-    if not refs:
-        return "No agent documentation installed."
-
-    return (
-        "Agent documentation is available for reference:\n"
-        + "\n".join(refs)
-        + "\n\nUse their guidance when working in their specialist domains."
-    )
 
 
 def generate_mcp_config(project_dir: str, install_dir: str, config: dict) -> None:
@@ -271,7 +191,7 @@ def main() -> None:
     args = parser.parse_args()
     config = load_config(args.config_file)
 
-    generators: dict[str, callable] = {
+    generators = {
         "settings": generate_settings,
         "instructions": generate_instructions,
         "mcp-config": generate_mcp_config,
