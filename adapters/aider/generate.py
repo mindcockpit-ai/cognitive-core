@@ -170,11 +170,6 @@ Test root: `{test_root}`
             f.write(content)
 
 
-
-# _extract_safety_rules, _default_safety_rules, _build_agent_refs
-# moved to adapters/_shared/generate_utils.py (#139 P3)
-
-
 def generate_ignore(project_dir: str, install_dir: str, config: dict) -> None:
     """Generate .aiderignore from security settings."""
     ignore_path = os.path.join(project_dir, ".aiderignore")

@@ -6,8 +6,8 @@ All adapters import these instead of duplicating the implementations.
 
 from __future__ import annotations
 
-import os
 import re
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -17,7 +17,7 @@ def load_config(config_file: str) -> dict[str, str]:
     if not config_file or not Path(config_file).is_file():
         return {}
 
-    cmd = f'set -a; source "{config_file}" 2>/dev/null; env | grep "^CC_"'
+    cmd = f'set -a; source {shlex.quote(config_file)} 2>/dev/null; env | grep "^CC_"'
     try:
         result = subprocess.run(
             ["bash", "-c", cmd], capture_output=True, text=True, timeout=5

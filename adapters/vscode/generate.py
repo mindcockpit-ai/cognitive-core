@@ -15,7 +15,6 @@ Usage:
 """
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -142,11 +141,6 @@ Test root: `{test_root}`
 {agent_refs}
 """
         instructions_path.write_text(content, encoding="utf-8")
-
-
-
-# _extract_safety_rules, _default_safety_rules, _build_agent_refs
-# moved to adapters/_shared/generate_utils.py (#139 P3)
 
 
 def generate_mcp_config(project_dir: str, install_dir: str, config: dict) -> None:

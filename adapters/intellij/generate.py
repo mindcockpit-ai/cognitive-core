@@ -14,6 +14,7 @@ Usage:
       --config-file /path/to/project/cognitive-core.conf
 """
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -173,17 +174,11 @@ Test root: `{test_root}`
             f.write(content)
 
 
-
-# _extract_safety_rules, _default_safety_rules, _build_agent_refs
-# moved to adapters/_shared/generate_utils.py (#139 P3)
-
-
 def generate_mcp_config(project_dir: str, install_dir: str, config: dict) -> None:
     """Generate MCP server configuration snippet for IDE plugins."""
     mcp_config_path = os.path.join(install_dir, "mcp-config.json")
     project_name = config.get("CC_PROJECT_NAME", "project")
 
-    import json
     mcp_config = {
         "mcpServers": {
             "cognitive-core": {
