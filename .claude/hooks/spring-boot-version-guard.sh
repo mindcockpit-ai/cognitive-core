@@ -54,31 +54,26 @@ esac
 
 [ -z "$CONTENT" ] && exit 0
 
-# --- Detect Spring Boot version (cached per session) ---
-_SB_VERSION_CACHE="/tmp/cc_spring_boot_version_${CC_PROJECT_DIR##*/}"
-SB_VERSION=0
+# --- Detect Spring Boot version (project-local cache with mtime invalidation, #176) ---
+SB_VERSION=$(_cc_version_cache_get "spring-boot" "pom.xml build.gradle build.gradle.kts")
 
-if [ -f "$_SB_VERSION_CACHE" ]; then
-    SB_VERSION=$(cat "$_SB_VERSION_CACHE")
-else
-    # Try pom.xml first
+if [ -z "$SB_VERSION" ]; then
+    SB_VERSION=0
     if [ -f "${CC_PROJECT_DIR}/pom.xml" ]; then
         SB_VERSION=$(grep -A2 'spring-boot-starter-parent' "${CC_PROJECT_DIR}/pom.xml" 2>/dev/null | grep -oE '[0-9]+' | head -1 || true)
     fi
-    # Fall back to build.gradle
     if [ -z "$SB_VERSION" ] || [ "$SB_VERSION" = "0" ]; then
         if [ -f "${CC_PROJECT_DIR}/build.gradle" ]; then
             SB_VERSION=$(grep 'org.springframework.boot' "${CC_PROJECT_DIR}/build.gradle" 2>/dev/null | grep -oE '[0-9]+' | head -1 || true)
         fi
     fi
-    # Fall back to build.gradle.kts
     if [ -z "$SB_VERSION" ] || [ "$SB_VERSION" = "0" ]; then
         if [ -f "${CC_PROJECT_DIR}/build.gradle.kts" ]; then
             SB_VERSION=$(grep 'org.springframework.boot' "${CC_PROJECT_DIR}/build.gradle.kts" 2>/dev/null | grep -oE '[0-9]+' | head -1 || true)
         fi
     fi
     SB_VERSION=${SB_VERSION:-0}
-    echo "$SB_VERSION" > "$_SB_VERSION_CACHE"
+    _cc_version_cache_set "spring-boot" "$SB_VERSION"
 fi
 
 [ "$SB_VERSION" -eq 0 ] && exit 0

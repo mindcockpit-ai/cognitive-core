@@ -228,6 +228,46 @@ _cc_security_log() {
     fi
 }
 
+# Version cache with mtime invalidation (#176)
+# Stores in project-local .claude/cognitive-core/ (not /tmp)
+_cc_version_cache_get() {
+    local cache_name="$1"
+    local source_files="$2"
+    local cache_dir="${CC_PROJECT_DIR}/.claude/cognitive-core"
+    local cache_file="${cache_dir}/.${cache_name}-version"
+
+    [ ! -f "$cache_file" ] && return 0
+
+    local cached
+    cached=$(cat "$cache_file" 2>/dev/null)
+    case "$cached" in
+        ''|*[!0-9]*) rm -f "$cache_file"; return 0 ;;
+    esac
+
+    local src
+    for src in $source_files; do
+        if [ -f "${CC_PROJECT_DIR}/${src}" ] && [ "${CC_PROJECT_DIR}/${src}" -nt "$cache_file" ]; then
+            rm -f "$cache_file"
+            return 0
+        fi
+    done
+
+    echo "$cached"
+}
+
+_cc_version_cache_set() {
+    local cache_name="$1"
+    local value="$2"
+    local cache_dir="${CC_PROJECT_DIR}/.claude/cognitive-core"
+    local cache_file="${cache_dir}/.${cache_name}-version"
+
+    case "$value" in
+        ''|*[!0-9]*) return 0 ;;
+    esac
+
+    [ -d "$cache_dir" ] && echo "$value" > "$cache_file"
+}
+
 # Cross-platform SHA256
 _cc_compute_sha256() {
     local file="$1"
