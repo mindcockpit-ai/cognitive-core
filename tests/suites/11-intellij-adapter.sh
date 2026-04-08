@@ -7,67 +7,15 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
+source "${SCRIPT_DIR}/../lib/adapter-test-helpers.sh"
 
 suite_start "11 — IntelliJ Adapter"
 
-# ---- Test adapter.sh passes contract validation ----
-intellij_validate=$(bash -c "
-    err() { printf '%s\n' \"\$*\" >&2; }
-    info() { printf '%s\n' \"\$*\"; }
-    warn() { printf '%s\n' \"\$*\"; }
-    SCRIPT_DIR='${ROOT_DIR}'
-    FORCE=false
-    CC_INSTALL_DIR='/tmp/test-cc'
-    source '${ROOT_DIR}/adapters/_adapter-lib.sh'
-    source '${ROOT_DIR}/adapters/intellij/adapter.sh'
-    _adapter_validate && echo 'VALID'
-" 2>&1)
-assert_contains "intellij adapter: passes validation" "$intellij_validate" "VALID"
-
-# ---- Test adapter variables ----
-adapter_name=$(bash -c "
-    err() { : ; }; info() { : ; }; warn() { : ; }
-    SCRIPT_DIR='${ROOT_DIR}'; FORCE=false; CC_INSTALL_DIR='/tmp/test-cc'
-    source '${ROOT_DIR}/adapters/_adapter-lib.sh'
-    source '${ROOT_DIR}/adapters/intellij/adapter.sh'
-    echo \"\$_ADAPTER_NAME\"
-" 2>&1)
-assert_eq "intellij adapter: _ADAPTER_NAME=intellij" "intellij" "$adapter_name"
-
-install_dir=$(bash -c "
-    err() { : ; }; info() { : ; }; warn() { : ; }
-    SCRIPT_DIR='${ROOT_DIR}'; FORCE=false; CC_INSTALL_DIR='/tmp/test-cc'
-    source '${ROOT_DIR}/adapters/_adapter-lib.sh'
-    source '${ROOT_DIR}/adapters/intellij/adapter.sh'
-    echo \"\$_ADAPTER_INSTALL_DIR\"
-" 2>&1)
-assert_eq "intellij adapter: _ADAPTER_INSTALL_DIR=.cognitive-core" ".cognitive-core" "$install_dir"
-
-# ---- Test all 5 required functions are defined ----
-for fn in _adapter_install_hook _adapter_install_agent _adapter_install_skill _adapter_generate_settings _adapter_generate_project_readme; do
-    fn_check=$(bash -c "
-        err() { : ; }; info() { : ; }; warn() { : ; }
-        SCRIPT_DIR='${ROOT_DIR}'; FORCE=false; CC_INSTALL_DIR='/tmp/test-cc'
-        source '${ROOT_DIR}/adapters/_adapter-lib.sh'
-        source '${ROOT_DIR}/adapters/intellij/adapter.sh'
-        type $fn &>/dev/null && echo 'DEFINED'
-    " 2>&1)
-    assert_eq "intellij adapter: ${fn} defined" "DEFINED" "$fn_check"
-done
-
-# ---- Test generate.py exists and is valid Python ----
-assert_file_exists "intellij: generate.py exists" "${ROOT_DIR}/adapters/intellij/generate.py"
-
-if command -v python3 &>/dev/null; then
-    py_check=$(python3 -c "import py_compile; py_compile.compile('${ROOT_DIR}/adapters/intellij/generate.py', doraise=True)" 2>&1) || true
-    if [ -z "$py_check" ]; then
-        _pass "intellij: generate.py compiles without error"
-    else
-        _fail "intellij: generate.py compiles without error" "$py_check"
-    fi
-else
-    _skip "intellij: generate.py compile check (python3 not available)"
-fi
+# ---- Adapter contract (#139 P5: shared helpers) ----
+assert_adapter_validates "intellij"
+assert_adapter_variables "intellij" ".cognitive-core"
+assert_adapter_required_functions "intellij"
+assert_adapter_py_compiles "intellij"
 
 # ---- Test tool-map.yaml ----
 assert_file_exists "intellij: tool-map.yaml exists" "${ROOT_DIR}/adapters/intellij/tool-map.yaml"

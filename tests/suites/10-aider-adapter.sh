@@ -7,55 +7,14 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
+source "${SCRIPT_DIR}/../lib/adapter-test-helpers.sh"
 
 suite_start "10 — Aider Adapter"
 
-# ---- Test adapter.sh passes contract validation ----
-aider_validate=$(bash -c "
-    err() { printf '%s\n' \"\$*\" >&2; }
-    info() { printf '%s\n' \"\$*\"; }
-    warn() { printf '%s\n' \"\$*\"; }
-    SCRIPT_DIR='${ROOT_DIR}'
-    FORCE=false
-    CC_INSTALL_DIR='/tmp/test-cc'
-    source '${ROOT_DIR}/adapters/_adapter-lib.sh'
-    source '${ROOT_DIR}/adapters/aider/adapter.sh'
-    _adapter_validate && echo 'VALID'
-" 2>&1)
-assert_contains "aider adapter: passes validation" "$aider_validate" "VALID"
-
-# ---- Test adapter variables ----
-adapter_name=$(bash -c "
-    err() { : ; }; info() { : ; }; warn() { : ; }
-    SCRIPT_DIR='${ROOT_DIR}'; FORCE=false; CC_INSTALL_DIR='/tmp/test-cc'
-    source '${ROOT_DIR}/adapters/_adapter-lib.sh'
-    source '${ROOT_DIR}/adapters/aider/adapter.sh'
-    echo \"\$_ADAPTER_NAME\"
-" 2>&1)
-assert_eq "aider adapter: _ADAPTER_NAME=aider" "aider" "$adapter_name"
-
-install_dir=$(bash -c "
-    err() { : ; }; info() { : ; }; warn() { : ; }
-    SCRIPT_DIR='${ROOT_DIR}'; FORCE=false; CC_INSTALL_DIR='/tmp/test-cc'
-    source '${ROOT_DIR}/adapters/_adapter-lib.sh'
-    source '${ROOT_DIR}/adapters/aider/adapter.sh'
-    echo \"\$_ADAPTER_INSTALL_DIR\"
-" 2>&1)
-assert_eq "aider adapter: _ADAPTER_INSTALL_DIR=.cognitive-core" ".cognitive-core" "$install_dir"
-
-# ---- Test generate.py exists and is valid Python ----
-assert_file_exists "aider: generate.py exists" "${ROOT_DIR}/adapters/aider/generate.py"
-
-if command -v python3 &>/dev/null; then
-    py_check=$(python3 -c "import py_compile; py_compile.compile('${ROOT_DIR}/adapters/aider/generate.py', doraise=True)" 2>&1) || true
-    if [ -z "$py_check" ]; then
-        _pass "aider: generate.py compiles without error"
-    else
-        _fail "aider: generate.py compiles without error" "$py_check"
-    fi
-else
-    _skip "aider: generate.py compile check (python3 not available)"
-fi
+# ---- Adapter contract (#139 P5: shared helpers) ----
+assert_adapter_validates "aider"
+assert_adapter_variables "aider" ".cognitive-core"
+assert_adapter_py_compiles "aider"
 
 # ---- Test tool-map.yaml ----
 assert_file_exists "aider: tool-map.yaml exists" "${ROOT_DIR}/adapters/aider/tool-map.yaml"
