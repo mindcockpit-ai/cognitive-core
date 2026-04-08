@@ -43,13 +43,13 @@ case "$FILE_PATH" in
     *) exit 0 ;;
 esac
 
-# Skip test files
+# Detect test files — skip security patterns but allow migration checks (#172)
+_IS_TEST="false"
 case "$FILE_PATH" in
-    *Test.java|*Tests.java|*IT.java) exit 0 ;;
+    *Test.java|*Tests.java|*IT.java) _IS_TEST="true" ;;
 esac
-# Skip files under test directories
 case "$FILE_PATH" in
-    */test/*|*/tests/*) exit 0 ;;
+    */test/*|*/tests/*) _IS_TEST="true" ;;
 esac
 
 [ -z "$CONTENT" ] && exit 0
@@ -115,16 +115,16 @@ if [ "$SB_VERSION" -ge 3 ] && [ -z "$REASON" ]; then
         REASON="Spring Boot v${SB_VERSION}: Consider using RestClient instead of RestTemplate. RestClient is the modern synchronous HTTP client since v3.2. RestTemplate is in maintenance mode."
     fi
 
-    # Warn about Thread.sleep in production code
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE 'Thread[[:space:]]*\.[[:space:]]*sleep[[:space:]]*\('; then
+    # Warn about Thread.sleep in production code (skip tests — Thread.sleep is common in test waits)
+    if [ -z "$REASON" ] && [ "$_IS_TEST" = "false" ] && echo "$CONTENT" | grep -qE 'Thread[[:space:]]*\.[[:space:]]*sleep[[:space:]]*\('; then
         REASON="Spring Boot v${SB_VERSION}: Avoid Thread.sleep() in production code. Use @Scheduled, CompletableFuture, or virtual threads (spring.threads.virtual.enabled=true) instead."
     fi
 fi
 
 # --- v4+ patterns (Java 21 required, Security 7, Jackson 3) ---
 if [ "$SB_VERSION" -ge 4 ] && [ -z "$REASON" ]; then
-    # Warn about synchronized blocks (virtual thread pinning)
-    if echo "$CONTENT" | grep -qE 'synchronized[[:space:]]*\(|synchronized[[:space:]]+[a-zA-Z]'; then
+    # Warn about synchronized blocks (virtual thread pinning, skip tests)
+    if [ "$_IS_TEST" = "false" ] && echo "$CONTENT" | grep -qE 'synchronized[[:space:]]*\(|synchronized[[:space:]]+[a-zA-Z]'; then
         REASON="Spring Boot v${SB_VERSION}: synchronized blocks can pin virtual threads (default in v4). Consider using ReentrantLock or java.util.concurrent alternatives."
     fi
 
@@ -151,8 +151,8 @@ if [ "$SB_VERSION" -ge 4 ] && [ -z "$REASON" ]; then
     fi
 fi
 
-# --- Security patterns (all versions, Java/Kotlin only) ---
-if [ -z "$REASON" ] && [ "$_IS_CONFIG" = "false" ]; then
+# --- Security patterns (all versions, Java/Kotlin only, skip test files) ---
+if [ -z "$REASON" ] && [ "$_IS_CONFIG" = "false" ] && [ "$_IS_TEST" = "false" ]; then
     # @Autowired on fields — use constructor injection
     # Only flag when @Autowired and field type are on the SAME line (unambiguous field injection)
     # Standalone @Autowired on its own line is ambiguous (could be constructor) — skip
