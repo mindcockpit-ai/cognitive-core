@@ -48,18 +48,16 @@ esac
 
 [ -z "$CONTENT" ] && exit 0
 
-# --- Detect Angular version (cached per session) ---
-_NG_VERSION_CACHE="/tmp/cc_angular_version_${CC_PROJECT_DIR##*/}"
-NG_VERSION=0
+# --- Detect Angular version (project-local cache with mtime invalidation, #176) ---
+NG_VERSION=$(_cc_version_cache_get "angular" "package.json")
 
-if [ -f "$_NG_VERSION_CACHE" ]; then
-    NG_VERSION=$(cat "$_NG_VERSION_CACHE")
-else
+if [ -z "$NG_VERSION" ]; then
+    NG_VERSION=0
     if [ -f "${CC_PROJECT_DIR}/package.json" ]; then
         NG_VERSION=$(grep '"@angular/core"' "${CC_PROJECT_DIR}/package.json" 2>/dev/null | grep -oE '[0-9]+' | head -1 || true)
         NG_VERSION=${NG_VERSION:-0}
-        echo "$NG_VERSION" > "$_NG_VERSION_CACHE"
     fi
+    _cc_version_cache_set "angular" "$NG_VERSION"
 fi
 
 [ "$NG_VERSION" -eq 0 ] && exit 0
