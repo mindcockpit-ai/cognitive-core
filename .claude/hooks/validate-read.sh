@@ -61,7 +61,7 @@ if [ -z "$REASON" ] && echo "$EXPANDED_PATH" | grep -qE '(^|/)\.env$'; then
     if [ -n "${CC_PROJECT_DIR:-}" ]; then
         case "$EXPANDED_PATH" in
             "${CC_PROJECT_DIR}"/*) ;; # within project — allow
-            *) REASON="Blocked: reading .env file outside project directory" ;;
+            *) REASON="Blocked: reading .env file outside project directory. Move it into the project or set variables via 'export VAR=value'" ;;
         esac
     fi
 fi
