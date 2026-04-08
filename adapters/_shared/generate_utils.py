@@ -12,12 +12,30 @@ import subprocess
 from pathlib import Path
 
 
-def load_config(config_file: str) -> dict[str, str]:
-    """Load cognitive-core.conf by sourcing it in bash and capturing variables."""
-    if not config_file or not Path(config_file).is_file():
+def load_config(config_file: str = "", *, project_dir: str = "") -> dict[str, str]:
+    """Load cognitive-core.conf by sourcing it in bash and capturing CC_ variables.
+
+    Args:
+        config_file: Direct path to cognitive-core.conf.
+        project_dir: Project root — searches for conf file if config_file not given.
+    """
+    # Resolve config file path
+    conf_path = ""
+    if config_file and Path(config_file).is_file():
+        conf_path = config_file
+    elif project_dir:
+        for candidate in [
+            Path(project_dir) / "cognitive-core.conf",
+            Path(project_dir) / ".cognitive-core" / "cognitive-core.conf",
+        ]:
+            if candidate.is_file():
+                conf_path = str(candidate)
+                break
+
+    if not conf_path:
         return {}
 
-    cmd = f'set -a; source {shlex.quote(config_file)} 2>/dev/null; env | grep "^CC_"'
+    cmd = f'set -a; source {shlex.quote(conf_path)} 2>/dev/null; env | grep "^CC_"'
     try:
         result = subprocess.run(
             ["bash", "-c", cmd], capture_output=True, text=True, timeout=5

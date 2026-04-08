@@ -191,7 +191,7 @@ def main() -> None:
     args = parser.parse_args()
     config = load_config(args.config_file)
 
-    generators: dict[str, callable] = {
+    generators = {
         "settings": generate_settings,
         "instructions": generate_instructions,
         "mcp-config": generate_mcp_config,

@@ -30,6 +30,6 @@ aa5d4ff8662ccd759f628c9ef22f29c0	./.cognitive-core/mcp-server/server.py
 2d142dd2b00f0a19f74796a92a813ed4	./.cognitive-core/mcp-server/tools/lint_check.py
 ff110b786b3f276c44ac93530e8ca528	./.cognitive-core/mcp-server/tools/project_info.py
 1981954a1c18d60addc1d987d565c232	./.cognitive-core/mcp-server/tools/security_validate.py
-ad33ff41d4658d1959d4c81e76fe652a	./.cognitive-core/mcp-server/tools/utils.py
+528c258f142ae78d582729963ced187d	./.cognitive-core/mcp-server/tools/utils.py
 232b32a716d03bd80bf947ede6acc85e	./.mcp.json
 4e206bb02d59ad4f41c9e8984ba83d14	./CLAUDE.md

@@ -35,22 +35,22 @@ def generate_settings(project_dir: str, install_dir: str, config: dict) -> None:
     project_name = config.get("CC_PROJECT_NAME", "project")
 
     lines = [
-        f"# cognitive-core generated IntelliJ / DevoxxGenie configuration",
-        f"# Platform: intellij + local LLM",
+        "# cognitive-core generated IntelliJ / DevoxxGenie configuration",
+        "# Platform: intellij + local LLM",
         f"# Project: {project_name}",
-        f"",
-        f"# LLM provider configuration",
-        f"provider: ollama",
+        "",
+        "# LLM provider configuration",
+        "provider: ollama",
         f"model: {model}",
         f"ollama_url: {ollama_base}",
-        f"",
-        f"# Lint and test commands",
+        "",
+        "# Lint and test commands",
         f"lint_command: {lint_cmd}",
         f"test_command: {test_cmd}",
-        f"",
-        f"# Context files (always loaded)",
-        f"context_files:",
-        f"  - DEVOXXGENIE.md",
+        "",
+        "# Context files (always loaded)",
+        "context_files:",
+        "  - DEVOXXGENIE.md",
     ]
 
     # Add agent docs as context
@@ -64,14 +64,14 @@ def generate_settings(project_dir: str, install_dir: str, config: dict) -> None:
                 lines.append(f"  - {rel_path}")
 
     lines.extend([
-        f"",
-        f"# MCP server (Layer 2)",
-        f"mcp_server:",
-        f"  enabled: true",
-        f"  command: python3",
-        f"  args:",
-        f"    - .cognitive-core/mcp-server/server.py",
-        f"  transport: stdio",
+        "",
+        "# MCP server (Layer 2)",
+        "mcp_server:",
+        "  enabled: true",
+        "  command: python3",
+        "  args:",
+        "    - .cognitive-core/mcp-server/server.py",
+        "  transport: stdio",
     ])
 
     with open(conf_path, "w", encoding="utf-8") as f:
