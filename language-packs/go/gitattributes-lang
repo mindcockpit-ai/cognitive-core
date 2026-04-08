@@ -1,0 +1,3 @@
+# Go specific
+*.go text eol=lf diff=golang
+go.sum -diff
