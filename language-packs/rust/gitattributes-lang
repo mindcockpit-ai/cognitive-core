@@ -1,0 +1,3 @@
+# Rust specific
+*.rs text eol=lf
+Cargo.lock -diff

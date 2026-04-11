@@ -1,0 +1,7 @@
+# C# specific
+*.cs text eol=lf diff=csharp
+*.csproj text eol=lf
+*.sln text eol=lf
+*.dll binary
+*.exe binary
+*.nupkg binary

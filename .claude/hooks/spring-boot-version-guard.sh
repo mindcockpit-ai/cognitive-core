@@ -54,200 +54,142 @@ esac
 
 [ -z "$CONTENT" ] && exit 0
 
-# --- Detect Spring Boot version (cached per session) ---
-_SB_VERSION_CACHE="/tmp/cc_spring_boot_version_${CC_PROJECT_DIR##*/}"
-SB_VERSION=0
+# --- Detect Spring Boot version (project-local cache with mtime invalidation, #176) ---
+SB_VERSION=$(_cc_version_cache_get "spring-boot" "pom.xml build.gradle build.gradle.kts")
 
-if [ -f "$_SB_VERSION_CACHE" ]; then
-    SB_VERSION=$(cat "$_SB_VERSION_CACHE")
-else
-    # Try pom.xml first
+if [ -z "$SB_VERSION" ]; then
+    SB_VERSION=0
     if [ -f "${CC_PROJECT_DIR}/pom.xml" ]; then
         SB_VERSION=$(grep -A2 'spring-boot-starter-parent' "${CC_PROJECT_DIR}/pom.xml" 2>/dev/null | grep -oE '[0-9]+' | head -1 || true)
     fi
-    # Fall back to build.gradle
     if [ -z "$SB_VERSION" ] || [ "$SB_VERSION" = "0" ]; then
         if [ -f "${CC_PROJECT_DIR}/build.gradle" ]; then
             SB_VERSION=$(grep 'org.springframework.boot' "${CC_PROJECT_DIR}/build.gradle" 2>/dev/null | grep -oE '[0-9]+' | head -1 || true)
         fi
     fi
-    # Fall back to build.gradle.kts
     if [ -z "$SB_VERSION" ] || [ "$SB_VERSION" = "0" ]; then
         if [ -f "${CC_PROJECT_DIR}/build.gradle.kts" ]; then
             SB_VERSION=$(grep 'org.springframework.boot' "${CC_PROJECT_DIR}/build.gradle.kts" 2>/dev/null | grep -oE '[0-9]+' | head -1 || true)
         fi
     fi
     SB_VERSION=${SB_VERSION:-0}
-    echo "$SB_VERSION" > "$_SB_VERSION_CACHE"
+    _cc_version_cache_set "spring-boot" "$SB_VERSION"
 fi
 
 [ "$SB_VERSION" -eq 0 ] && exit 0
 
-REASON=""
+DENY_REASONS=()
+ASK_REASONS=()
 
-# --- v3+ patterns (javax to jakarta, Security 6) ---
+# --- v3+ patterns (javax to jakarta, Security 6) — DENY: removed APIs ---
 if [ "$SB_VERSION" -ge 3 ]; then
-    # Warn about javax.* imports (must use jakarta.*)
     if echo "$CONTENT" | grep -qE 'import[[:space:]]+javax\.(persistence|validation|servlet|annotation|mail|transaction|inject|enterprise)'; then
-        REASON="Spring Boot v${SB_VERSION}: Use jakarta.* imports instead of javax.* — Jakarta EE 10 namespace is required since Spring Boot 3.0."
+        DENY_REASONS+=("Use jakarta.* imports instead of javax.* — required since Spring Boot 3.0.")
     fi
-
-    # Warn about WebSecurityConfigurerAdapter (removed in Security 6)
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE 'WebSecurityConfigurerAdapter'; then
-        REASON="Spring Boot v${SB_VERSION}: WebSecurityConfigurerAdapter was removed in Spring Security 6. Use @Bean SecurityFilterChain with HttpSecurity parameter instead."
+    if echo "$CONTENT" | grep -qE 'WebSecurityConfigurerAdapter'; then
+        DENY_REASONS+=("WebSecurityConfigurerAdapter removed in Security 6. Use @Bean SecurityFilterChain.")
     fi
-
-    # Warn about antMatchers (removed in Security 6)
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE '\.antMatchers[[:space:]]*\('; then
-        REASON="Spring Boot v${SB_VERSION}: antMatchers() was removed in Spring Security 6. Use requestMatchers() instead."
+    if echo "$CONTENT" | grep -qE '\.antMatchers[[:space:]]*\('; then
+        DENY_REASONS+=("antMatchers() removed in Security 6. Use requestMatchers().")
     fi
-
-    # Warn about authorizeRequests (replaced by authorizeHttpRequests)
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE '\.authorizeRequests[[:space:]]*\('; then
-        REASON="Spring Boot v${SB_VERSION}: authorizeRequests() is deprecated. Use authorizeHttpRequests() with the lambda DSL."
+    if echo "$CONTENT" | grep -qE '\.authorizeRequests[[:space:]]*\('; then
+        ASK_REASONS+=("authorizeRequests() is deprecated. Use authorizeHttpRequests() with lambda DSL.")
     fi
 fi
 
-# --- v3.2+ patterns (RestClient, virtual threads) ---
-if [ "$SB_VERSION" -ge 3 ] && [ -z "$REASON" ]; then
-    # Warn about RestTemplate usage (suggest RestClient)
+# --- v3.2+ patterns (RestClient, virtual threads) — ASK: deprecated ---
+if [ "$SB_VERSION" -ge 3 ]; then
     if echo "$CONTENT" | grep -qE 'new[[:space:]]+RestTemplate[[:space:]]*\(|RestTemplate[[:space:]]+restTemplate'; then
-        REASON="Spring Boot v${SB_VERSION}: Consider using RestClient instead of RestTemplate. RestClient is the modern synchronous HTTP client since v3.2. RestTemplate is in maintenance mode."
+        ASK_REASONS+=("Consider RestClient instead of RestTemplate (maintenance mode since v3.2).")
     fi
-
-    # Warn about Thread.sleep in production code (skip tests — Thread.sleep is common in test waits)
-    if [ -z "$REASON" ] && [ "$_IS_TEST" = "false" ] && echo "$CONTENT" | grep -qE 'Thread[[:space:]]*\.[[:space:]]*sleep[[:space:]]*\('; then
-        REASON="Spring Boot v${SB_VERSION}: Avoid Thread.sleep() in production code. Use @Scheduled, CompletableFuture, or virtual threads (spring.threads.virtual.enabled=true) instead."
+    if [ "$_IS_TEST" = "false" ] && echo "$CONTENT" | grep -qE 'Thread[[:space:]]*\.[[:space:]]*sleep[[:space:]]*\('; then
+        ASK_REASONS+=("Avoid Thread.sleep() in production. Use @Scheduled, CompletableFuture, or virtual threads.")
     fi
 fi
 
-# --- v4+ patterns (Java 21 required, Security 7, Jackson 3) ---
-if [ "$SB_VERSION" -ge 4 ] && [ -z "$REASON" ]; then
-    # Warn about synchronized blocks (virtual thread pinning, skip tests)
+# --- v4+ patterns (Java 21, Security 7, Jackson 3) ---
+if [ "$SB_VERSION" -ge 4 ]; then
     if [ "$_IS_TEST" = "false" ] && echo "$CONTENT" | grep -qE 'synchronized[[:space:]]*\(|synchronized[[:space:]]+[a-zA-Z]'; then
-        REASON="Spring Boot v${SB_VERSION}: synchronized blocks can pin virtual threads (default in v4). Consider using ReentrantLock or java.util.concurrent alternatives."
+        ASK_REASONS+=("synchronized blocks can pin virtual threads (default in v4). Consider ReentrantLock.")
     fi
-
-    # Warn about deprecated Security APIs from v3
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE '\.and\(\)[[:space:]]*\.' ; then
-        REASON="Spring Boot v${SB_VERSION}: The .and() chaining pattern is removed in Spring Security 7. Use the lambda DSL exclusively."
+    if echo "$CONTENT" | grep -qE '\.and\(\)[[:space:]]*\.'; then
+        DENY_REASONS+=(".and() chaining removed in Security 7. Use lambda DSL exclusively.")
     fi
-
-    # Warn about RestTemplate (deprecated in v4, removal planned in Spring Framework 8)
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE 'new[[:space:]]+RestTemplate[[:space:]]*\(|RestTemplate[[:space:]]+restTemplate'; then
-        REASON="Spring Boot v${SB_VERSION}: RestTemplate is deprecated. Use RestClient (blocking) or WebClient (reactive). RestTemplate removal is planned in Spring Framework 8."
+    if echo "$CONTENT" | grep -qE 'import[[:space:]]+com\.fasterxml\.jackson'; then
+        ASK_REASONS+=("Jackson 3 is default in v4. Use JsonMapper. Set spring.jackson.use-jackson2-defaults=true for compat.")
     fi
-
-    # Warn about Jackson 2 package (replaced by Jackson 3 in v4)
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE 'import[[:space:]]+com\.fasterxml\.jackson'; then
-        REASON="Spring Boot v${SB_VERSION}: Jackson 3 is the default (package: tools.jackson). Use JsonMapper instead of ObjectMapper. Set spring.jackson.use-jackson2-defaults=true for temporary compatibility."
-    fi
-
-    # Warn about removed @MockBean/@SpyBean
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE '@MockBean|@SpyBean'; then
+    if echo "$CONTENT" | grep -qE '@MockBean|@SpyBean'; then
         if ! echo "$CONTENT" | grep -qE '@MockitoBean|@MockitoSpyBean'; then
-            REASON="Spring Boot v${SB_VERSION}: @MockBean/@SpyBean are removed. Use @MockitoBean/@MockitoSpyBean (Mockito native annotations) instead."
+            DENY_REASONS+=("@MockBean/@SpyBean removed. Use @MockitoBean/@MockitoSpyBean.")
         fi
     fi
 fi
 
-# --- Security patterns (all versions, Java/Kotlin only, skip test files) ---
-if [ -z "$REASON" ] && [ "$_IS_CONFIG" = "false" ] && [ "$_IS_TEST" = "false" ]; then
-    # @Autowired on fields — use constructor injection
-    # Only flag when @Autowired and field type are on the SAME line (unambiguous field injection)
-    # Standalone @Autowired on its own line is ambiguous (could be constructor) — skip
+# --- Security patterns (all versions, skip test files) — DENY: security-critical ---
+if [ "$_IS_CONFIG" = "false" ] && [ "$_IS_TEST" = "false" ]; then
     if echo "$CONTENT" | grep -qE '@Autowired[[:space:]]+(private|protected)[[:space:]]'; then
-        REASON="Spring Boot security: @Autowired field injection detected. Use constructor injection instead (immutable, testable)."
+        ASK_REASONS+=("@Autowired field injection detected. Use constructor injection (immutable, testable).")
     fi
-
-    # CSRF disabled in non-test code
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE 'csrf[[:space:]]*\([[:space:]]*csrf[[:space:]]*->[[:space:]]*csrf\.disable'; then
-        REASON="Spring Boot security: CSRF protection disabled. CSRF is required by default in Spring Security 7. Only disable for stateless APIs with Bearer tokens."
+    if echo "$CONTENT" | grep -qE 'csrf[[:space:]]*\([[:space:]]*csrf[[:space:]]*->[[:space:]]*csrf\.disable'; then
+        DENY_REASONS+=("CSRF protection disabled. Required by default in Security 7. Only disable for stateless Bearer-token APIs.")
     fi
-
-    # CORS wildcard
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE 'allowedOrigins[[:space:]]*\([[:space:]]*"\*"'; then
-        REASON="Spring Boot security: CORS allowedOrigins(\"*\") is a misconfiguration. Specify explicit allowed origins."
+    if echo "$CONTENT" | grep -qE 'allowedOrigins[[:space:]]*\([[:space:]]*"\*"'; then
+        DENY_REASONS+=("CORS allowedOrigins(\"*\") is a misconfiguration. Specify explicit origins.")
     fi
-
-    # @RequestBody without @Valid
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE '@RequestBody[[:space:]]+[A-Z]' && ! echo "$CONTENT" | grep -qE '@Valid[[:space:]]+@RequestBody|@Validated[[:space:]]+@RequestBody'; then
-        REASON="Spring Boot security: @RequestBody without @Valid detected. Add @Valid for input validation."
+    if echo "$CONTENT" | grep -qE '@RequestBody[[:space:]]+[A-Z]' && ! echo "$CONTENT" | grep -qE '@Valid[[:space:]]+@RequestBody|@Validated[[:space:]]+@RequestBody'; then
+        ASK_REASONS+=("@RequestBody without @Valid. Add @Valid for input validation.")
     fi
-
-    # AntPathRequestMatcher / MvcRequestMatcher (removed in Security 7)
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE 'AntPathRequestMatcher|MvcRequestMatcher'; then
-        REASON="Spring Boot v${SB_VERSION}: AntPathRequestMatcher/MvcRequestMatcher removed in Security 7. Use PathPatternRequestMatcher."
+    if [ "$SB_VERSION" -ge 4 ] 2>/dev/null && echo "$CONTENT" | grep -qE 'AntPathRequestMatcher|MvcRequestMatcher'; then
+        DENY_REASONS+=("AntPathRequestMatcher/MvcRequestMatcher removed in Security 7. Use PathPatternRequestMatcher.")
     fi
-
-    # Hardcoded password/secret/apiKey string literals
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qiE '(password|secret|apiKey|api_key)[[:space:]]*=[[:space:]]*"[^$"]'; then
-        REASON="Spring Boot security: hardcoded credential detected. Use @ConfigurationProperties or environment variables."
+    if echo "$CONTENT" | grep -qiE '(password|secret|apiKey|api_key)[[:space:]]*=[[:space:]]*"[^$"]'; then
+        DENY_REASONS+=("Hardcoded credential detected. Use @ConfigurationProperties or environment variables.")
     fi
-
-    # System.out.println / System.err.println
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE 'System\.(out|err)\.print'; then
-        REASON="Spring Boot code quality: System.out/err detected. Use SLF4J (LoggerFactory.getLogger) for structured logging."
+    if echo "$CONTENT" | grep -qE 'System\.(out|err)\.print'; then
+        ASK_REASONS+=("System.out/err detected. Use SLF4J (LoggerFactory.getLogger) for structured logging.")
     fi
-
-    # @Value in @Service/@Component — use @ConfigurationProperties
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE '@Value[[:space:]]*\([[:space:]]*"[$][{]'; then
+    if echo "$CONTENT" | grep -qE '@Value[[:space:]]*\([[:space:]]*"[$][{]'; then
         if echo "$CONTENT" | grep -qE '@Service|@Component|@Repository'; then
-            REASON="Spring Boot: @Value in service/component detected. Use @ConfigurationProperties for type-safe, validated configuration."
+            ASK_REASONS+=("@Value in service/component. Use @ConfigurationProperties for type-safe config.")
         fi
     fi
-
-    # org.springframework.lang.Nullable → JSpecify (SB4)
-    if [ -z "$REASON" ] && [ "$SB_VERSION" -ge 4 ] 2>/dev/null; then
-        if echo "$CONTENT" | grep -qE 'import[[:space:]]+org\.springframework\.lang\.Nullable'; then
-            REASON="Spring Boot v${SB_VERSION}: org.springframework.lang.Nullable is deprecated. Use org.jspecify.annotations.Nullable (JSpecify)."
-        fi
+    if [ "$SB_VERSION" -ge 4 ] 2>/dev/null && echo "$CONTENT" | grep -qE 'import[[:space:]]+org\.springframework\.lang\.Nullable'; then
+        ASK_REASONS+=("org.springframework.lang.Nullable deprecated. Use org.jspecify.annotations.Nullable.")
     fi
-
-    # HttpMessageConverters bean → ServerHttpMessageConvertersCustomizer (SB4)
-    if [ -z "$REASON" ] && [ "$SB_VERSION" -ge 4 ] 2>/dev/null; then
-        if echo "$CONTENT" | grep -qE 'HttpMessageConverters[[:space:]]+[a-z]|HttpMessageConverters\(\)'; then
-            REASON="Spring Boot v${SB_VERSION}: HttpMessageConverters bean is removed. Use ServerHttpMessageConvertersCustomizer."
-        fi
+    if [ "$SB_VERSION" -ge 4 ] 2>/dev/null && echo "$CONTENT" | grep -qE 'HttpMessageConverters[[:space:]]+[a-z]|HttpMessageConverters\(\)'; then
+        DENY_REASONS+=("HttpMessageConverters removed. Use ServerHttpMessageConvertersCustomizer.")
     fi
-
-    # spring-boot-starter-aop → spring-boot-starter-aspectj (SB4)
-    if [ -z "$REASON" ] && [ "$SB_VERSION" -ge 4 ] 2>/dev/null; then
-        if echo "$CONTENT" | grep -qE 'spring-boot-starter-aop'; then
-            REASON="Spring Boot v${SB_VERSION}: spring-boot-starter-aop is renamed to spring-boot-starter-aspectj."
-        fi
+    if [ "$SB_VERSION" -ge 4 ] 2>/dev/null && echo "$CONTENT" | grep -qE 'spring-boot-starter-aop'; then
+        ASK_REASONS+=("spring-boot-starter-aop renamed to spring-boot-starter-aspectj.")
     fi
 fi
 
 # --- Config file patterns (yml/yaml/properties) ---
-if [ -z "$REASON" ] && [ "$_IS_CONFIG" = "true" ]; then
-    # Hardcoded secrets in config files (not ${} placeholders, not comments)
+if [ "$_IS_CONFIG" = "true" ]; then
     if echo "$CONTENT" | grep -iE '(password|secret|token|api-key)[[:space:]]*[:=]' | grep -qvE '[$][{]|^[[:space:]]*#'; then
-        REASON="Spring Boot security: potential hardcoded secret in config file. Use environment variable placeholders: \${ENV_VAR}."
+        DENY_REASONS+=("Potential hardcoded secret in config file. Use environment variable placeholders: \${ENV_VAR}.")
     fi
-
-    # Actuator wildcard exposure
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE 'exposure\.(include|web\.exposure\.include)[[:space:]]*[:=][[:space:]]*\*'; then
-        REASON="Spring Boot security: Actuator endpoints exposed with wildcard (*). Expose only needed endpoints: health, info, prometheus."
+    if echo "$CONTENT" | grep -qE 'exposure\.(include|web\.exposure\.include)[[:space:]]*[:=][[:space:]]*\*'; then
+        DENY_REASONS+=("Actuator endpoints exposed with wildcard (*). Expose only: health, info, prometheus.")
     fi
-
-    # {noop} password encoding
-    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE '\{noop\}'; then
-        REASON="Spring Boot security: {noop} password encoding detected. Use bcrypt or argon2 in production."
+    if echo "$CONTENT" | grep -qE '\{noop\}'; then
+        DENY_REASONS+=("{noop} password encoding detected. Use bcrypt or argon2 in production.")
     fi
-
-    # management.tracing.enabled renamed in SB4
-    if [ -z "$REASON" ] && [ "$SB_VERSION" -ge 4 ] 2>/dev/null; then
-        if echo "$CONTENT" | grep -qE 'management\.tracing\.enabled'; then
-            REASON="Spring Boot v${SB_VERSION}: management.tracing.enabled is renamed to management.tracing.export.enabled."
-        fi
+    if [ "$SB_VERSION" -ge 4 ] 2>/dev/null && echo "$CONTENT" | grep -qE 'management\.tracing\.enabled'; then
+        ASK_REASONS+=("management.tracing.enabled renamed to management.tracing.export.enabled.")
     fi
 fi
 
-# Output ask JSON if pattern found, otherwise silent exit 0
-if [ -n "$REASON" ]; then
-    _cc_security_log "ASK" "spring-boot-version-guard" "${REASON} | file=${FILE_PATH}"
-    _cc_json_pretool_ask "$REASON"
+# --- Output: deny wins over ask, all violations reported (#171) ---
+if [ ${#DENY_REASONS[@]} -gt 0 ]; then
+    ALL=("${DENY_REASONS[@]}" "${ASK_REASONS[@]}")
+    COMBINED=$(printf '• %s\n' "${ALL[@]}")
+    _cc_security_log "DENY" "spring-boot-version-guard" "${COMBINED} | file=${FILE_PATH}"
+    _cc_json_pretool_deny_structured "$COMBINED" "security" "true"
+elif [ ${#ASK_REASONS[@]} -gt 0 ]; then
+    COMBINED=$(printf '• %s\n' "${ASK_REASONS[@]}")
+    _cc_security_log "ASK" "spring-boot-version-guard" "${COMBINED} | file=${FILE_PATH}"
+    _cc_json_pretool_ask "$COMBINED"
 fi
 
 exit 0

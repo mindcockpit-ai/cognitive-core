@@ -51,6 +51,40 @@ When analyzing an Angular codebase, scan for these anti-patterns and quantify ea
 | Template injection | `[innerHTML]="userInput"` | Angular auto-sanitizes, but avoid where possible |
 | CSRF unprotected | Missing `HttpXsrfInterceptor` | `provideHttpClient(withXsrfConfiguration(...))` |
 
+#### Safe iframe srcdoc Pattern (bypassing Angular sanitizer)
+
+Angular's sanitizer strips `srcdoc` from `<iframe>` elements. When the HTML source
+is trusted (e.g., fetched from your own allowlisted proxy and processed client-side
+via DOMParser), use `afterNextRender()` to set `srcdoc` directly on the DOM:
+
+```typescript
+// Signal holds the view state; pendingHtml is set before switching to 'display'
+private pendingHtml = '';
+
+// In the subscribe/effect that prepares the HTML:
+this.pendingHtml = mergedHtml;
+this.viewState.set('display');
+this.cdr.markForCheck();
+
+// Set srcdoc AFTER Angular renders the iframe element
+afterNextRender(() => {
+  const iframe = document.querySelector('iframe.my-iframe') as HTMLIFrameElement;
+  if (null != iframe) {
+    iframe.srcdoc = this.pendingHtml;
+  }
+  this.pendingHtml = ''; // Clear reference to allow GC
+}, { injector: this.injector });
+```
+
+**When to use**: trusted HTML that Angular's sanitizer incorrectly strips (iframe srcdoc,
+SVG with scripts, etc.) where the source is under your control.
+
+**Requirements**:
+- HTML must come from a trusted, controlled source (your proxy, not user input)
+- Document the bypass justification in a code comment
+- Use `sandbox` attribute on the iframe for defense in depth
+- Clear `pendingHtml` after setting `srcdoc` to prevent memory leaks
+
 ## Version-Specific Patterns
 
 ### Angular 18 Patterns (June 2024)

@@ -1,0 +1,8 @@
+# Python specific
+*.py text eol=lf diff=python
+*.pyi text eol=lf
+*.pyx text eol=lf
+*.ipynb text eol=lf
+*.whl binary
+*.egg binary
+*.so binary

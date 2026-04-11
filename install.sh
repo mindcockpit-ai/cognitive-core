@@ -851,6 +851,22 @@ if [ -n "${CC_LANGUAGE:-}" ] && [ "$CC_LANGUAGE" != "none" ] && [ -f "$GITIGNORE
     merge_gitignore_rules "$GITIGNORE_LANG" "${CC_LANGUAGE}"
 fi
 
+# ---- Ensure .gitattributes policy (UTF-8 + LF enforcement, #216) ----
+GITATTRIBUTES="${PROJECT_DIR}/.gitattributes"
+GITATTRIBUTES_BASE="${SCRIPT_DIR}/core/templates/gitattributes-base"
+GITATTRIBUTES_LANG="${SCRIPT_DIR}/language-packs/${CC_LANGUAGE:-none}/gitattributes-lang"
+
+if [ ! -f "$GITATTRIBUTES" ]; then
+    touch "$GITATTRIBUTES"
+    info "Created .gitattributes"
+fi
+
+merge_gitignore_rules "$GITATTRIBUTES_BASE" "encoding" "$GITATTRIBUTES"
+
+if [ -n "${CC_LANGUAGE:-}" ] && [ "$CC_LANGUAGE" != "none" ] && [ -f "$GITATTRIBUTES_LANG" ]; then
+    merge_gitignore_rules "$GITATTRIBUTES_LANG" "${CC_LANGUAGE}" "$GITATTRIBUTES"
+fi
+
 # ---- Adapter post-install ----
 _adapter_post_install "$PROJECT_DIR"
 

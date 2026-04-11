@@ -124,7 +124,7 @@ _cc_json_pretool_deny() {
         }'
     else
         local escaped
-        escaped=$(printf '%s' "$reason" | sed 's/"/\\"/g')
+        escaped=$(printf '%s' "$reason" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' ')
         printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}' "$escaped"
     fi
 }
@@ -166,11 +166,11 @@ _cc_json_pretool_deny_structured() {
         fi
     else
         local escaped
-        escaped=$(printf '%s' "$reason" | sed 's/"/\\"/g')
+        escaped=$(printf '%s' "$reason" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' ')
         local suggestion_field=""
         if [ -n "$suggestion" ]; then
             local escaped_sug
-            escaped_sug=$(printf '%s' "$suggestion" | sed 's/"/\\"/g')
+            escaped_sug=$(printf '%s' "$suggestion" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' ')
             suggestion_field=$(printf ',"suggestion":"%s"' "$escaped_sug")
         fi
         printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s","errorCategory":"%s","isRetryable":%s%s}}' \
@@ -207,7 +207,7 @@ _cc_json_pretool_ask() {
         }'
     else
         local escaped
-        escaped=$(printf '%s' "$reason" | sed 's/"/\\"/g')
+        escaped=$(printf '%s' "$reason" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' ')
         printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s"}}' "$escaped"
     fi
 }
@@ -226,6 +226,46 @@ _cc_security_log() {
     if [ -f "$logfile" ] && [ "$(wc -c < "$logfile" | tr -d ' ')" -gt 1048576 ]; then
         tail -500 "$logfile" > "${logfile}.tmp" && mv "${logfile}.tmp" "$logfile"
     fi
+}
+
+# Version cache with mtime invalidation (#176)
+# Stores in project-local .claude/cognitive-core/ (not /tmp)
+_cc_version_cache_get() {
+    local cache_name="$1"
+    local source_files="$2"
+    local cache_dir="${CC_PROJECT_DIR}/.claude/cognitive-core"
+    local cache_file="${cache_dir}/.${cache_name}-version"
+
+    [ ! -f "$cache_file" ] && return 0
+
+    local cached
+    cached=$(cat "$cache_file" 2>/dev/null)
+    case "$cached" in
+        ''|*[!0-9]*) rm -f "$cache_file"; return 0 ;;
+    esac
+
+    local src
+    for src in $source_files; do
+        if [ -f "${CC_PROJECT_DIR}/${src}" ] && [ "${CC_PROJECT_DIR}/${src}" -nt "$cache_file" ]; then
+            rm -f "$cache_file"
+            return 0
+        fi
+    done
+
+    echo "$cached"
+}
+
+_cc_version_cache_set() {
+    local cache_name="$1"
+    local value="$2"
+    local cache_dir="${CC_PROJECT_DIR}/.claude/cognitive-core"
+    local cache_file="${cache_dir}/.${cache_name}-version"
+
+    case "$value" in
+        ''|*[!0-9]*) return 0 ;;
+    esac
+
+    [ -d "$cache_dir" ] && echo "$value" > "$cache_file"
 }
 
 # Cross-platform SHA256
