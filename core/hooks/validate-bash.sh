@@ -201,6 +201,43 @@ if [ -z "$REASON" ] && [ "$_CLOSURE_GUARD" = "true" ]; then
     fi
 fi
 
+# --- Shared-state gate: merge/push to shared branches + Jira transitions ---
+# These actions are visible to others and hard to reverse.
+# Deterministic: cannot be bypassed by LLM prompt or memory drift.
+# Gate: CC_REQUIRE_SHARED_STATE_APPROVAL (default: true)
+_SHARED_GATE="${CC_REQUIRE_SHARED_STATE_APPROVAL:-true}"
+
+if [ -z "$REASON" ] && [ "$_SHARED_GATE" = "true" ]; then
+    # Block git push to develop or master (not feature branches)
+    if echo "$CMD_LOWER" | grep -qE 'git[[:space:]]+push[[:space:]]+(origin[[:space:]]+)?(develop|master|main)([[:space:]]|$)'; then
+        _PUSH_TARGET=$(echo "$CMD_LOWER" | grep -oE '(develop|master|main)' | head -1)
+        REASON="Blocked: pushing to shared branch '${_PUSH_TARGET}' requires user approval"
+        _cc_security_log "DENY" "shared-state-push" "${REASON} | cmd=${CMD}"
+        _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Ask the user to confirm before pushing to ${_PUSH_TARGET}"
+        exit 0
+    fi
+
+    # Block git merge when on develop or master
+    if echo "$CMD_LOWER" | grep -qE 'git[[:space:]]+merge'; then
+        _CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+        if [ "$_CURRENT_BRANCH" = "develop" ] || [ "$_CURRENT_BRANCH" = "master" ] || [ "$_CURRENT_BRANCH" = "main" ]; then
+            REASON="Blocked: merging into shared branch '${_CURRENT_BRANCH}' requires user approval"
+            _cc_security_log "DENY" "shared-state-merge" "${REASON} | cmd=${CMD}"
+            _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Ask the user to confirm the merge into ${_CURRENT_BRANCH}"
+            exit 0
+        fi
+    fi
+
+    # Block Jira/issue-tracker transitions (ticket status changes are visible to team)
+    if echo "$CMD_LOWER" | grep -qE 'curl.*atlassian\.net.*/transitions'; then
+        _TICKET=$(echo "$CMD" | grep -oE '[A-Z]+-[0-9]+' | head -1 || echo "unknown")
+        REASON="Blocked: Jira status transition for ${_TICKET} requires user approval"
+        _cc_security_log "DENY" "shared-state-jira" "${REASON} | cmd=${CMD}"
+        _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Ask the user to confirm the Jira transition for ${_TICKET}"
+        exit 0
+    fi
+fi
+
 # --- Project-specific blocked patterns (from config) ---
 if [ -z "$REASON" ] && [ -n "${CC_BLOCKED_PATTERNS:-}" ]; then
     for pattern in $CC_BLOCKED_PATTERNS; do
