@@ -340,6 +340,44 @@ public class OrderAggregationService {
 ```
 
 ```java
+// Spring Security 7 (v4.0) — SecurityFilterChain for SPA (Angular/React)
+// Note: @Bean no longer needs `throws Exception` — Security 7 removed it
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) {
+        return http
+            .csrf(csrf -> csrf
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/v1/**").permitAll()
+                .anyRequest().authenticated())
+            .build();
+    }
+}
+
+// SPA CSRF helper — reads token from cookie, sends in X-XSRF-TOKEN header
+// Required for Angular/React frontends that send CSRF via header, not form field
+final class SpaCsrfTokenRequestHandler extends CsrfTokenRequestAttributeHandler {
+    private final CsrfTokenRequestHandler delegate = new XorCsrfTokenRequestAttributeHandler();
+
+    @Override
+    public void handle(HttpServletRequest request, HttpServletResponse response,
+                       Supplier<CsrfToken> csrfToken) {
+        delegate.handle(request, response, csrfToken);
+    }
+
+    @Override
+    public String resolveCsrfTokenValue(HttpServletRequest request, CsrfToken csrfToken) {
+        return (request.getHeader(csrfToken.getHeaderName()) != null)
+            ? super.resolveCsrfTokenValue(request, csrfToken)
+            : delegate.resolveCsrfTokenValue(request, csrfToken);
+    }
+}
+
 // Spring Security 7 (v4.0) — method-level authorization
 @Service
 @PreAuthorize("hasRole('USER')")
