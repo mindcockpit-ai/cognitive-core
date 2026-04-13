@@ -215,6 +215,11 @@ CC_AGENT_TIMEOUT_RESEARCH="15"
 CC_AGENT_TIMEOUT_PLAN="10"
 CC_AGENT_TIMEOUT_IMPLEMENT="30"
 
+# ===== ORPHANED SUBPROCESS DETECTION =====
+# Auto-kill orphaned tool subprocesses (PPID=1, no TTY) after session crash: true|false
+# When true, sends SIGTERM to orphaned processes matching known tool patterns
+CC_ORPHAN_AUTO_KILL="false"
+
 # ===== EXPERIMENTAL =====
 # MCP servers (space-separated): context7
 CC_MCP_SERVERS="context7"

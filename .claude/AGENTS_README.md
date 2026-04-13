@@ -148,6 +148,50 @@ When a background agent is stuck:
 3. If `CC_AGENT_AUTO_KILL=true`, this happens automatically after the configured timeout
 4. Review the agent output file to understand what went wrong
 
+### Orphaned Process Recovery
+
+After a session crash, tool subprocesses (git, node, curl, etc.) may survive as orphans
+with PPID=1 and no controlling TTY. The `_cc_check_orphaned_subprocesses()` function
+detects and optionally cleans these up at session start.
+
+**How it works:**
+
+1. Lists all processes with `ps -eo pid,ppid,tty,etime,command`
+2. Filters for PPID=1 (orphaned) and TTY=?? (no terminal)
+3. Matches command basename against known tool patterns
+4. Cross-references command line against the project directory or `.claude` path
+5. Requires minimum 10 minutes elapsed time (avoids false positives on short-lived tools)
+
+**Known tool patterns:** `cp`, `git`, `curl`, `ssh`, `node`, `python`, `plackup`, `npm`, `cargo`
+
+**Configuration:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CC_ORPHAN_AUTO_KILL` | `false` | When `true`, sends SIGTERM to detected orphans |
+
+**Safety measures:**
+
+- Path matching uses `grep -F` (fixed string, no regex injection)
+- Before sending SIGTERM, the PID is re-verified via `ps -p PID` to prevent PID-reuse races
+- SIGKILL is never used -- only SIGTERM, allowing graceful shutdown
+- Processes younger than 10 minutes are ignored
+
+**Log format (in `agent-health.log`):**
+
+```
+2026-04-12T14:30:00Z ORPHAN pid=12345 elapsed=45min command=git fetch --all auto_kill=false killed=false
+```
+
+| Field | Description |
+|-------|-------------|
+| `ORPHAN` | Event type keyword |
+| `pid` | Process ID of the orphaned process |
+| `elapsed` | How long the process has been running (minutes) |
+| `command` | First 120 characters of the command line |
+| `auto_kill` | Whether auto-kill was enabled |
+| `killed` | Whether SIGTERM was actually sent |
+
 ## Mandatory Quality Gate
 
 Every code change MUST include a code-standards-reviewer pass before completion:
