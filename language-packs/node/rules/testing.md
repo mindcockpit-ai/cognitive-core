@@ -7,7 +7,7 @@ paths: ["**/*.test.ts", "**/*.spec.ts", "**/*.test.js", "**/*.spec.js", "test/**
 ## Structure
 
 - Follow Arrange-Act-Assert (AAA) pattern — separate setup, execution, and verification
-- One assertion per test when possible — each test verifies one behaviour
+- One assertion per test — each test verifies one behaviour
 - Descriptive test names: `should return 404 when user does not exist` — not `test1` or `works`
 - Group related tests with `describe` blocks matching the class or function under test
 
@@ -17,7 +17,7 @@ paths: ["**/*.test.ts", "**/*.spec.ts", "**/*.test.js", "**/*.spec.js", "test/**
 - Prefer `toEqual()` for object/array comparison, `toBe()` for primitives and references
 - Use `toThrow()` / `rejects.toThrow()` for error assertions — do NOT wrap in try/catch
 - Clean up mocks in `afterEach`: `jest.restoreAllMocks()` — prevent leakage between tests
-- Avoid `jest.mock()` at module level when `jest.spyOn()` in the test body suffices — module mocks are harder to reason about
+- Use `jest.spyOn()` in the test body — do NOT use `jest.mock()` at module level unless the dependency has no injectable seam
 
 ## NestJS Testing
 
@@ -44,7 +44,7 @@ paths: ["**/*.test.ts", "**/*.spec.ts", "**/*.test.js", "**/*.spec.js", "test/**
 
 ## Coverage
 
-- Aim for meaningful coverage, not a number — 80% with tested edge cases beats 95% of trivial assertions
+- Cover all public API paths, error branches, and boundary conditions — do NOT chase a coverage percentage with trivial assertions
 - Always test: error paths, boundary conditions, authorisation checks
 - Do NOT test: framework internals (NestJS DI, TypeORM queries), third-party library behaviour
 - Use `--collectCoverageFrom` to scope coverage to source files — exclude config, migrations, generated code

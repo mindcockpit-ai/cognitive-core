@@ -33,7 +33,7 @@ InfrastructureError (abstract base)
 ## Async Error Handling
 
 - Always `await` promises — never leave a promise floating without error handling
-- Use `try/catch` around `await` calls only when you can handle or enrich the error meaningfully
+- Use `try/catch` around `await` calls only to add context (wrap with a domain error) or to recover — do NOT catch-and-rethrow the same error
 - Let unhandled errors propagate to the global exception filter — do NOT catch-and-rethrow without adding context
 - Register a global `process.on('unhandledRejection')` handler that logs and exits with code 1
 

@@ -46,7 +46,7 @@ paths: ["**/*.ts", "**/*.entity.ts", "**/*.schema.ts", "**/*.repository.ts", "**
 ## Connection Management
 
 - Use connection pooling — do NOT create a new connection per request
-- Set pool size based on expected concurrency (default: 10 for most Node apps)
+- Set pool size based on expected concurrency — default to 10 connections
 - Handle connection errors with retry logic at startup — fail fast if database is unreachable
 - Close connections gracefully on application shutdown (`onModuleDestroy` in NestJS)
 

@@ -40,5 +40,5 @@ paths: ["**/*.ts", "**/*.js", "**/*.tsx", "**/*.jsx"]
 - No `console.log` in production code — use a structured logger (NestJS Logger, Pino)
 - No magic numbers or strings — extract to named constants or config
 - Functions should do one thing — if a function has `and` in its name, split it
-- Maximum function length: aim for <30 lines; extract helpers for complex logic
+- Maximum function length: 30 lines — extract helpers when a function exceeds this
 - Prefer early returns over deeply nested conditionals
