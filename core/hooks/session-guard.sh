@@ -15,6 +15,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/_lib.sh"
 _cc_load_config
 
+# jq is required for session coordination — skip guard entirely if absent
+if ! command -v jq &>/dev/null; then
+    exit 0
+fi
+
 # ---- Configuration ----
 _STALE_THRESHOLD_SECONDS=7200  # 2 hours
 _LOCKDIR="${CC_PROJECT_DIR}/.claude/session.lock.d"
@@ -27,16 +32,19 @@ _NOW=$(date +%s)
 
 # ---- Helpers ----
 
-# Get epoch from ISO 8601 date (portable macOS + Linux)
+# Get epoch from date string (portable macOS + Linux)
+# Handles: ISO 8601 (2026-04-14T21:10:30Z) and ps lstart (Tue Apr 14 21:10:30 2026)
 _cc_date_to_epoch() {
     local datestr="$1"
     local result
     # Strip timezone suffix for macOS date -j
     local stripped="${datestr%%[+-][0-9][0-9]:[0-9][0-9]}"
     stripped="${stripped%%Z}"
-    # macOS: date -j -f format
+    # macOS: ISO 8601 format
     result=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$stripped" "+%s" 2>/dev/null) && { echo "$result"; return; }
-    # Linux: date -d
+    # macOS: ps lstart format (e.g., "Tue Apr 14 21:10:30 2026")
+    result=$(date -j -f "%a %b %d %H:%M:%S %Y" "$stripped" "+%s" 2>/dev/null) && { echo "$result"; return; }
+    # Linux: date -d (handles both ISO and lstart formats)
     result=$(date -d "$datestr" "+%s" 2>/dev/null) && { echo "$result"; return; }
     echo "0"
 }
@@ -79,10 +87,22 @@ if [ -f "$_REGISTRY" ] && command -v jq &>/dev/null; then
         _pid=$(echo "$_entry" | jq -r '.pid // 0')
         _started=$(echo "$_entry" | jq -r '.started // ""')
 
-        # Check if PID is alive
+        # Check if PID is alive and belongs to the same process (TOCTOU race prevention)
         _pid_alive="false"
         if [ "$_pid" -gt 0 ] 2>/dev/null && kill -0 "$_pid" 2>/dev/null; then
-            _pid_alive="true"
+            # Verify PID belongs to same process by comparing start times
+            _ps_start=$(ps -p "$_pid" -o lstart= 2>/dev/null | tr -s ' ')
+            if [ -n "$_started" ] && [ -n "$_ps_start" ]; then
+                _stored_epoch=$(_cc_date_to_epoch "$_started")
+                _ps_epoch=$(_cc_date_to_epoch "$_ps_start")
+                _drift=$(( _stored_epoch - _ps_epoch ))
+                [ "$_drift" -lt 0 ] && _drift=$(( -_drift ))
+                if [ "$_drift" -le 2 ]; then
+                    _pid_alive="true"
+                fi
+            else
+                _pid_alive="true"  # No start time to compare — fallback to PID-only
+            fi
         fi
 
         # Check if session is stale (>2h)

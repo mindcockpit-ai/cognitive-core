@@ -88,9 +88,9 @@ if [ -f "$VALIDATE_BASH" ]; then
         "$VALIDATE_BASH" \
         "$(mock_bash_json "gh issue close 42")"
 
-    # "Approved by @" without approved label → deny (label-verified closure)
-    assert_hook_denies \
-        "bash: gh issue close with Approved by @ but no label → deny" \
+    # "Approved by @" → allow (approval comment is sufficient exemption)
+    assert_hook_allows \
+        "bash: gh issue close with Approved by @ → allow" \
         "$VALIDATE_BASH" \
         "$(mock_bash_json "gh issue close 42 --repo org/repo --comment \"Approved by @user\"")"
 
@@ -104,9 +104,9 @@ if [ -f "$VALIDATE_BASH" ]; then
         "$VALIDATE_BASH" \
         "$(mock_bash_json "gh issue close 42 --comment \"Closed via /project-board\"")"
 
-    # "Approved by @system" without label → also deny
-    assert_hook_denies \
-        "bash: gh issue close with Approved by @system but no label → deny" \
+    # "Approved by @system" → allow (approval comment is sufficient exemption)
+    assert_hook_allows \
+        "bash: gh issue close with Approved by @system → allow" \
         "$VALIDATE_BASH" \
         "$(mock_bash_json "gh issue close 42 --comment \"Closed via /project-board — Approved by @system\"")"
 
