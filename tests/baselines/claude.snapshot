@@ -4,13 +4,14 @@
 cc82b99c354b66bc8d4603467f0e69c1	./.claude/cognitive-core/check-update.sh
 2fc08fe8f49e21e94118f1a82877a374	./.claude/cognitive-core/context-cleanup.sh
 9d9bcd18cfc0ea29ab5b2c17b510c6e5	./.claude/cognitive-core/health-check.sh
-26405b5465583a16b52d10e728835943	./.claude/cognitive-core/version.json
+76a9048d55123493249184622f6d2494	./.claude/cognitive-core/version.json
 47b561a9cb3594c789ecad8b6b8e6766	./.claude/compact-rules.md
 7f3cfa96a9afa2db9b937b1e32cb56a0	./.claude/fitness-checks.sh
+93a614f0d620a8305b6f7ed86bf2ad36	./.claude/gitattributes-lang
 c3e0c99f2107171af0da02169a507681	./.claude/gitignore
-e076b7b76bbc16292472b1df2a1e6753	./.claude/hooks/_lib.sh
+5771a571a88a06bbefa927ce95a7ba55	./.claude/hooks/_lib.sh
 998c3d57a17cfe692e8233c4cdd56fe7	./.claude/hooks/setup-env.sh
-361f5b6178a08a3d9af2e8481cf8d471	./.claude/hooks/validate-bash.sh
+b62ded2a949e76aa63932d0b6ee572ef	./.claude/hooks/validate-bash.sh
 eac03d16cbdd4ceef2315e5a7636610f	./.claude/lint-config.sh
 68042f1e5a7f7a73b4716126a02deef3	./.claude/monitor-patterns.conf
 32b985614c82a57c14f6c591195c0976	./.claude/pack.conf
@@ -31,5 +32,6 @@ aa5d4ff8662ccd759f628c9ef22f29c0	./.cognitive-core/mcp-server/server.py
 ff110b786b3f276c44ac93530e8ca528	./.cognitive-core/mcp-server/tools/project_info.py
 1981954a1c18d60addc1d987d565c232	./.cognitive-core/mcp-server/tools/security_validate.py
 528c258f142ae78d582729963ced187d	./.cognitive-core/mcp-server/tools/utils.py
+f9f0db6dd2311397314240ada5004da3	./.gitattributes
 232b32a716d03bd80bf947ede6acc85e	./.mcp.json
 4e206bb02d59ad4f41c9e8984ba83d14	./CLAUDE.md

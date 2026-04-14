@@ -229,12 +229,44 @@ if [ -z "$REASON" ] && [ "$_SHARED_GATE" = "true" ]; then
     fi
 
     # Block Jira/issue-tracker transitions (ticket status changes are visible to team)
+    # CC_JIRA_ALLOWED_TRANSITIONS: comma-separated IDs that pass without approval
+    # Empty/unset = block all transitions (backward-compatible default)
     if echo "$CMD_LOWER" | grep -qE 'curl.*atlassian\.net.*/transitions'; then
         _TICKET=$(echo "$CMD" | grep -oE '[A-Z]+-[0-9]+' | head -1 || echo "unknown")
-        REASON="Blocked: Jira status transition for ${_TICKET} requires user approval"
-        _cc_security_log "DENY" "shared-state-jira" "${REASON} | cmd=${CMD}"
-        _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Ask the user to confirm the Jira transition for ${_TICKET}"
-        exit 0
+        _JIRA_ALLOWED="${CC_JIRA_ALLOWED_TRANSITIONS:-}"
+        _TRANSITION_ID=""
+
+        # Extract transition ID from curl body (-d, --data, --data-raw, --data-binary)
+        # Body format: {"transition":{"id":"21"}}
+        _CURL_BODY=$(echo "$CMD" | grep -oE '(-d|--data|--data-raw|--data-binary)[[:space:]]+'"'"'[^'"'"']*'"'"'' | head -1 || true)
+        if [ -z "$_CURL_BODY" ]; then
+            _CURL_BODY=$(echo "$CMD" | grep -oE '(-d|--data|--data-raw|--data-binary)[[:space:]]+"[^"]*"' | head -1 || true)
+        fi
+        if [ -n "$_CURL_BODY" ]; then
+            _TRANSITION_ID=$(echo "$_CURL_BODY" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[0-9]+"' | grep -oE '[0-9]+' | head -1 || true)
+        fi
+
+        # Check allowlist (exact match: "2" must not match "21")
+        _JIRA_ALLOWED_MATCH="false"
+        if [ -n "$_TRANSITION_ID" ] && [ -n "$_JIRA_ALLOWED" ]; then
+            case ",${_JIRA_ALLOWED}," in
+                *",${_TRANSITION_ID},"*)
+                    _JIRA_ALLOWED_MATCH="true"
+                    ;;
+            esac
+        fi
+
+        if [ "$_JIRA_ALLOWED_MATCH" = "true" ]; then
+            _cc_security_log "ALLOW" "shared-state-jira" "Allowed transition ${_TRANSITION_ID} for ${_TICKET} | cmd=${CMD}"
+        else
+            REASON="Blocked: Jira status transition for ${_TICKET} requires user approval"
+            if [ -n "$_TRANSITION_ID" ]; then
+                REASON="Blocked: Jira transition ${_TRANSITION_ID} for ${_TICKET} requires user approval"
+            fi
+            _cc_security_log "DENY" "shared-state-jira" "${REASON} | cmd=${CMD}"
+            _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Ask the user to confirm the Jira transition for ${_TICKET}"
+            exit 0
+        fi
     fi
 fi
 
