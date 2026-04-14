@@ -33,6 +33,12 @@ paths: ["**/*.ts", "**/*.html", "**/*.scss"]
 - `@for` must have `track` expression
 - Template-only members: use `protected` — not `private`, not `public`
 
+## Animations
+- No `provideAnimations()` or `provideAnimationsAsync()` — both deprecated since v20.2, removed in v23
+- Angular Material 21+ bootstraps its own animations internally — no app-level provider needed
+- Custom animations: use `animate.enter` / `animate.leave` template directives (compiler-level, zero config)
+- Tests: no animation provider in TestBed
+
 ## HTTP & API
 - `provideHttpClient(withInterceptors([...]))` in `app.config.ts`
 - Enable `withXsrf()` for cookie-based auth — omit only for stateless Bearer-token APIs
@@ -58,6 +64,11 @@ paths: ["**/*.ts", "**/*.html", "**/*.scss"]
 - Signal inputs in tests: use `fixture.componentRef.setInput()` — not direct property assignment
 - One `fixture.detectChanges()` after signal updates — no loops
 - `httpMock.verify()` in afterEach for every HTTP test
+
+## Tailwind + Angular
+- Never use Tailwind layout classes (`block`, `flex`, `grid`, `inline`, `hidden`) in component `host: { class: '...' }` — projects using `@import "tailwindcss" important` mark ALL utilities with `!important`, silently overriding `:host` styles in component SCSS
+- Even without the `important` flag, mixing layout concerns between global utilities and `:host` styles is architecturally unclear
+- Layout on `:host` must use the component SCSS `:host {}` block — not Tailwind classes
 
 ## Code Quality
 - TypeScript `strict: true` + `strictTemplates: true` + `strictInjectionParameters: true`

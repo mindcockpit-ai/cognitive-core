@@ -254,7 +254,8 @@ export const appConfig: ApplicationConfig = {
     provideZonelessChangeDetection(), // Was provideExperimentalZoneless()
     provideRouter(routes),
     provideHttpClient(withInterceptors([authInterceptor])),
-    provideAnimationsAsync(),
+    // No animation provider needed — deprecated v20.2, removed v23
+    // Angular Material 21+ bootstraps animations internally
   ],
 };
 

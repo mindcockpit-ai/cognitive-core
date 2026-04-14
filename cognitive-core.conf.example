@@ -118,6 +118,8 @@ CC_REQUIRE_HUMAN_APPROVAL="true"   # true = stop at To Be Tested (human reviews 
 CC_REQUIRE_CLOSURE_VERIFICATION="true"  # true = block direct gh issue close (must use /project-board close)
                                          # false = allow direct gh issue close
                                          # default: follows CC_REQUIRE_HUMAN_APPROVAL
+CC_REQUIRE_SHARED_STATE_APPROVAL="true"  # true = block git push to shared branches + Jira transitions
+                                          # false = allow all shared-state mutations without approval
 
 # --- GitHub provider (when CC_PROJECT_BOARD_PROVIDER=github) ---
 # CC_GITHUB_OWNER="owner"
@@ -136,6 +138,11 @@ CC_REQUIRE_CLOSURE_VERIFICATION="true"  # true = block direct gh issue close (mu
 # CC_JIRA_AUTH_TYPE="basic"               # basic (Cloud) or bearer (Data Center)
 # CC_JIRA_BOARD_ID=""                     # Agile board ID (for sprint support)
 # CC_JIRA_STATUS_MAP="roadmap=To Do|backlog=Backlog|todo=To Do|progress=In Progress|testing=In Review|done=Done|canceled=Canceled"
+# Jira transition IDs that agents may execute without user approval (comma-separated)
+# Empty = block all transitions (safest default). Find IDs via:
+#   curl -u user:token https://company.atlassian.net/rest/api/3/issue/PROJ-1/transitions
+# Example: "11,21,31" (typically: To Do, In Progress, In Review)
+# CC_JIRA_ALLOWED_TRANSITIONS=""
 
 # --- YouTrack provider (when CC_PROJECT_BOARD_PROVIDER=youtrack) ---
 # CC_YOUTRACK_URL="https://company.youtrack.cloud"
