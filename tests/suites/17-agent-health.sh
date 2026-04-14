@@ -291,4 +291,251 @@ sleep 1
 # Cleanup
 rm -rf "$_sim_dir"
 
+# ============================================================
+# Section 8: Orphaned subprocess detection (spawn → detect → kill)
+# ============================================================
+# Simulates orphaned tool processes (PPID=1, no TTY) by spawning
+# subshell-exit processes whose commands match the tool pattern list
+# AND contain ".claude" in their command line. Uses _ORPHAN_MIN_MINUTES
+# override via function patching (threshold=0) for immediate detection.
+
+_orphan_dir="/tmp/cc-orphan-sim-test-$$"
+mkdir -p "$_orphan_dir/.claude/cognitive-core"
+_orphan_log="$_orphan_dir/.claude/cognitive-core/agent-health.log"
+_orphan_pids=""
+
+# Configuration tests
+_conf_content_updated=$(cat "$CONF")
+_example_content_updated=$(cat "$CONF_EXAMPLE")
+assert_contains "conf: CC_ORPHAN_AUTO_KILL" "$_conf_content_updated" "CC_ORPHAN_AUTO_KILL"
+assert_contains "example: CC_ORPHAN_AUTO_KILL" "$_example_content_updated" "CC_ORPHAN_AUTO_KILL"
+
+_orphan_auto_val=$(grep 'CC_ORPHAN_AUTO_KILL=' "$CONF" | head -1 | cut -d'"' -f2)
+assert_eq "orphan auto-kill defaults to false" "$_orphan_auto_val" "false"
+
+# Structure tests
+assert_contains "hygiene: defines _cc_check_orphaned_subprocesses" "$_hygiene_content" "_cc_check_orphaned_subprocesses()"
+assert_contains "hygiene: calls _cc_check_orphaned_subprocesses" "$_hygiene_content" '_cc_check_orphaned_subprocesses'
+assert_contains "hygiene: orphan section comment" "$_hygiene_content" "Orphaned tool subprocesses"
+assert_contains "hygiene: uses CC_ORPHAN_AUTO_KILL" "$_hygiene_content" "CC_ORPHAN_AUTO_KILL"
+assert_contains "hygiene: uses ORPHAN keyword" "$_hygiene_content" "ORPHAN"
+assert_contains "hygiene: tool pattern list" "$_hygiene_content" "cp|git|curl|ssh|node|python|plackup|npm|cargo"
+assert_contains "hygiene: uses grep -qF for path" "$_hygiene_content" "grep -qF"
+assert_contains "hygiene: uses SIGTERM not SIGKILL" "$_hygiene_content" "kill -TERM"
+assert_contains "hygiene: re-verifies PID before kill" "$_hygiene_content" "ps -p"
+
+# Verify _cc_session_hygiene calls _cc_check_orphaned_subprocesses
+_hygiene_body_orphan=$(sed -n '/_cc_session_hygiene()/,/^}/p' "$HYGIENE_SH")
+_calls_orphan=false
+if echo "$_hygiene_body_orphan" | grep -q '_cc_check_orphaned_subprocesses'; then
+    _calls_orphan=true
+fi
+assert_eq "hygiene calls orphan check" "$_calls_orphan" "true"
+
+# Log format tests
+assert_contains "orphan log: ORPHAN keyword" "$_hygiene_content" "ORPHAN pid="
+assert_contains "orphan log: elapsed field" "$_hygiene_content" 'elapsed=${_total_minutes}min'
+assert_contains "orphan log: command field" "$_hygiene_content" 'command='
+assert_contains "orphan log: auto_kill field" "$_hygiene_content" 'auto_kill=${auto_kill}'
+assert_contains "orphan log: killed field" "$_hygiene_content" 'killed=${_killed}'
+
+# ---- Live simulation: spawn orphan-like processes ----
+# Create scripts named after tool patterns with ".claude" in path to match filters.
+# Use subshell-exit pattern: ( nohup CMD </dev/null >/dev/null 2>&1 & )
+# Child reparents to PID 1 and loses TTY — simulates real orphan.
+#
+# IMPORTANT: We patch _ORPHAN_MIN_MINUTES to 0 inside the function by
+# wrapping it. This avoids needing to wait 10+ minutes in tests.
+
+_cc_check_orphaned_subprocesses_test() {
+    # Override min minutes to 0 for testing
+    local _orig_fn
+    _orig_fn=$(declare -f _cc_check_orphaned_subprocesses)
+    eval "${_orig_fn/_ORPHAN_MIN_MINUTES=10/_ORPHAN_MIN_MINUTES=0}"
+    _cc_check_orphaned_subprocesses "$@"
+    # Restore original
+    eval "${_orig_fn}"
+}
+
+for _orphan_name in \
+    "git" \
+    "node" \
+    "curl"; do
+    _orphan_script="$_orphan_dir/${_orphan_name}-orphan-sim-${$}.sh"
+    # The script name contains ".claude" via the directory path reference in args
+    # We pass .claude as an argument so it appears in the command line
+    printf '#!/bin/bash\nsleep 300\nexit 0\n' > "$_orphan_script"
+    chmod +x "$_orphan_script"
+    # Spawn as orphan: subshell exits, child reparents to PID 1
+    ( nohup "$_orphan_script" "$_orphan_dir/.claude/test" </dev/null >/dev/null 2>&1 & echo $! > "$_orphan_dir/${_orphan_name}.pid" )
+done
+
+sleep 1
+
+# Collect PIDs of the orphaned processes
+_orphan_pids=""
+_orphan_running=0
+for _orphan_name in git node curl; do
+    _opid=$(cat "$_orphan_dir/${_orphan_name}.pid" 2>/dev/null || echo "")
+    if [ -n "$_opid" ] && kill -0 "$_opid" 2>/dev/null; then
+        _orphan_pids="$_orphan_pids $_opid"
+        _orphan_running=$((_orphan_running + 1))
+    fi
+done
+assert_eq "orphan sim: 3 orphan processes running" "3" "$_orphan_running"
+
+# ---- Detection test: auto_kill=false (warn only) ----
+# The spawned processes have script names like "git-orphan-sim-XXXX.sh" which
+# won't match the tool basename pattern directly (the basename filter checks
+# for exact match: ^(cp|git|curl|...)$). We need the actual binary to be named
+# as the tool. Instead, let's use a symlink approach where we create symlinks
+# named "git", "node", "curl" that point to a sleep script.
+
+# Cleanup first attempt
+for _p in $_orphan_pids; do
+    kill "$_p" 2>/dev/null || true
+done
+sleep 1
+_orphan_pids=""
+
+# Strategy: create executable scripts named exactly as tools, containing
+# ".claude" in the command line via arguments or cwd
+for _orphan_name in git node curl; do
+    # Create a script that is named exactly like the tool
+    _tool_script="$_orphan_dir/${_orphan_name}"
+    printf '#!/bin/bash\n# .claude marker for orphan detection\nsleep 300\nexit 0\n' > "$_tool_script"
+    chmod +x "$_tool_script"
+    # Spawn as orphan with .claude in argument
+    ( nohup "$_tool_script" --work-dir "$_orphan_dir/.claude/cognitive-core" </dev/null >/dev/null 2>&1 & echo $! > "$_orphan_dir/${_orphan_name}.pid" )
+done
+
+sleep 1
+
+# Collect PIDs
+_orphan_pids=""
+_orphan_running=0
+for _orphan_name in git node curl; do
+    _opid=$(cat "$_orphan_dir/${_orphan_name}.pid" 2>/dev/null || echo "")
+    if [ -n "$_opid" ] && kill -0 "$_opid" 2>/dev/null; then
+        _orphan_pids="$_orphan_pids $_opid"
+        _orphan_running=$((_orphan_running + 1))
+    fi
+done
+assert_eq "orphan sim: 3 tool-named orphan processes running" "3" "$_orphan_running"
+
+# Verify they are actually reparented (PPID=1) and have no TTY
+_reparented=0
+for _p in $_orphan_pids; do
+    _ppid_check=$(ps -p "$_p" -o ppid= 2>/dev/null | tr -d ' ')
+    _tty_check=$(ps -p "$_p" -o tty= 2>/dev/null | tr -d ' ')
+    if [ "$_ppid_check" = "1" ] && { [ "$_tty_check" = "??" ] || [ "$_tty_check" = "?" ] || [ "$_tty_check" = "-" ]; }; then
+        _reparented=$((_reparented + 1))
+    fi
+done
+# Note: reparenting to PID 1 may not happen on all systems (some use a subreaper).
+# If not reparented, skip the live detection tests.
+if [ "$_reparented" -lt 3 ]; then
+    skip "orphan sim: detection (processes did not reparent to PID 1 on this system)"
+    skip "orphan sim: auto_kill=false warn only"
+    skip "orphan sim: auto_kill=true SIGTERM"
+    skip "orphan sim: ORPHAN log entries"
+    skip "orphan sim: high min-elapsed = no detection"
+else
+    # ---- Detection test: auto_kill=false ----
+    _orphan_result=$(CC_ORPHAN_AUTO_KILL=false _cc_check_orphaned_subprocesses_test "$_orphan_dir" 2>/dev/null)
+
+    _detected_orphans=0
+    for _p in $_orphan_pids; do
+        if echo "$_orphan_result" | grep -q "PID ${_p}"; then
+            _detected_orphans=$((_detected_orphans + 1))
+        fi
+    done
+    assert_eq "orphan sim: all 3 orphans detected" "3" "$_detected_orphans"
+
+    assert_contains "orphan sim: output mentions orphaned" "$_orphan_result" "orphaned tool process"
+
+    # Verify NO SIGTERM message when auto_kill=false
+    _has_sigterm_msg=false
+    if echo "$_orphan_result" | grep -q "SIGTERM sent"; then
+        _has_sigterm_msg=true
+    fi
+    assert_eq "orphan sim: no SIGTERM when auto_kill=false" "$_has_sigterm_msg" "false"
+
+    # ---- Health log verification ----
+    _orphan_log_exists=false
+    if [ -f "$_orphan_log" ]; then
+        _orphan_log_exists=true
+    fi
+    assert_eq "orphan sim: agent-health.log has ORPHAN entries" "$_orphan_log_exists" "true"
+
+    _orphan_log_entries=0
+    if [ -f "$_orphan_log" ]; then
+        for _p in $_orphan_pids; do
+            if grep -q "ORPHAN pid=${_p}" "$_orphan_log" 2>/dev/null; then
+                _orphan_log_entries=$((_orphan_log_entries + 1))
+            fi
+        done
+    fi
+    assert_eq "orphan sim: log has ORPHAN entry for each process" "3" "$_orphan_log_entries"
+
+    # Verify log format fields
+    if [ -f "$_orphan_log" ]; then
+        _orphan_sample=$(grep "ORPHAN" "$_orphan_log" | head -1)
+        assert_contains "orphan log: has pid=" "$_orphan_sample" "pid="
+        assert_contains "orphan log: has elapsed=" "$_orphan_sample" "elapsed="
+        assert_contains "orphan log: has command=" "$_orphan_sample" "command="
+        assert_contains "orphan log: has auto_kill=" "$_orphan_sample" "auto_kill="
+        assert_contains "orphan log: has killed=" "$_orphan_sample" "killed="
+    fi
+
+    # ---- High min-elapsed test: should NOT detect ----
+    # Use the real function (10 min threshold) — freshly spawned processes < 10 min old
+    _high_orphan_result=$(CC_ORPHAN_AUTO_KILL=false _cc_check_orphaned_subprocesses "$_orphan_dir" 2>/dev/null)
+    assert_eq "orphan sim: high min-elapsed = no detection" "$_high_orphan_result" ""
+
+    # ---- Auto-kill test: auto_kill=true ----
+    # Clear log to isolate kill entries
+    rm -f "$_orphan_log"
+
+    _kill_orphan_result=$(CC_ORPHAN_AUTO_KILL=true _cc_check_orphaned_subprocesses_test "$_orphan_dir" 2>/dev/null)
+
+    # Verify SIGTERM message present
+    _has_sigterm_kill=false
+    if echo "$_kill_orphan_result" | grep -q "SIGTERM sent"; then
+        _has_sigterm_kill=true
+    fi
+    assert_eq "orphan sim: SIGTERM sent when auto_kill=true" "$_has_sigterm_kill" "true"
+
+    # Verify log entries show killed=true
+    if [ -f "$_orphan_log" ]; then
+        _killed_entries=0
+        _killed_entries=$(grep -c "killed=true" "$_orphan_log" 2>/dev/null || echo "0")
+        # At least some should have killed=true (race condition: some may have died already)
+        _has_killed=false
+        if [ "$_killed_entries" -gt 0 ] 2>/dev/null; then
+            _has_killed=true
+        fi
+        assert_eq "orphan sim: log shows killed=true entries" "$_has_killed" "true"
+    fi
+
+    # Wait for processes to die after SIGTERM
+    sleep 2
+
+    # Verify processes are dead
+    _post_orphan_alive=0
+    for _p in $_orphan_pids; do
+        if kill -0 "$_p" 2>/dev/null; then
+            _post_orphan_alive=$((_post_orphan_alive + 1))
+        fi
+    done
+    assert_eq "orphan sim: all orphans killed after SIGTERM" "0" "$_post_orphan_alive"
+fi
+
+# Cleanup: kill any remaining orphan test processes
+for _p in $_orphan_pids; do
+    kill "$_p" 2>/dev/null || true
+    kill -9 "$_p" 2>/dev/null || true
+done
+rm -rf "$_orphan_dir"
+
 suite_end
