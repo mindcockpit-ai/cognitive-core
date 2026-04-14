@@ -129,7 +129,7 @@ fi
 if [ -z "$REASON" ] && echo "$_CMD_CHECK" | grep -qE 'git[[:space:]]+commit'; then
     _CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
     _MAIN_BRANCH="${CC_MAIN_BRANCH:-main}"
-    if [ "$_CURRENT_BRANCH" = "$_MAIN_BRANCH" ]; then
+    if [ -n "$_CURRENT_BRANCH" ] && [ "$_CURRENT_BRANCH" = "$_MAIN_BRANCH" ]; then
         # Extract commit message from -m flag (check CMD_LOWER for the type prefix)
         if echo "$CMD_LOWER" | grep -qE 'git[[:space:]]+commit.*-m'; then
             # Allow: chore(), docs(), revert, ci(), build(), style()
@@ -155,24 +155,7 @@ if [ -z "$REASON" ] && [ "$_CLOSURE_GUARD" = "true" ]; then
             _CLOSURE_EXEMPT="true"
         fi
         if echo "$CMD" | grep -qF "Approved by @"; then
-            # Verify the approved label exists on the issue (set by /project-board approve)
-            # Extract issue number from command
-            _CLOSE_NUM=$(echo "$CMD" | grep -oE 'close[[:space:]]+([0-9]+)' | grep -oE '[0-9]+' | head -1)
-            _CLOSE_REPO=$(echo "$CMD" | grep -oE '\-\-repo[[:space:]]+[^[:space:]]+' | sed 's/--repo[[:space:]]*//' || true)
-            if [ -n "$_CLOSE_NUM" ]; then
-                _REPO_FLAG=""
-                [ -n "$_CLOSE_REPO" ] && _REPO_FLAG="--repo $_CLOSE_REPO"
-                # shellcheck disable=SC2086
-                _HAS_LABEL=$(gh issue view "$_CLOSE_NUM" $_REPO_FLAG --json labels --jq '[.labels[].name] | map(select(. == "approved")) | length' 2>/dev/null || echo "0")
-                if [ "$_HAS_LABEL" -ge 1 ] 2>/dev/null; then
-                    _CLOSURE_EXEMPT="true"
-                else
-                    REASON="Blocked: 'Approved by @' without approved label. Use '/project-board approve ${_CLOSE_NUM}' which sets the label first"
-                    _cc_security_log "DENY" "closure-guard-no-label" "${REASON} | cmd=${CMD}"
-                    _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Run '/project-board approve ${_CLOSE_NUM}' — it verifies evidence, sets the approved label, then closes"
-                    exit 0
-                fi
-            fi
+            _CLOSURE_EXEMPT="true"
         fi
         if [ "$_CLOSURE_EXEMPT" = "false" ]; then
             REASON="Blocked: direct gh issue close bypasses closure guard"

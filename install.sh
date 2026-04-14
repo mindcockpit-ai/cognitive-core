@@ -203,7 +203,7 @@ else
     prompt_default CC_SKILLS "Skills to install" "session-resume skill-sync code-review pre-commit fitness project-status project-board acceptance-verification security-baseline"
 
     # Hooks
-    prompt_default CC_HOOKS "Hooks to enable" "setup-env compact-reminder validate-bash validate-read validate-fetch validate-write post-edit-lint notify-complete"
+    prompt_default CC_HOOKS "Hooks to enable" "session-guard setup-env compact-reminder validate-bash validate-read validate-fetch validate-write post-edit-lint notify-complete session-cleanup"
 
     # Auto-append language-specific version guard hooks
     case "${CC_LANGUAGE:-}" in
@@ -423,6 +423,11 @@ else
 
     INSTALLED_AGENTS=""
     for agent in ${CC_AGENTS:-}; do
+        # Skip framework-specific agents for wrong language
+        case "$agent" in
+            angular-specialist)     [ "${CC_LANGUAGE:-}" != "angular" ] && { info "Skipped $agent (CC_LANGUAGE=${CC_LANGUAGE:-})"; continue; } ;;
+            spring-boot-specialist) [ "${CC_LANGUAGE:-}" != "spring-boot" ] && { info "Skipped $agent (CC_LANGUAGE=${CC_LANGUAGE:-})"; continue; } ;;
+        esac
         filename=$(agent_file_for "$agent")
         if [ -z "$filename" ]; then
             warn "Unknown agent: ${agent} (skipped)"

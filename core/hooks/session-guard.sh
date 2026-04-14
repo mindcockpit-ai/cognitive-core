@@ -15,6 +15,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/_lib.sh"
 _cc_load_config
 
+# jq is required for session coordination — skip guard entirely if absent
+if ! command -v jq &>/dev/null; then
+    exit 0
+fi
+
 # ---- Configuration ----
 _STALE_THRESHOLD_SECONDS=7200  # 2 hours
 _LOCKDIR="${CC_PROJECT_DIR}/.claude/session.lock.d"
@@ -79,10 +84,22 @@ if [ -f "$_REGISTRY" ] && command -v jq &>/dev/null; then
         _pid=$(echo "$_entry" | jq -r '.pid // 0')
         _started=$(echo "$_entry" | jq -r '.started // ""')
 
-        # Check if PID is alive
+        # Check if PID is alive and belongs to the same process (TOCTOU race prevention)
         _pid_alive="false"
         if [ "$_pid" -gt 0 ] 2>/dev/null && kill -0 "$_pid" 2>/dev/null; then
-            _pid_alive="true"
+            # Verify PID belongs to same process by comparing start times
+            _ps_start=$(ps -p "$_pid" -o lstart= 2>/dev/null | tr -s ' ')
+            if [ -n "$_started" ] && [ -n "$_ps_start" ]; then
+                _stored_epoch=$(_cc_date_to_epoch "$_started")
+                _ps_epoch=$(_cc_date_to_epoch "$_ps_start")
+                _drift=$(( _stored_epoch - _ps_epoch ))
+                [ "$_drift" -lt 0 ] && _drift=$(( -_drift ))
+                if [ "$_drift" -le 2 ]; then
+                    _pid_alive="true"
+                fi
+            else
+                _pid_alive="true"  # No start time to compare — fallback to PID-only
+            fi
         fi
 
         # Check if session is stale (>2h)
