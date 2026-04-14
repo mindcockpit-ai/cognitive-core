@@ -1,5 +1,48 @@
 # Changelog
 
+## [1.5.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.4.1...v1.5.0) (2026-04-14)
+
+
+### Features
+
+* **hooks:** angular guard — deprecation animations provider, Tailwind host conflict ([31177c2](https://github.com/mindcockpit-ai/cognitive-core/commit/31177c2b85a659e88811ea98749aca8a27d6d30d))
+* **hooks:** detect orphaned tool subprocesses after session crash ([#154](https://github.com/mindcockpit-ai/cognitive-core/issues/154)) ([#242](https://github.com/mindcockpit-ai/cognitive-core/issues/242)) ([77161e1](https://github.com/mindcockpit-ai/cognitive-core/commit/77161e1bf51e71ab735de2307e3a8c223078b3a8))
+* **hooks:** shared-state guard — block push/merge/Jira without approval ([#228](https://github.com/mindcockpit-ai/cognitive-core/issues/228)) ([591a643](https://github.com/mindcockpit-ai/cognitive-core/commit/591a64337b25fda0c7b473a559b6bbe13637fa30))
+* **install:** add .gitattributes template for UTF-8 + LF enforcement ([#216](https://github.com/mindcockpit-ai/cognitive-core/issues/216)) ([#224](https://github.com/mindcockpit-ai/cognitive-core/issues/224)) ([3fdaf53](https://github.com/mindcockpit-ai/cognitive-core/commit/3fdaf53d8cad7182f6657eafd757a008ed57e06d))
+* **install:** auto-branch for cognitive-core updates ([#199](https://github.com/mindcockpit-ai/cognitive-core/issues/199)) ([#225](https://github.com/mindcockpit-ai/cognitive-core/issues/225)) ([f3782d8](https://github.com/mindcockpit-ai/cognitive-core/commit/f3782d8f5aaa784d9a7871be4ff908c5c6c78115))
+* **packs:** add NestJS/ORM/hexagonal/error-handling rules to node pack ([#240](https://github.com/mindcockpit-ai/cognitive-core/issues/240)) ([#243](https://github.com/mindcockpit-ai/cognitive-core/issues/243)) ([a50e424](https://github.com/mindcockpit-ai/cognitive-core/commit/a50e4240c0cd4617d5b43dbeb41de55b12a32ab4))
+* **rules:** add Angular 21 conventions rule with security enforcement ([#213](https://github.com/mindcockpit-ai/cognitive-core/issues/213)) ([#214](https://github.com/mindcockpit-ai/cognitive-core/issues/214)) ([c5b7247](https://github.com/mindcockpit-ai/cognitive-core/commit/c5b724792c8ae0d491460b4dfd2c4621d18c78af))
+* **rules:** add Spring Boot conventions rule with security enforcement ([#177](https://github.com/mindcockpit-ai/cognitive-core/issues/177)) ([e4a7f94](https://github.com/mindcockpit-ai/cognitive-core/commit/e4a7f948d1044109f11b41cde34f71268c4a9055))
+* **skills:** add CTF quick-scan reconnaissance script ([935bfca](https://github.com/mindcockpit-ai/cognitive-core/commit/935bfcad6fc24ecd4acb9319ec6b578f06669615))
+* **skills:** add project-board provider layer — GitHub, Jira, YouTrack ([006962c](https://github.com/mindcockpit-ai/cognitive-core/commit/006962cc8488598434d8ff44e768272113685ff5))
+* **skills:** netsavehtml patterns — SSRF, iframe srcdoc, Security 7 ([#227](https://github.com/mindcockpit-ai/cognitive-core/issues/227)) ([c0ba22e](https://github.com/mindcockpit-ai/cognitive-core/commit/c0ba22ed82842077486a546c99672582734b8188))
+
+
+### Bug Fixes
+
+* **adapters:** address deferred review findings — f-strings, callable, load_config DRY ([#139](https://github.com/mindcockpit-ai/cognitive-core/issues/139)) ([9f5c45f](https://github.com/mindcockpit-ai/cognitive-core/commit/9f5c45f02cfafb8c129e152862f6cfd4545eb9e6))
+* **adapters:** address P3 peer review — shlex.quote, dead imports, __init__.py ([#139](https://github.com/mindcockpit-ai/cognitive-core/issues/139)) ([324de35](https://github.com/mindcockpit-ai/cognitive-core/commit/324de35ca26556d66e360deac4573f4ce7b0371b))
+* **cicd:** add daily board reconciliation + harden jq parsing ([9dc1e00](https://github.com/mindcockpit-ai/cognitive-core/commit/9dc1e004061887a0e626dc7bc8af7c4be2a02116))
+* **cicd:** replace last-comment check with label-based approval signal ([#188](https://github.com/mindcockpit-ai/cognitive-core/issues/188)) ([77f88d5](https://github.com/mindcockpit-ai/cognitive-core/commit/77f88d5cd64d30d5028a91916a234cf8d991c7f4))
+* **hooks:** add 14 missing Spring Boot patterns to version guard ([#174](https://github.com/mindcockpit-ai/cognitive-core/issues/174)) ([c6818c6](https://github.com/mindcockpit-ai/cognitive-core/commit/c6818c658508367c048a96e8d3a751de64b1716c))
+* **hooks:** allow safe Jira transitions via CC_JIRA_ALLOWED_TRANSITIONS ([#233](https://github.com/mindcockpit-ai/cognitive-core/issues/233)) ([e260c99](https://github.com/mindcockpit-ai/cognitive-core/commit/e260c999863d31961d1fe31ec92a973dc4c510b9))
+* **hooks:** harden core hooks and wire session lifecycle ([#241](https://github.com/mindcockpit-ai/cognitive-core/issues/241)) ([264f589](https://github.com/mindcockpit-ai/cognitive-core/commit/264f589af04bea3b757c690568f50b92367987dd))
+* **hooks:** require approved label for closure guard exemption ([#188](https://github.com/mindcockpit-ai/cognitive-core/issues/188)) ([0bd558c](https://github.com/mindcockpit-ai/cognitive-core/commit/0bd558c1df210b3bbd9adb89ee9cced176e26ed8))
+* **hooks:** revive dead @MockBean guard ([#172](https://github.com/mindcockpit-ai/cognitive-core/issues/172)) ([#221](https://github.com/mindcockpit-ai/cognitive-core/issues/221)) ([db5becf](https://github.com/mindcockpit-ai/cognitive-core/commit/db5becfadc9379f34e49b83a5c6dc920d61e971c))
+* **hooks:** secure version cache — project-local with mtime invalidation ([#176](https://github.com/mindcockpit-ai/cognitive-core/issues/176)) ([#223](https://github.com/mindcockpit-ai/cognitive-core/issues/223)) ([c054125](https://github.com/mindcockpit-ai/cognitive-core/commit/c0541258adda8c368e466b58e2228955148fe3e8))
+* **hooks:** tiered enforcement — deny for security, ask for deprecated ([#171](https://github.com/mindcockpit-ai/cognitive-core/issues/171)) ([#222](https://github.com/mindcockpit-ai/cognitive-core/issues/222)) ([0e6aa18](https://github.com/mindcockpit-ai/cognitive-core/commit/0e6aa18af5f8a79f7e5c7ebaac81f0aec7cbfc97))
+* **project-board:** address v1.5.0 peer review findings ([2d1dddd](https://github.com/mindcockpit-ai/cognitive-core/commit/2d1dddd53aa2ce326b0a9ed1691abf6030c1a9e5))
+* **security:** add gh api state-change detection to validate-bash hook ([#189](https://github.com/mindcockpit-ai/cognitive-core/issues/189)) ([4c33746](https://github.com/mindcockpit-ai/cognitive-core/commit/4c33746de518a79d197a145d564a3b3eef9bba44))
+
+
+### Code Refactoring
+
+* **adapters:** extract shared defaults to _adapter-lib.sh — Phase P2 ([#139](https://github.com/mindcockpit-ai/cognitive-core/issues/139)) ([f70c953](https://github.com/mindcockpit-ai/cognitive-core/commit/f70c9539cad75af678429c4bee6990b47fb6f3ff))
+* **adapters:** extract shared Python utilities to generate_utils.py — Phase P3 ([#139](https://github.com/mindcockpit-ai/cognitive-core/issues/139)) ([80dfa6e](https://github.com/mindcockpit-ai/cognitive-core/commit/80dfa6e50f1e53e1ddc91b3e66772fd90b78ceb6))
+* eliminate DRY/KISS violations — shared libraries ([#139](https://github.com/mindcockpit-ai/cognitive-core/issues/139)) ([#220](https://github.com/mindcockpit-ai/cognitive-core/issues/220)) ([007f717](https://github.com/mindcockpit-ai/cognitive-core/commit/007f717e0f431a0d5468cd63b7ba56ba8aea41e6))
+* **packs:** extract fitness check framework to _common.sh - Phase P4 ([#139](https://github.com/mindcockpit-ai/cognitive-core/issues/139)) ([dc1073b](https://github.com/mindcockpit-ai/cognitive-core/commit/dc1073b91232a629693855d2543360e3e44564ec))
+* **tests:** extract shared adapter test helpers — Phase P5 ([#139](https://github.com/mindcockpit-ai/cognitive-core/issues/139)) ([7a5407c](https://github.com/mindcockpit-ai/cognitive-core/commit/7a5407c28846ad98857b3ec34ef188696c65ac72))
+
 ## [1.4.1](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.4.0...v1.4.1) (2026-04-01)
 
 
