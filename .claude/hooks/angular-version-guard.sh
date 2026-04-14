@@ -110,6 +110,10 @@ if [ "$NG_VERSION" -ge 20 ]; then
     if echo "$CONTENT" | grep -qE '@angular-devkit/build-angular'; then
         ASK_REASONS+=("@angular-devkit/build-angular replaced by @angular/build (saves ~200MB).")
     fi
+    # Deprecated animation providers (v20.2, removed v23)
+    if echo "$CONTENT" | grep -qE 'provideAnimations(Async)?[[:space:]]*\('; then
+        ASK_REASONS+=("provideAnimations()/provideAnimationsAsync() deprecated (v20.2, removed v23). Remove the provider — Angular Material 21+ bootstraps animations internally. Use animate.enter/animate.leave for custom animations.")
+    fi
 fi
 
 # --- v21+ patterns — ASK ---
@@ -122,6 +126,11 @@ if [ "$NG_VERSION" -ge 21 ]; then
             ASK_REASONS+=("HttpClient is auto-provided. provideHttpClient() only needed with withInterceptors().")
         fi
     fi
+fi
+
+# --- Tailwind + Angular host conflict (all versions with Tailwind) — ASK ---
+if echo "$CONTENT" | grep -qE "host:[[:space:]]*\{[^}]*class:[[:space:]]*['\"].*\b(block|flex|grid|inline|hidden|inline-flex|inline-block|inline-grid)\b"; then
+    ASK_REASONS+=("Tailwind layout class in Angular host:{} — Tailwind v4 !important overrides :host styles. Use :host {} in SCSS for layout.")
 fi
 
 # --- Security patterns (all versions) — DENY: XSS, injection, secrets ---

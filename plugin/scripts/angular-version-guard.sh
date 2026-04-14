@@ -128,6 +128,11 @@ if [ "$NG_VERSION" -ge 20 ] && [ -z "$REASON" ]; then
     if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE '@angular-devkit/build-angular'; then
         REASON="Angular v${NG_VERSION}: @angular-devkit/build-angular is replaced by @angular/build (saves ~200MB)."
     fi
+
+    # Deprecated animation providers (v20.2, removed v23)
+    if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE 'provideAnimations(Async)?[[:space:]]*\('; then
+        REASON="Angular v${NG_VERSION}: provideAnimations()/provideAnimationsAsync() deprecated (v20.2, removed v23). Remove the provider — Angular Material 21+ bootstraps animations internally. Use animate.enter/animate.leave for custom animations."
+    fi
 fi
 
 # --- v21+ patterns ---
@@ -144,6 +149,11 @@ if [ "$NG_VERSION" -ge 21 ] && [ -z "$REASON" ]; then
             REASON="Angular v${NG_VERSION}: HttpClient is auto-provided. provideHttpClient() is only needed when passing options like withInterceptors()."
         fi
     fi
+fi
+
+# --- Tailwind + Angular host conflict (all versions with Tailwind) ---
+if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE "host:[[:space:]]*\{[^}]*class:[[:space:]]*['\"].*\b(block|flex|grid|inline|hidden|inline-flex|inline-block|inline-grid)\b"; then
+    REASON="Tailwind layout class in Angular host:{} — Tailwind v4 !important overrides :host styles. Use :host {} in SCSS for layout."
 fi
 
 # Output ask JSON if pattern found, otherwise silent exit 0
