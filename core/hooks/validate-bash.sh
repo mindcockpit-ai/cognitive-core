@@ -168,7 +168,7 @@ if [ -z "$REASON" ] && [ "$_CLOSURE_GUARD" = "true" ]; then
     # gh api state-change bypass: REST (state=closed) or GraphQL (CloseIssue mutation)
     # Uses CMD_LOWER (not _CMD_CHECK) because payloads are typically inside quotes
     # that CMD_STRIPPED removes — same rationale as gh issue close above.
-    # gh api state-change: always block (no exemptions — use gh issue close path which verifies label)
+    # gh api state-change: always block (no exemptions — use gh issue close path with "Approved by @" or "Canceled:")
     if echo "$CMD_LOWER" | grep -qE 'gh[[:space:]]+api[[:space:]]' && \
        echo "$CMD_LOWER" | grep -qE 'state[^a-z]*closed|closeissue'; then
         _API_CLOSURE_EXEMPT="false"

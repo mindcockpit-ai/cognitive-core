@@ -32,16 +32,19 @@ _NOW=$(date +%s)
 
 # ---- Helpers ----
 
-# Get epoch from ISO 8601 date (portable macOS + Linux)
+# Get epoch from date string (portable macOS + Linux)
+# Handles: ISO 8601 (2026-04-14T21:10:30Z) and ps lstart (Tue Apr 14 21:10:30 2026)
 _cc_date_to_epoch() {
     local datestr="$1"
     local result
     # Strip timezone suffix for macOS date -j
     local stripped="${datestr%%[+-][0-9][0-9]:[0-9][0-9]}"
     stripped="${stripped%%Z}"
-    # macOS: date -j -f format
+    # macOS: ISO 8601 format
     result=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$stripped" "+%s" 2>/dev/null) && { echo "$result"; return; }
-    # Linux: date -d
+    # macOS: ps lstart format (e.g., "Tue Apr 14 21:10:30 2026")
+    result=$(date -j -f "%a %b %d %H:%M:%S %Y" "$stripped" "+%s" 2>/dev/null) && { echo "$result"; return; }
+    # Linux: date -d (handles both ISO and lstart formats)
     result=$(date -d "$datestr" "+%s" 2>/dev/null) && { echo "$result"; return; }
     echo "0"
 }
