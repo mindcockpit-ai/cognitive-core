@@ -5,7 +5,7 @@
 <h1 align="center">cognitive-core</h1>
 
 <p align="center">
-  <a href="https://github.com/mindcockpit-ai/cognitive-core/releases/tag/v1.3.0"><img src="https://img.shields.io/badge/version-v1.3.0-38bdf8?style=flat-square" alt="v1.3.0"/></a>
+  <a href="https://github.com/mindcockpit-ai/cognitive-core/releases/tag/v1.5.0"><img src="https://img.shields.io/badge/version-v1.5.0-38bdf8?style=flat-square" alt="v1.5.0"/></a>
   <a href="https://multivac42.ai"><img src="https://img.shields.io/badge/website-multivac42.ai-38bdf8?style=flat-square" alt="Website"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-FSL--1.1--ALv2-38bdf8?style=flat-square" alt="License: FSL-1.1-ALv2"/></a>
   <a href="https://github.com/mindcockpit-ai/cognitive-core"><img src="https://img.shields.io/github/stars/mindcockpit-ai/cognitive-core?style=flat-square" alt="GitHub Stars"/></a>
@@ -136,7 +136,7 @@ Multi-agent peer review — where agents check each other's work — was impleme
 
 ### Core
 
-- **Hooks** — 9 security hooks: validate-bash/read/write/fetch, setup-env, compact-reminder, post-edit-lint, Angular + Spring Boot version guards
+- **Hooks** — 13 security hooks: validate-bash/read/write/fetch, setup-env, compact-reminder, post-edit-lint, notify-complete, post-fetch-cache, session-cleanup, session-guard, Angular + Spring Boot version guards
 - **Agents** — Hub-and-spoke team of 10 specialists with smart delegation and least-privilege tool restrictions
 - **Skills** — 47 composable skills: 20 core + 26 language-pack + 1 database-pack
 - **[Gitignore Policy](docs/GITIGNORE_POLICY.md)** — State-of-the-art `.gitignore` templates: base (16 IDEs, 3 OS families, IaC secrets) + 11 language-pack fragments, auto-merged on install/update

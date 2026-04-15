@@ -6,14 +6,14 @@
 cc82b99c354b66bc8d4603467f0e69c1	./.cognitive-core/cognitive-core/check-update.sh
 2fc08fe8f49e21e94118f1a82877a374	./.cognitive-core/cognitive-core/context-cleanup.sh
 9d9bcd18cfc0ea29ab5b2c17b510c6e5	./.cognitive-core/cognitive-core/health-check.sh
-debb39807d3bb659818037c3503d43f6	./.cognitive-core/cognitive-core/version.json
+81aee7870ba5497ce1833f48218bd2d4	./.cognitive-core/cognitive-core/version.json
 47b561a9cb3594c789ecad8b6b8e6766	./.cognitive-core/compact-rules.md
 7f3cfa96a9afa2db9b937b1e32cb56a0	./.cognitive-core/fitness-checks.sh
 93a614f0d620a8305b6f7ed86bf2ad36	./.cognitive-core/gitattributes-lang
 c3e0c99f2107171af0da02169a507681	./.cognitive-core/gitignore
 5771a571a88a06bbefa927ce95a7ba55	./.cognitive-core/hooks/_lib.sh
 998c3d57a17cfe692e8233c4cdd56fe7	./.cognitive-core/hooks/setup-env.sh
-b62ded2a949e76aa63932d0b6ee572ef	./.cognitive-core/hooks/validate-bash.sh
+6ce04bd4863d51d6bba4c0acec3cc852	./.cognitive-core/hooks/validate-bash.sh
 eac03d16cbdd4ceef2315e5a7636610f	./.cognitive-core/lint-config.sh
 68042f1e5a7f7a73b4716126a02deef3	./.cognitive-core/monitor-patterns.conf
 32b985614c82a57c14f6c591195c0976	./.cognitive-core/pack.conf
@@ -25,5 +25,5 @@ eac03d16cbdd4ceef2315e5a7636610f	./.cognitive-core/lint-config.sh
 d758904083df4f0711bfdef7f7404d1d	./.cognitive-core/skills/python-patterns/SKILL.md
 a62afffa41122710aee438bb9f9bf862	./.cognitive-core/skills/session-resume/SKILL.md
 f9f0db6dd2311397314240ada5004da3	./.gitattributes
-e20ee4df1e1000c1ac376a4529b0a320	./CONVENTIONS.md
+2326a4aec7727e9f7722fcb0a218ad1a	./CONVENTIONS.md
 58855ddbef2bc829500d2e52349563c2	./cc-aider-start.sh

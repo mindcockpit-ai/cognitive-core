@@ -4,14 +4,14 @@
 cc82b99c354b66bc8d4603467f0e69c1	./.cognitive-core/cognitive-core/check-update.sh
 2fc08fe8f49e21e94118f1a82877a374	./.cognitive-core/cognitive-core/context-cleanup.sh
 9d9bcd18cfc0ea29ab5b2c17b510c6e5	./.cognitive-core/cognitive-core/health-check.sh
-51f1628671aed4a1722ed6e9b4df9a73	./.cognitive-core/cognitive-core/version.json
+bc6d8127cbd95c1997e5974028e40c7e	./.cognitive-core/cognitive-core/version.json
 47b561a9cb3594c789ecad8b6b8e6766	./.cognitive-core/compact-rules.md
 7f3cfa96a9afa2db9b937b1e32cb56a0	./.cognitive-core/fitness-checks.sh
 93a614f0d620a8305b6f7ed86bf2ad36	./.cognitive-core/gitattributes-lang
 c3e0c99f2107171af0da02169a507681	./.cognitive-core/gitignore
 5771a571a88a06bbefa927ce95a7ba55	./.cognitive-core/hooks/_lib.sh
 998c3d57a17cfe692e8233c4cdd56fe7	./.cognitive-core/hooks/setup-env.sh
-b62ded2a949e76aa63932d0b6ee572ef	./.cognitive-core/hooks/validate-bash.sh
+6ce04bd4863d51d6bba4c0acec3cc852	./.cognitive-core/hooks/validate-bash.sh
 eac03d16cbdd4ceef2315e5a7636610f	./.cognitive-core/lint-config.sh
 8219528ac0f37f860ef682666dbefdfd	./.cognitive-core/mcp-config.json
 48f743766d39f29c79f9081d13dcd430	./.cognitive-core/mcp-server/TOOLS.md
@@ -24,7 +24,7 @@ aba853ad69ca22336e4c071febcbad60	./.cognitive-core/mcp-server/tools/__pycache__/
 48e1be5ac462d5415abf9e8ecf93caa6	./.cognitive-core/mcp-server/tools/__pycache__/lint_check.cpython-313.pyc
 79ef505d7ee52c8b5bb7e04fa76729c9	./.cognitive-core/mcp-server/tools/__pycache__/project_info.cpython-313.pyc
 9f2b2d2fee7a99d41f659a52538eebeb	./.cognitive-core/mcp-server/tools/__pycache__/security_validate.cpython-313.pyc
-ce533fdc128c93969282f20680826382	./.cognitive-core/mcp-server/tools/__pycache__/utils.cpython-313.pyc
+a5c522dda068bfc3b5b7f07bd4423ad0	./.cognitive-core/mcp-server/tools/__pycache__/utils.cpython-313.pyc
 9a934351dfc5c3558635476145d8e753	./.cognitive-core/mcp-server/tools/hook_run.py
 2d142dd2b00f0a19f74796a92a813ed4	./.cognitive-core/mcp-server/tools/lint_check.py
 ff110b786b3f276c44ac93530e8ca528	./.cognitive-core/mcp-server/tools/project_info.py
@@ -41,4 +41,4 @@ d758904083df4f0711bfdef7f7404d1d	./.cognitive-core/skills/python-patterns/SKILL.
 a62afffa41122710aee438bb9f9bf862	./.cognitive-core/skills/session-resume/SKILL.md
 fd6da2e5de309c666e85d395706480c5	./.devoxxgenie.yaml
 f9f0db6dd2311397314240ada5004da3	./.gitattributes
-8a71a9645066bee85199a227b7fdcde0	./DEVOXXGENIE.md
+a668fbb164555133e7ab2807d79b31c2	./DEVOXXGENIE.md
