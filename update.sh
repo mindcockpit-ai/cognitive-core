@@ -243,10 +243,24 @@ header "Checking for new framework files"
 # Load config to know which components are installed
 CONF_FILE="${PROJECT_DIR}/cognitive-core.conf"
 CONF_ALT="${PROJECT_DIR}/.claude/cognitive-core.conf"
+
+# Migration: fix unescaped $1 in command variables (pre-1.6.0 installs)
+# Without this, sourcing the conf under set -u fails with "unbound variable"
+_cc_fix_unescaped_dollar() {
+    local f="$1"
+    if grep -qE '^CC_(LINT|TEST|FORMAT)_COMMAND="[^"]*[^\\]\$[0-9]' "$f" 2>/dev/null; then
+        sed -i.bak -E 's/^(CC_(LINT|TEST|FORMAT)_COMMAND="[^"]*[^\\])\$([0-9])/\1\\$\3/g' "$f"
+        rm -f "${f}.bak"
+        info "Migrated: escaped \$N in command variables in $(basename "$f")"
+    fi
+}
+
 if [ -f "$CONF_FILE" ]; then
+    _cc_fix_unescaped_dollar "$CONF_FILE"
     # shellcheck disable=SC1090
     source "$CONF_FILE"
 elif [ -f "$CONF_ALT" ]; then
+    _cc_fix_unescaped_dollar "$CONF_ALT"
     # shellcheck disable=SC1090
     source "$CONF_ALT"
 fi
