@@ -4,15 +4,16 @@
 # 5-gate progressive quality pipeline. Findings resolved:
 #   #2=self-hosted permissions, #3=continue-on-error syntax, #5=mkdir -p logs,
 #   #13=changed-files-only, #19=single-pass tests, #20=semgrep scan
+#   #CC1=pnpm/yarn detection, #CC2=language gating, #CC3=development branch
 # All thresholds configurable via repository variables.
 # =============================================================================
 name: Evolutionary CI/CD Pipeline
 
 on:
   push:
-    branches: [main, master, develop, 'release/**']
+    branches: [main, master, develop, development, 'release/**']
   pull_request:
-    branches: [main, master, develop]
+    branches: [main, master, develop, development]
   workflow_dispatch:
     inputs:
       skip_deploy:
@@ -37,10 +38,93 @@ env:
 
 jobs:
   # =========================================================================
+  # SETUP: Detect stack, install dependencies, cache
+  # =========================================================================
+  setup:
+    name: "Setup"
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    outputs:
+      lang: ${{ steps.detect.outputs.lang }}
+      pkg_manager: ${{ steps.detect.outputs.pkg_manager }}
+      node_version: ${{ steps.detect.outputs.node_version }}
+      has_perl: ${{ steps.detect.outputs.has_perl }}
+      has_node: ${{ steps.detect.outputs.has_node }}
+      has_python: ${{ steps.detect.outputs.has_python }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # CC1+CC2: Detect project language and package manager
+      - name: Detect stack (CC1, CC2)
+        id: detect
+        run: |
+          # Detect primary language from cognitive-core.conf or file markers
+          LANG="unknown"
+          if [ -f "cognitive-core.conf" ]; then
+            LANG=$(grep 'CC_LANGUAGE=' cognitive-core.conf 2>/dev/null | cut -d'"' -f2 || echo "unknown")
+          fi
+          if [ "$LANG" = "unknown" ]; then
+            if [ -f "package.json" ]; then LANG="node"
+            elif [ -f "cpanfile" ] || [ -f "Makefile.PL" ]; then LANG="perl"
+            elif [ -f "setup.py" ] || [ -f "pyproject.toml" ]; then LANG="python"
+            elif [ -f "go.mod" ]; then LANG="go"
+            fi
+          fi
+          echo "lang=$LANG" >> "$GITHUB_OUTPUT"
+
+          # Detect Node.js package manager
+          PKG="npm"
+          if [ -f "pnpm-lock.yaml" ]; then PKG="pnpm"
+          elif [ -f "yarn.lock" ]; then PKG="yarn"
+          elif [ -f "bun.lockb" ]; then PKG="bun"
+          fi
+          echo "pkg_manager=$PKG" >> "$GITHUB_OUTPUT"
+
+          # Detect Node version from engines or vars
+          NODE_VER="${{ vars.NODE_VERSION || '20' }}"
+          if [ -f "package.json" ]; then
+            ENGINE_VER=$(node -e "try{const p=require('./package.json');const v=p.engines?.node?.match(/(\d+)/);if(v)console.log(v[1])}catch{}" 2>/dev/null || true)
+            [ -n "$ENGINE_VER" ] && NODE_VER="$ENGINE_VER"
+          fi
+          echo "node_version=$NODE_VER" >> "$GITHUB_OUTPUT"
+
+          # Language flags for conditional job execution (CC2: skip irrelevant linters)
+          echo "has_perl=$( [ "$LANG" = "perl" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+          echo "has_node=$( [ "$LANG" = "node" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+          echo "has_python=$( [ "$LANG" = "python" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+
+          echo "::group::Stack Detection"
+          echo "Language:        $LANG"
+          echo "Package manager: $PKG"
+          echo "Node version:    $NODE_VER"
+          echo "::endgroup::"
+
+      # CC1: Setup Node.js with correct package manager
+      - name: Setup Node.js (CC1)
+        if: steps.detect.outputs.has_node == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.detect.outputs.node_version }}
+
+      - name: Enable corepack (pnpm/yarn)
+        if: steps.detect.outputs.has_node == 'true' && steps.detect.outputs.pkg_manager != 'npm'
+        run: corepack enable
+
+      - name: Install dependencies (CC1)
+        if: steps.detect.outputs.has_node == 'true'
+        run: |
+          case "${{ steps.detect.outputs.pkg_manager }}" in
+            pnpm) pnpm install --frozen-lockfile ;;
+            yarn) yarn install --frozen-lockfile ;;
+            bun)  bun install --frozen-lockfile ;;
+            *)    npm ci || npm install ;;
+          esac
+
+  # =========================================================================
   # GATE 1: LINT
   # =========================================================================
   gate-1-lint:
     name: "Gate 1: Lint"
+    needs: setup
     runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     outputs:
       changed_files: ${{ steps.diff.outputs.files }}
@@ -81,7 +165,9 @@ jobs:
           echo "count=$(echo "$FILES" | grep -c . || echo 0)" >> "$GITHUB_OUTPUT"
 
       # Finding #3: continue-on-error for syntax checks
-      - name: Syntax check (Perl) (Finding #3)
+      # CC2: Only run language-specific checks when that language is detected
+      - name: Syntax check (Perl) (Finding #3, CC2)
+        if: needs.setup.outputs.has_perl == 'true'
         continue-on-error: true
         run: |
           echo "${{ steps.diff.outputs.files }}" | grep -E '\.(pl|pm|t)$' | while IFS= read -r f; do
@@ -97,13 +183,53 @@ jobs:
             bash -n "$f" 2>&1 || echo "::warning file=$f::Syntax issue"
           done
 
-      - name: Syntax check (Python) (Finding #3)
+      - name: Syntax check (Python) (Finding #3, CC2)
+        if: needs.setup.outputs.has_python == 'true'
         continue-on-error: true
         run: |
           echo "${{ steps.diff.outputs.files }}" | grep -E '\.py$' | while IFS= read -r f; do
             [ -z "$f" ] || [ ! -f "$f" ] && continue
             python3 -m py_compile "$f" 2>&1 || echo "::warning file=$f::Syntax issue"
           done
+
+      # CC1: Run project linter for Node.js projects (eslint, tsc)
+      - name: Setup Node.js for lint (CC1)
+        if: needs.setup.outputs.has_node == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ needs.setup.outputs.node_version }}
+
+      - name: Enable corepack for lint
+        if: needs.setup.outputs.has_node == 'true' && needs.setup.outputs.pkg_manager != 'npm'
+        run: corepack enable
+
+      - name: Install dependencies for lint (CC1)
+        if: needs.setup.outputs.has_node == 'true'
+        run: |
+          case "${{ needs.setup.outputs.pkg_manager }}" in
+            pnpm) pnpm install --frozen-lockfile ;;
+            yarn) yarn install --frozen-lockfile ;;
+            bun)  bun install --frozen-lockfile ;;
+            *)    npm ci || npm install ;;
+          esac
+
+      - name: ESLint (CC1)
+        if: needs.setup.outputs.has_node == 'true'
+        continue-on-error: true
+        run: |
+          if [ -f "eslint.config.js" ] || [ -f "eslint.config.mjs" ] || [ -f ".eslintrc.js" ] || [ -f ".eslintrc.json" ]; then
+            npx eslint . --max-warnings ${{ vars.ESLINT_MAX_WARNINGS || '0' }} 2>&1 || echo "::warning::ESLint found issues"
+          else
+            echo "::notice::No ESLint config found, skipping"
+          fi
+
+      - name: TypeScript type-check (CC1)
+        if: needs.setup.outputs.has_node == 'true'
+        continue-on-error: true
+        run: |
+          if [ -f "tsconfig.json" ]; then
+            npx tsc --noEmit 2>&1 || echo "::warning::TypeScript found type errors"
+          fi
 
       - name: Upload lint logs
         if: always()
@@ -166,7 +292,7 @@ jobs:
   # =========================================================================
   gate-3-test:
     name: "Gate 3: Test"
-    needs: gate-2-commit
+    needs: [setup, gate-2-commit]
     runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     outputs:
       test_pass_rate: ${{ steps.results.outputs.pass_rate }}
@@ -179,20 +305,52 @@ jobs:
       - name: Prepare directories (Finding #5)
         run: mkdir -p logs artifacts test-results
 
+      # CC1: Setup Node.js with detected package manager for test execution
+      - name: Setup Node.js for tests (CC1)
+        if: needs.setup.outputs.has_node == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ needs.setup.outputs.node_version }}
+
+      - name: Enable corepack for tests
+        if: needs.setup.outputs.has_node == 'true' && needs.setup.outputs.pkg_manager != 'npm'
+        run: corepack enable
+
+      - name: Install dependencies for tests (CC1)
+        if: needs.setup.outputs.has_node == 'true'
+        run: |
+          case "${{ needs.setup.outputs.pkg_manager }}" in
+            pnpm) pnpm install --frozen-lockfile ;;
+            yarn) yarn install --frozen-lockfile ;;
+            bun)  bun install --frozen-lockfile ;;
+            *)    npm ci || npm install ;;
+          esac
+
       # Finding #19: Run tests ONCE, output JUnit directly (no double-run)
-      - name: Run tests — single pass (Finding #19)
+      # CC1: Use detected package manager runner (npx/pnpx/yarn dlx)
+      - name: Run tests — single pass (Finding #19, CC1)
         id: run-tests
         continue-on-error: true
         run: |
+          # CC1: Determine package runner
+          PKG_RUN="npx"
+          case "${{ needs.setup.outputs.pkg_manager }}" in
+            pnpm) PKG_RUN="pnpm exec" ;;
+            yarn) PKG_RUN="yarn" ;;
+            bun)  PKG_RUN="bun run" ;;
+          esac
+
           if [ -f "Makefile.PL" ] || [ -f "cpanfile" ]; then
             prove -l --timer --formatter TAP::Formatter::JUnit t/ > test-results/junit.xml 2>&1 || true
             [ ! -s test-results/junit.xml ] && prove -l --timer t/ > test-results/tap-output.txt 2>&1 || true
           elif [ -f "package.json" ]; then
-            if grep -q '"jest"' package.json 2>/dev/null; then
-              npx jest --ci --reporters=default --reporters=jest-junit 2>&1 || true
+            if grep -q '"jest"' package.json 2>/dev/null || [ -f "jest.config.ts" ] || [ -f "jest.config.js" ]; then
+              $PKG_RUN jest --ci --reporters=default --reporters=jest-junit 2>&1 || true
               cp junit.xml test-results/ 2>/dev/null || true
+            elif grep -q '"vitest"' package.json 2>/dev/null || [ -f "vitest.config.ts" ]; then
+              $PKG_RUN vitest run --reporter=junit --outputFile=test-results/junit.xml 2>&1 || true
             elif grep -q '"mocha"' package.json 2>/dev/null; then
-              npx mocha --reporter mocha-junit-reporter \
+              $PKG_RUN mocha --reporter mocha-junit-reporter \
                 --reporter-options mochaFile=test-results/junit.xml 2>&1 || true
             else
               npm test > test-results/output.txt 2>&1 || true
