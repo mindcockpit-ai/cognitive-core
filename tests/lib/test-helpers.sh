@@ -122,7 +122,7 @@ assert_ne() {
 
 assert_contains() {
     local label="$1" haystack="$2" needle="$3"
-    if echo "$haystack" | grep -qF "$needle"; then
+    if grep -qF "$needle" <<< "$haystack"; then
         _pass "$label"
     else
         _fail "$label" "output does not contain '${needle}'"
@@ -131,7 +131,7 @@ assert_contains() {
 
 assert_not_contains() {
     local label="$1" haystack="$2" needle="$3"
-    if ! echo "$haystack" | grep -qF "$needle"; then
+    if ! grep -qF "$needle" <<< "$haystack"; then
         _pass "$label"
     else
         _fail "$label" "output should not contain '${needle}'"
@@ -140,7 +140,7 @@ assert_not_contains() {
 
 assert_matches() {
     local label="$1" haystack="$2" pattern="$3"
-    if echo "$haystack" | grep -qE "$pattern"; then
+    if grep -qE "$pattern" <<< "$haystack"; then
         _pass "$label"
     else
         _fail "$label" "output does not match regex '${pattern}'"
@@ -213,10 +213,10 @@ assert_hook_denies() {
     local label="$1" hook_script="$2" stdin_json="$3"
     local output
     output=$(echo "$stdin_json" | bash "$hook_script" 2>/dev/null) || true
-    if echo "$output" | grep -q '"permissionDecision".*"deny"'; then
+    if grep -q '"permissionDecision".*"deny"' <<< "$output"; then
         _pass "$label"
     else
-        _fail "$label" "expected deny decision, got: $(echo "$output" | head -1)"
+        _fail "$label" "expected deny decision, got: $(head -1 <<< "$output")"
     fi
 }
 
@@ -224,10 +224,10 @@ assert_hook_allows() {
     local label="$1" hook_script="$2" stdin_json="$3"
     local output
     output=$(echo "$stdin_json" | bash "$hook_script" 2>/dev/null) || true
-    if [ -z "$output" ] || ! echo "$output" | grep -q '"permissionDecision".*"deny"'; then
+    if [ -z "$output" ] || ! grep -q '"permissionDecision".*"deny"' <<< "$output"; then
         _pass "$label"
     else
-        _fail "$label" "expected allow (no deny), got: $(echo "$output" | head -1)"
+        _fail "$label" "expected allow (no deny), got: $(head -1 <<< "$output")"
     fi
 }
 
@@ -235,10 +235,10 @@ assert_hook_asks() {
     local label="$1" hook_script="$2" stdin_json="$3"
     local output
     output=$(echo "$stdin_json" | bash "$hook_script" 2>/dev/null) || true
-    if echo "$output" | grep -q '"permissionDecision".*"ask"'; then
+    if grep -q '"permissionDecision".*"ask"' <<< "$output"; then
         _pass "$label"
     else
-        _fail "$label" "expected ask decision, got: $(echo "$output" | head -1)"
+        _fail "$label" "expected ask decision, got: $(head -1 <<< "$output")"
     fi
 }
 
@@ -282,4 +282,33 @@ mock_write_json() {
 # Create a temp directory for test isolation
 create_test_dir() {
     mktemp -d "${TMPDIR:-/tmp}/cc-test-XXXXXX"
+}
+
+# ---- Portable command wrappers (macOS + Linux) ----
+
+# Portable md5 checksum: outputs "hash  filename" like md5sum
+_portable_md5() {
+    if command -v md5sum &>/dev/null; then
+        md5sum "$@"
+    elif command -v md5 &>/dev/null; then
+        md5 -r "$@"
+    else
+        _skip "no md5sum or md5 available"
+        return 1
+    fi
+}
+
+# Portable timeout: gtimeout (Homebrew) → perl fallback → skip
+_portable_timeout() {
+    local seconds="$1"; shift
+    if command -v gtimeout &>/dev/null; then
+        gtimeout "$seconds" "$@"
+    elif command -v timeout &>/dev/null; then
+        timeout "$seconds" "$@"
+    elif command -v perl &>/dev/null; then
+        perl -e 'alarm shift; exec @ARGV' "$seconds" "$@"
+    else
+        _skip "no timeout, gtimeout, or perl available"
+        return 1
+    fi
 }

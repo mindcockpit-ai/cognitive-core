@@ -5,8 +5,6 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
@@ -166,20 +164,7 @@ assert_not_contains \
     "$SUB_BAD" \
     "**Parent**:"
 
-# ================================================================
-# Validate actual EU AI Act recursive epic (if co-located)
-# ================================================================
-EPIC_FILE="${ROOT_DIR}/../dev-notes/docs/research/2026-03-21-eu-ai-act-recursive-epic.md"
-if [ -f "$EPIC_FILE" ]; then
-    EPIC_CONTENT=$(cat "$EPIC_FILE")
-    assert_contains "Actual epic has dependency graph" "$EPIC_CONTENT" "Dependency Graph"
-    assert_contains "Actual epic has dependency matrix" "$EPIC_CONTENT" "Dependency Matrix"
-    assert_contains "Actual epic references parent #120" "$EPIC_CONTENT" "#120"
-    assert_contains "Actual epic references sub-issue #121" "$EPIC_CONTENT" "#121"
-    assert_contains "Actual epic has effort summary" "$EPIC_CONTENT" "Effort Summary"
-    assert_contains "Actual epic has GitHub links" "$EPIC_CONTENT" "github.com/mindcockpit-ai/cognitive-core/issues"
-else
-    _skip "EU AI Act recursive epic not found (dev-notes may not be co-located)"
-fi
+# External file validation removed (#248) — tests must not depend on
+# content outside the repo. Synthetic tests above cover structure.
 
 suite_end
