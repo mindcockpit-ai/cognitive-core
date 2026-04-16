@@ -80,5 +80,6 @@
   "env": {
     "CC_PROJECT_NAME": "cognitive-core",
     "CC_AGENT_TEAMS": "false"
-  }
+  },
+  "includeCoAuthoredBy": false
 }
