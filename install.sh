@@ -258,6 +258,11 @@ else
     CC_UPDATE_AUTO_CHECK="true"
     CC_UPDATE_CHECK_INTERVAL="7"
 
+    # Escape $ in command values so the generated conf can be safely re-sourced
+    CC_LINT_COMMAND="${CC_LINT_COMMAND//\$/\\\$}"
+    CC_TEST_COMMAND="${CC_TEST_COMMAND//\$/\\\$}"
+    CC_FORMAT_COMMAND="${CC_FORMAT_COMMAND//\$/\\\$}"
+
     # Write config file
     info "Writing configuration to ${CONF_FILE}"
     cat > "$CONF_FILE" << CONFEOF
