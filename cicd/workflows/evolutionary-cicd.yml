@@ -10,9 +10,9 @@ name: Evolutionary CI/CD Pipeline
 
 on:
   push:
-    branches: [main, master, develop, 'release/**']
+    branches: [main, master, develop, development, 'release/**']
   pull_request:
-    branches: [main, master, develop]
+    branches: [main, master, develop, development]
   workflow_dispatch:
     inputs:
       skip_deploy:
@@ -80,8 +80,33 @@ jobs:
           { echo "files<<EOF"; echo "$FILES"; echo "EOF"; } >> "$GITHUB_OUTPUT"
           echo "count=$(echo "$FILES" | grep -c . || echo 0)" >> "$GITHUB_OUTPUT"
 
+      # CC2: Detect project language for gating
+      - name: Detect project language (CC2)
+        id: lang
+        run: |
+          LANG=""
+          if [ -f cognitive-core.conf ]; then
+            LANG=$(grep '^CC_LANGUAGE=' cognitive-core.conf | cut -d'"' -f2)
+          fi
+          if [ -z "$LANG" ]; then
+            if [ -f pnpm-lock.yaml ] || [ -f yarn.lock ] || [ -f bun.lockb ] || [ -f package-lock.json ] || [ -f package.json ]; then
+              LANG="node"
+            elif [ -f Makefile.PL ] || [ -f cpanfile ]; then
+              LANG="perl"
+            elif [ -f setup.py ] || [ -f pyproject.toml ] || [ -f requirements.txt ]; then
+              LANG="python"
+            elif [ -f go.mod ]; then
+              LANG="go"
+            fi
+          fi
+          case "$LANG" in
+            javascript|typescript|node|react|angular|vue) LANG="node" ;;
+          esac
+          echo "lang=${LANG:-unknown}" >> "$GITHUB_OUTPUT"
+
       # Finding #3: continue-on-error for syntax checks
       - name: Syntax check (Perl) (Finding #3)
+        if: steps.lang.outputs.lang == 'perl' || steps.lang.outputs.lang == 'unknown'
         continue-on-error: true
         run: |
           echo "${{ steps.diff.outputs.files }}" | grep -E '\.(pl|pm|t)$' | while IFS= read -r f; do
@@ -98,12 +123,28 @@ jobs:
           done
 
       - name: Syntax check (Python) (Finding #3)
+        if: steps.lang.outputs.lang == 'python' || steps.lang.outputs.lang == 'unknown'
         continue-on-error: true
         run: |
           echo "${{ steps.diff.outputs.files }}" | grep -E '\.py$' | while IFS= read -r f; do
             [ -z "$f" ] || [ ! -f "$f" ] && continue
             python3 -m py_compile "$f" 2>&1 || echo "::warning file=$f::Syntax issue"
           done
+
+      # CC2: ESLint + TypeScript type-check for Node projects
+      - name: Lint check (Node — ESLint + tsc) (CC2)
+        if: steps.lang.outputs.lang == 'node'
+        continue-on-error: true
+        run: |
+          if [ -f node_modules/.bin/eslint ]; then
+            echo "${{ steps.diff.outputs.files }}" | grep -E '\.(js|ts|tsx|jsx)$' | while IFS= read -r f; do
+              [ -z "$f" ] || [ ! -f "$f" ] && continue
+              npx eslint "$f" 2>&1 || echo "::warning file=$f::ESLint issue"
+            done
+          fi
+          if [ -f tsconfig.json ]; then
+            npx tsc --noEmit 2>&1 || echo "::warning::TypeScript type-check failed"
+          fi
 
       - name: Upload lint logs
         if: always()
@@ -179,6 +220,43 @@ jobs:
       - name: Prepare directories (Finding #5)
         run: mkdir -p logs artifacts test-results
 
+      # CC1: Detect package manager and Node version
+      - name: Detect package manager and Node version (CC1)
+        id: pkgmgr
+        if: hashFiles('package.json') != ''
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            MGR="pnpm"
+          elif [ -f yarn.lock ]; then
+            MGR="yarn"
+          elif [ -f bun.lockb ]; then
+            MGR="bun"
+          else
+            MGR="npm"
+          fi
+          echo "manager=$MGR" >> "$GITHUB_OUTPUT"
+          NODE_VER=""
+          if [ -f package.json ]; then
+            NODE_VER=$(grep -o '"node"[[:space:]]*:[[:space:]]*"[^"]*"' package.json | grep -oE '[0-9]+' | head -1)
+          fi
+          echo "node_version=${NODE_VER:-${{ vars.NODE_VERSION || '20' }}}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node.js (CC1)
+        if: steps.pkgmgr.outputs.manager != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.pkgmgr.outputs.node_version }}
+
+      - name: Install dependencies (CC1)
+        if: steps.pkgmgr.outputs.manager != ''
+        run: |
+          case "${{ steps.pkgmgr.outputs.manager }}" in
+            pnpm) npm install -g pnpm && pnpm install --frozen-lockfile ;;
+            yarn) yarn install --frozen-lockfile ;;
+            bun) npm install -g bun && bun install --frozen-lockfile ;;
+            npm) npm ci ;;
+          esac
+
       # Finding #19: Run tests ONCE, output JUnit directly (no double-run)
       - name: Run tests — single pass (Finding #19)
         id: run-tests
@@ -188,14 +266,28 @@ jobs:
             prove -l --timer --formatter TAP::Formatter::JUnit t/ > test-results/junit.xml 2>&1 || true
             [ ! -s test-results/junit.xml ] && prove -l --timer t/ > test-results/tap-output.txt 2>&1 || true
           elif [ -f "package.json" ]; then
-            if grep -q '"jest"' package.json 2>/dev/null; then
-              npx jest --ci --reporters=default --reporters=jest-junit 2>&1 || true
+            MGR="${{ steps.pkgmgr.outputs.manager }}"
+            EXEC="npx"
+            case "$MGR" in
+              pnpm) EXEC="pnpm exec" ;;
+              yarn) EXEC="yarn" ;;
+              bun) EXEC="bun run" ;;
+            esac
+            if grep -q '"vitest"' package.json 2>/dev/null; then
+              $EXEC vitest run --reporter=junit --outputFile=test-results/junit.xml 2>&1 || true
+            elif grep -q '"jest"' package.json 2>/dev/null; then
+              $EXEC jest --ci --reporters=default --reporters=jest-junit 2>&1 || true
               cp junit.xml test-results/ 2>/dev/null || true
             elif grep -q '"mocha"' package.json 2>/dev/null; then
-              npx mocha --reporter mocha-junit-reporter \
+              $EXEC mocha --reporter mocha-junit-reporter \
                 --reporter-options mochaFile=test-results/junit.xml 2>&1 || true
             else
-              npm test > test-results/output.txt 2>&1 || true
+              case "$MGR" in
+                pnpm) pnpm test > test-results/output.txt 2>&1 || true ;;
+                yarn) yarn test > test-results/output.txt 2>&1 || true ;;
+                bun) bun test > test-results/output.txt 2>&1 || true ;;
+                *) npm test > test-results/output.txt 2>&1 || true ;;
+              esac
             fi
           elif [ -f "setup.py" ] || [ -f "pyproject.toml" ]; then
             python -m pytest --junitxml=test-results/junit.xml -v 2>&1 || true
