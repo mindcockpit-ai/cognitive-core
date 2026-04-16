@@ -108,7 +108,7 @@ _capture_snapshot() {
                 sed -e 's/"installed_at":[^,]*/"installed_at":"STRIPPED"/' \
                     -e 's/"updated_at":[^,]*/"updated_at":"STRIPPED"/' \
                     -e 's/"source":[^,]*/"source":"STRIPPED"/' \
-                    "$f" | md5sum | awk '{print $1}'
+                    "$f" | _portable_md5 | awk '{print $1}'
                 ;;
             mcp-config.json|CLAUDE.md|DEVOXXGENIE.md|.devoxxgenie.yaml)
                 # These contain generated paths/content that vary per install dir
@@ -117,10 +117,10 @@ _capture_snapshot() {
                     -e 's|/private/var/[^ ]*|TMPDIR|g' \
                     -e 's|/var/[^ ]*|TMPDIR|g' \
                     -e 's|/tmp/[^ ]*|TMPDIR|g' \
-                    "$f" | md5sum | awk '{print $1}'
+                    "$f" | _portable_md5 | awk '{print $1}'
                 ;;
             *)
-                md5sum "$f" | awk '{print $1}'
+                _portable_md5 "$f" | awk '{print $1}'
                 ;;
         esac
         printf '%s\n' "$f"

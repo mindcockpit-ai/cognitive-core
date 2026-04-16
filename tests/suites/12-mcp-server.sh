@@ -49,7 +49,7 @@ mcp_request() {
     local request="$1"
     local timeout="${2:-5}"
     # Send the request, then close stdin so server exits
-    echo "$request" | timeout "$timeout" python3 "$MCP_SERVER" 2>/dev/null || true
+    echo "$request" | _portable_timeout "$timeout" python3 "$MCP_SERVER" 2>/dev/null || true
 }
 
 # ---- Test: MCP server responds to initialize ----

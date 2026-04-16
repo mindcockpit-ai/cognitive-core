@@ -1394,7 +1394,7 @@ fi
 
 # T17: ReDoS safety — 10KB input without timeout
 big_input=$(python3 -c "print('spring-cloud-starter-config ' * 500)")
-adf_out=$(timeout 5 bash -c "
+adf_out=$(_portable_timeout 5 bash -c "
     set -euo pipefail
     export CC_JIRA_URL='https://test.atlassian.net'
     export CC_JIRA_PROJECT='TEST'
