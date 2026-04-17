@@ -41,6 +41,9 @@ suite_pretty_name() {
         17-agent-health.sh) echo "Agent Health" ;;
         18-vscode-adapter.sh) echo "VS Code Adapter" ;;
         19-validate-prompt.sh) echo "Validate Prompt" ;;
+        20-smoke-test-abilities.sh) echo "Smoke Test Abilities" ;;
+        21-snapshot-regression.sh) echo "Snapshot Regression" ;;
+        22-skill-sync-preamble.sh) echo "Skill Sync Preamble" ;;
         *) echo "$1" ;;
     esac
 }

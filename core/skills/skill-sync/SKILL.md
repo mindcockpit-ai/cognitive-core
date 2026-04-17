@@ -22,7 +22,7 @@ Manages the synchronization of cognitive-core components (agents, skills, hooks)
 !`cat .claude/cognitive-core/version.json 2>/dev/null | head -20 || echo "ERROR: No version.json found. Run install.sh first."`
 
 ### Framework Source
-!`SOURCE=$(cat .claude/cognitive-core/version.json 2>/dev/null | grep '"source"' | sed 's/.*"source"[[:space:]]*:[[:space:]]*"//;s/".*//' ); if [ -d "$SOURCE" ]; then echo "Framework: $SOURCE"; git -C "$SOURCE" log --oneline -3 2>/dev/null; else echo "ERROR: Framework source not found at $SOURCE"; fi`
+!`VF=.claude/cognitive-core/version.json; if command -v jq >/dev/null 2>&1; then SOURCE=$(jq -r '.source // ""' "$VF" 2>/dev/null); else SOURCE=$(grep -o '"source"[[:space:]]*:[[:space:]]*"[^"]*"' "$VF" 2>/dev/null | head -1 | sed 's/.*"source"[[:space:]]*:[[:space:]]*"//;s/"//'); fi; if [ -n "$SOURCE" ] && [ -d "$SOURCE" ]; then echo "Framework: $SOURCE"; git -C "$SOURCE" log --oneline -3 2>/dev/null || true; else echo "ERROR: Framework source not found at ${SOURCE:-<empty>}"; fi`
 
 ### Installed Components
 !`echo "=== Agents ==="; ls -1 .claude/agents/*.md 2>/dev/null | xargs -I{} basename {} .md; echo "=== Skills ==="; ls -d .claude/skills/*/SKILL.md 2>/dev/null | sed 's|.claude/skills/||;s|/SKILL.md||'; echo "=== Hooks ==="; ls -1 .claude/hooks/*.sh 2>/dev/null | xargs -I{} basename {} .sh`
@@ -88,7 +88,12 @@ If `--auto` flag: suppress interactive output, only report errors/conflicts.
 
 Execute update using the framework's updater:
 ```bash
-SOURCE=$(cat .claude/cognitive-core/version.json 2>/dev/null | grep '"source"' | sed 's/.*"source"[[:space:]]*:[[:space:]]*"//;s/".*//');
+VF=.claude/cognitive-core/version.json
+if command -v jq >/dev/null 2>&1; then
+    SOURCE=$(jq -r '.source // ""' "$VF" 2>/dev/null)
+else
+    SOURCE=$(grep -o '"source"[[:space:]]*:[[:space:]]*"[^"]*"' "$VF" 2>/dev/null | head -1 | sed 's/.*"source"[[:space:]]*:[[:space:]]*"//;s/"//')
+fi
 # Pull latest framework source first
 git -C "$SOURCE" pull origin main --quiet 2>/dev/null || true
 # Run the checksum-based updater
@@ -100,7 +105,12 @@ git -C "$SOURCE" pull origin main --quiet 2>/dev/null || true
 Install a component from the framework that isn't currently installed:
 
 ```bash
-SOURCE=$(cat .claude/cognitive-core/version.json 2>/dev/null | grep '"source"' | sed 's/.*"source"[[:space:]]*:[[:space:]]*"//;s/".*//');
+VF=.claude/cognitive-core/version.json
+if command -v jq >/dev/null 2>&1; then
+    SOURCE=$(jq -r '.source // ""' "$VF" 2>/dev/null)
+else
+    SOURCE=$(grep -o '"source"[[:space:]]*:[[:space:]]*"[^"]*"' "$VF" 2>/dev/null | head -1 | sed 's/.*"source"[[:space:]]*:[[:space:]]*"//;s/"//')
+fi
 ```
 
 - **Agent**: `cp "$SOURCE/core/agents/<name>.md" .claude/agents/`
