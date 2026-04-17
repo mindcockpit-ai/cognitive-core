@@ -92,7 +92,10 @@ jobs:
                   fieldId: "'"$STATUS_FIELD_ID"'"
                   value: { singleSelectOptionId: "'"$IN_PROGRESS_ID"'" }
                 }) { projectV2Item { id } }
-              }'
+              }' || {
+                echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes or project permissions)"
+                continue
+              }
               echo "Moved #$ISSUE_NUM: Todo → In Progress"
             else
               echo "Issue #$ISSUE_NUM in '$CURRENT', not moving (only Todo → In Progress)"
@@ -146,7 +149,10 @@ jobs:
                 fieldId: "'"$STATUS_FIELD_ID"'"
                 value: { singleSelectOptionId: "'"$DONE_ID"'" }
               }) { projectV2Item { id } }
-            }'
+            }' || {
+              echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes or project permissions)"
+              continue
+            }
             echo "Moved #$ISSUE_NUM → Done (PR merged)"
           done
 
@@ -186,7 +192,10 @@ jobs:
                 fieldId: "'"$STATUS_FIELD_ID"'"
                 value: { singleSelectOptionId: "'"$TODO_ID"'" }
               }) { projectV2Item { id } }
-            }'
+            }' || {
+              echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes or project permissions)"
+              exit 0
+            }
             echo "Moved #$ISSUE_NUM: $CURRENT → Todo (assigned)"
           else
             echo "Issue #$ISSUE_NUM in '$CURRENT', not moving"
@@ -215,7 +224,10 @@ jobs:
               projectId: "'"$PROJECT_ID"'"
               contentId: "'"$ISSUE_NODE_ID"'"
             }) { item { id } }
-          }' --jq '.data.addProjectV2ItemById.item.id')
+          }' --jq '.data.addProjectV2ItemById.item.id') || {
+            echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes — org-owned projects need read:org)"
+            exit 0
+          }
 
           if [ -n "$ITEM_ID" ] && [ "$ITEM_ID" != "null" ]; then
             gh api graphql -f query='mutation {
@@ -225,7 +237,10 @@ jobs:
                 fieldId: "'"$STATUS_FIELD_ID"'"
                 value: { singleSelectOptionId: "'"$BACKLOG_ID"'" }
               }) { projectV2Item { id } }
-            }'
+            }' || {
+              echo "::warning::Issue #$ISSUE_NUM added to board but could not set Backlog status"
+              exit 0
+            }
             echo "Added #$ISSUE_NUM to board → Backlog"
           fi
 
@@ -265,7 +280,10 @@ jobs:
                 fieldId: "'"$STATUS_FIELD_ID"'"
                 value: { singleSelectOptionId: "'"$IN_PROGRESS_ID"'" }
               }) { projectV2Item { id } }
-            }'
+            }' || {
+              echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes or project permissions)"
+              exit 0
+            }
             echo "Moved #$ISSUE_NUM: $CURRENT → In Progress (reopened)"
           fi
 
@@ -329,7 +347,10 @@ jobs:
               fieldId: "'"$STATUS_FIELD_ID"'"
               value: { singleSelectOptionId: "'"$DONE_ID"'" }
             }) { projectV2Item { id } }
-          }'
+          }' || {
+            echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes or project permissions)"
+            exit 0
+          }
           echo "Moved #$ISSUE_NUM → Done (closed, criteria verified)"
 
   # ── Weekly reconciliation — catch any closed issues with stale board status ──
@@ -369,7 +390,10 @@ jobs:
                     fieldId: "'"$STATUS_FIELD_ID"'"
                     value: { singleSelectOptionId: "'"$DONE_ID"'" }
                   }) { projectV2Item { id } }
-                }' --silent
+                }' --silent || {
+                  echo "::warning::Board mutation failed for #$NUM (check PROJECT_PAT scopes or project permissions)"
+                  continue
+                }
                 echo "Reconciled #$NUM → Done (was closed but board status stale)"
                 FIXED=$((FIXED + 1))
               fi
