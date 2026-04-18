@@ -44,6 +44,7 @@ suite_pretty_name() {
         20-smoke-test-abilities.sh) echo "Smoke Test Abilities" ;;
         21-snapshot-regression.sh) echo "Snapshot Regression" ;;
         22-skill-sync-preamble.sh) echo "Skill Sync Preamble" ;;
+        24-framework-root-anchor.sh) echo "Framework Root Anchor" ;;
         *) echo "$1" ;;
     esac
 }
