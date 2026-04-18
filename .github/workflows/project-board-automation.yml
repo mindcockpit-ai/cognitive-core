@@ -308,9 +308,11 @@ jobs:
 
           ISSUE_BODY=$(gh issue view "$ISSUE_NUM" --repo "$GH_REPO" --json body --jq '.body // ""')
 
-          # Check if issue has acceptance criteria (checkbox patterns)
+          # Check if issue has acceptance criteria (checkbox patterns).
+          # `--` required: pattern starts with `-`, which grep would otherwise parse as an option
+          # and exit 2. Prior bug silently bypassed the approval gate (#262).
           HAS_CRITERIA="false"
-          if echo "$ISSUE_BODY" | grep -qE '- \[ \]|- \[x\]'; then
+          if echo "$ISSUE_BODY" | grep -qE -- '- \[ \]|- \[x\]'; then
             HAS_CRITERIA="true"
           fi
 
