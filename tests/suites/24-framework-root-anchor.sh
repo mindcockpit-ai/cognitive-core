@@ -16,7 +16,23 @@ suite_start "24 — Framework Root Anchor"
 EXPECTED_ROOT="$(realpath "$ROOT_DIR" 2>/dev/null || (cd "$ROOT_DIR" && pwd))"
 
 get_mode() {
-    stat -f %Mp%Lp "$1" 2>/dev/null | sed 's/^0*//' || stat -c %a "$1" 2>/dev/null
+    local m
+    # GNU stat first (Linux); falls through to BSD (macOS)
+    if m=$(stat -c '%a' "$1" 2>/dev/null) && [ -n "$m" ]; then
+        printf '%s' "$m"
+        return
+    fi
+    m=$(stat -f '%Mp%Lp' "$1" 2>/dev/null)
+    printf '%s' "$m" | sed 's/^0*//'
+}
+
+get_uid() {
+    local u
+    if u=$(stat -c '%u' "$1" 2>/dev/null) && [ -n "$u" ]; then
+        printf '%s' "$u"
+        return
+    fi
+    stat -f '%u' "$1" 2>/dev/null
 }
 
 # Seeds a synthetic pre-upgrade project with a conf that has NO CC_FRAMEWORK_ROOT
@@ -111,7 +127,7 @@ FILE_MODE=$(get_mode "$CONF")
 assert_eq "fresh install: conf mode is 0444" "444" "$FILE_MODE"
 
 EXPECTED_UID=$(id -u)
-FILE_UID=$(stat -f %u "$CONF" 2>/dev/null || stat -c %u "$CONF" 2>/dev/null)
+FILE_UID=$(get_uid "$CONF")
 assert_eq "fresh install: conf owner matches current user" "$EXPECTED_UID" "$FILE_UID"
 
 # 0444 conf sources cleanly (emulates update.sh reading the hardened file)

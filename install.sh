@@ -40,10 +40,19 @@ _cc_install_security_log() {
 }
 
 _cc_conf_owner_uid() {
-    local file="$1"
-    stat -f %u "$file" 2>/dev/null \
-        || stat -c %u "$file" 2>/dev/null \
-        || ls -ldn "$file" 2>/dev/null | awk '{print $3}'
+    local file="$1" uid
+    # GNU stat (Linux): -c accepted, -f would trigger fs-info mode and pollute stdout
+    if uid=$(stat -c '%u' "$file" 2>/dev/null) && [ -n "$uid" ]; then
+        printf '%s' "$uid"
+        return
+    fi
+    # BSD stat (macOS): -f is format mode
+    if uid=$(stat -f '%u' "$file" 2>/dev/null) && [ -n "$uid" ]; then
+        printf '%s' "$uid"
+        return
+    fi
+    # POSIX fallback
+    ls -ldn "$file" 2>/dev/null | awk '{print $3}'
 }
 
 _cc_verify_conf_owner() {
@@ -168,7 +177,7 @@ CC_PLATFORM="${CC_PLATFORM:-claude}"
 
 # ---- Supply chain integrity check (framework source) ----
 if git -C "$SCRIPT_DIR" rev-parse --is-inside-work-tree &>/dev/null; then
-    _fw_dirty=$(git -C "$SCRIPT_DIR" status --porcelain 2>/dev/null | grep -c '.' || echo "0")
+    _fw_dirty=$(git -C "$SCRIPT_DIR" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
     _fw_commit=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
     if [ "$_fw_dirty" -gt 0 ]; then
         warn "Framework source has ${_fw_dirty} uncommitted change(s). Install may not match a released version."
