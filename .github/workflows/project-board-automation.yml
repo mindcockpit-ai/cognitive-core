@@ -317,11 +317,35 @@ jobs:
           fi
 
           if [ "$APPROVED" -eq 0 ] && [ "$HAS_CRITERIA" = "true" ]; then
-            echo "Issue #$ISSUE_NUM has acceptance criteria but no 'approved' label — reopening"
+            echo "Issue #$ISSUE_NUM has acceptance criteria but no 'approved' label — routing to To Be Tested"
+            # Move to "To Be Tested" on the board BEFORE reopening. The issue-reopened
+            # job only routes Done/Canceled → In Progress, so it will leave TBT alone.
+            # Without this, pr-merged can miss the link (cross-repo `owner/repo#N` form)
+            # and the issue ends up in In Progress instead of parked for review (#262).
+            GUARD_ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1 | tr -d '\000-\037') || {
+              echo "::warning::Cannot access project board — skipping TBT routing for #$ISSUE_NUM"
+              GUARD_ITEMS=""
+            }
+            if [ -n "$GUARD_ITEMS" ]; then
+              GUARD_ITEM_ID=$(echo "$GUARD_ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
+                '.items[] | select(.content.number == $n) | .id')
+              if [ -n "$GUARD_ITEM_ID" ] && [ "$GUARD_ITEM_ID" != "null" ]; then
+                gh api graphql -f query='mutation {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: "'"$PROJECT_ID"'"
+                    itemId: "'"$GUARD_ITEM_ID"'"
+                    fieldId: "'"$STATUS_FIELD_ID"'"
+                    value: { singleSelectOptionId: "'"$TESTING_ID"'" }
+                  }) { projectV2Item { id } }
+                }' || {
+                  echo "::warning::Board mutation failed for #$ISSUE_NUM — continuing with reopen"
+                }
+              fi
+            fi
             gh issue reopen "$ISSUE_NUM" --repo "$GH_REPO"
             GUARD_MSG="**Closure guard (CI)**: This issue was closed without the \`approved\` label."
             GUARD_MSG="$GUARD_MSG"$'\n\n'"The issue body contains acceptance criteria checkboxes, but no \`approved\` label was found."
-            GUARD_MSG="$GUARD_MSG"$'\n\n'"Please verify all acceptance criteria and close via \`/project-board close\` or"
+            GUARD_MSG="$GUARD_MSG"$'\n\n'"Moved to **To Be Tested** on the board. Please verify all acceptance criteria and close via \`/project-board approve\` or"
             GUARD_MSG="$GUARD_MSG"$'\n'"add the \`approved\` label before closing."
             gh issue comment "$ISSUE_NUM" --repo "$GH_REPO" --body "$GUARD_MSG"
             exit 0
