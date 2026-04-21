@@ -332,7 +332,7 @@ header "Updating version manifest"
 # Regenerate file checksums
 INSTALLED_FILES="[]"
 if command -v python3 &>/dev/null; then
-    INSTALLED_FILES=$(find "${CLAUDE_DIR}" -type f -not -path "*/cognitive-core/*" | sort | python3 -c "
+    INSTALLED_FILES=$(find "${CLAUDE_DIR}" -type f -not -path "${CLAUDE_DIR}/cognitive-core/*" | sort | python3 -c "
 import sys, json, hashlib, os
 files = []
 project = '${PROJECT_DIR}'
