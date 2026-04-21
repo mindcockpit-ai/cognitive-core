@@ -207,7 +207,7 @@ fi
 # ---- Now run update.sh over the fixture ----
 # Disable branch-guard auto-switching: the fixture has no origin remote, so the
 # guard is already skipped, but set it explicitly for safety across envs.
-CC_SYNC_ENFORCE=false update_out=$(CC_SYNC_ENFORCE=false bash "${ROOT_DIR}/update.sh" "$FIXTURE_DIR" 2>&1) || {
+update_out=$(CC_SYNC_ENFORCE=false bash "${ROOT_DIR}/update.sh" "$FIXTURE_DIR" 2>&1) || {
     _fail "self-host fixture: update.sh failed" "$(printf '%s\n' "$update_out" | tail -20)"
     suite_end
     exit $?
