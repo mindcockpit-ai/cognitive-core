@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test suite 25 — Anchored State References (#265)
+# Test suite 25 — Anchored State References (#265, #278)
 #
 # Regression + structural invariant for the manifest-regeneration bug where
 # `find ... -not -path "*/cognitive-core/*"` excluded every file whenever the
@@ -7,13 +7,17 @@
 # the exclusion to ${CLAUDE_DIR}/cognitive-core/* (update.sh) and
 # ${CC_INSTALL_DIR}/cognitive-core/* (install.sh).
 #
-# Section 1: Lint scan — fails if any path-filter flag is followed by the
-#            unanchored glob `*/cognitive-core/*`. Converts the one-off fix
-#            into a structural invariant.
+# Section 1: Lint scan — fails if any path-filter flag in a shell source file
+#            is followed by the unanchored glob `*/cognitive-core/*`. Converts
+#            the one-off fix into a structural invariant. Scoped to *.sh so
+#            markdown documentation describing the bug does not false-trigger.
+#            Also self-tests the regex (positive + negative) so regex drift
+#            silently weakening the invariant is caught.
 # Section 2: Self-host runtime fixture — installs into a tempdir whose name
 #            literally contains `cognitive-core` (the substring that triggers
 #            the original bug) and asserts the regenerated manifest is
-#            non-empty and contains known-present hook entries.
+#            non-empty, contains known-present hook entries, AND excludes the
+#            `.claude/cognitive-core/` state directory contents (AC#2 of #265).
 
 set -euo pipefail
 
@@ -31,24 +35,48 @@ suite_start "25 — Anchored State References"
 # =============================================================================
 # Pattern: one of the path-filter flags (-path, -not -path, -iname, --include,
 # --exclude) followed by an optional opening quote and then the unanchored glob.
-# Excludes this suite's own file so the regex literal in the comment above does
-# not self-flag the scan.
+# The bug class is shell-specific (find/grep/rsync style flags), so scope to
+# *.sh — markdown and other docs may legitimately quote the buggy pattern when
+# describing the bug itself (see #278 false-positive from the #265 session log).
 
 LINT_REGEX='(-path|-not[[:space:]]+-path|-iname|--include|--exclude)[[:space:]]+["'\'']?\*/cognitive-core/\*'
 
-# Enumerate tracked files via git ls-files (run from ROOT_DIR for correct paths).
-# Exclude the suite file itself so the regex literal above does not trigger.
+# --- 1a. Regex self-test: positive case ---
+# The canonical buggy literal MUST match the regex. If it doesn't, the regex
+# has drifted and the invariant is silently vacuous.
+CANONICAL_BUGGY='find . -not -path "*/cognitive-core/*"'
+if printf '%s' "$CANONICAL_BUGGY" | grep -qE "$LINT_REGEX"; then
+    _pass "lint regex self-test (positive): matches canonical unanchored bug pattern"
+else
+    _fail "lint regex self-test (positive): failed to match canonical bug pattern" \
+          "input: $CANONICAL_BUGGY"
+fi
+
+# --- 1b. Regex self-test: negative case ---
+# The anchored-fix literal MUST NOT match. If it does, the regex is too broad
+# and would false-trigger on correct code.
+CANONICAL_FIXED='find . -not -path "${CLAUDE_DIR}/cognitive-core/*"'
+if printf '%s' "$CANONICAL_FIXED" | grep -qE "$LINT_REGEX"; then
+    _fail "lint regex self-test (negative): false-positives on anchored fix pattern" \
+          "input: $CANONICAL_FIXED"
+else
+    _pass "lint regex self-test (negative): correctly skips anchored fix pattern"
+fi
+
+# --- 1c. Scan shell sources for the unanchored pattern ---
+# Scope: only tracked *.sh files. Self-exclude this suite file (it contains
+# the regex literal in CANONICAL_BUGGY above and in the comment header).
 mapfile -t LINT_HITS < <(
-    cd "$ROOT_DIR" && git ls-files -z 2>/dev/null \
+    cd "$ROOT_DIR" && git ls-files -z '*.sh' 2>/dev/null \
         | xargs -0 grep -HnE "$LINT_REGEX" 2>/dev/null \
         | grep -vE "^tests/suites/${SUITE_SELF_NAME}(:|$)" \
         || true
 )
 
 if [ "${#LINT_HITS[@]}" -eq 0 ]; then
-    _pass "lint: no unanchored '*/cognitive-core/*' path-filter matches found"
+    _pass "lint: no unanchored '*/cognitive-core/*' path-filter matches in shell sources"
 else
-    _fail "lint: unanchored '*/cognitive-core/*' path-filter matches found" \
+    _fail "lint: unanchored '*/cognitive-core/*' path-filter matches in shell sources" \
           "$(printf '%s\n' "${LINT_HITS[@]}")"
 fi
 
@@ -204,6 +232,25 @@ else
     _fail "self-host fixture: install manifest missing expected hooks" "$install_paths_check"
 fi
 
+# AC#2 of #265: state directory contents MUST be excluded from the manifest.
+# Without this assertion, removing the `-not -path` flag entirely would still
+# produce a "non-empty" manifest and pass the count + content checks above.
+install_exclusion_check=$(python3 -c "
+import json
+with open('${INSTALL_MANIFEST}') as f:
+    data = json.load(f)
+leaked = sorted(e.get('path', '') for e in data.get('files', [])
+                if e.get('path', '').startswith('.claude/cognitive-core/'))
+print('CLEAN' if not leaked else 'LEAK:' + ','.join(leaked[:5]))
+" 2>&1)
+
+if [ "$install_exclusion_check" = "CLEAN" ]; then
+    _pass "self-host fixture: install manifest excludes .claude/cognitive-core/ state dir"
+else
+    _fail "self-host fixture: install manifest leaks state-dir contents (AC#2 regression)" \
+          "$install_exclusion_check"
+fi
+
 # ---- Now run update.sh over the fixture ----
 # Disable branch-guard auto-switching: the fixture has no origin remote, so the
 # guard is already skipped, but set it explicitly for safety across envs.
@@ -249,6 +296,24 @@ if [ "$update_paths_check" = "OK" ]; then
     _pass "self-host fixture: update manifest contains setup-env.sh + validate-bash.sh"
 else
     _fail "self-host fixture: update manifest missing expected hooks" "$update_paths_check"
+fi
+
+# AC#2 of #265: state directory contents MUST still be excluded after update.
+# update.sh regenerates the manifest, so this is a separate check from install.
+update_exclusion_check=$(python3 -c "
+import json
+with open('${INSTALL_MANIFEST}') as f:
+    data = json.load(f)
+leaked = sorted(e.get('path', '') for e in data.get('files', [])
+                if e.get('path', '').startswith('.claude/cognitive-core/'))
+print('CLEAN' if not leaked else 'LEAK:' + ','.join(leaked[:5]))
+" 2>&1)
+
+if [ "$update_exclusion_check" = "CLEAN" ]; then
+    _pass "self-host fixture: update manifest excludes .claude/cognitive-core/ state dir"
+else
+    _fail "self-host fixture: update manifest leaks state-dir contents (AC#2 regression)" \
+          "$update_exclusion_check"
 fi
 
 suite_end
