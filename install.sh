@@ -845,7 +845,7 @@ mkdir -p "$MANIFEST_DIR"
 INSTALLED_FILES="[]"
 if command -v python3 &>/dev/null; then
     # Use python for proper JSON array construction
-    INSTALLED_FILES=$(find "${CC_INSTALL_DIR}" -type f -not -path "*/cognitive-core/*" | sort | python3 -c "
+    INSTALLED_FILES=$(find "${CC_INSTALL_DIR}" -type f -not -path "${CC_INSTALL_DIR}/cognitive-core/*" | sort | python3 -c "
 import sys, json, hashlib, os
 files = []
 project = '${PROJECT_DIR}'

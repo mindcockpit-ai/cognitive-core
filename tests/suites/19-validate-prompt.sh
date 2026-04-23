@@ -431,4 +431,42 @@ rm -rf "$_SIBLING"
 # Cleanup fixture
 rm -rf "$L2_FIXTURE"
 
+# =============================================================================
+# Section 5: iconv TRANSLIT fallback regression (#265 secondary finding)
+# =============================================================================
+# macOS iconv exits non-zero whenever any character is transliterated or
+# ignored, even with valid output. The previous fallback
+#   INPUT_CLEAN=$(... iconv ... || printf '%s' "$INPUT_CLEAN")
+# appended the original input, doubling the buffer for any prompt containing
+# an em-dash (or any non-ASCII glyph). Downstream word counts would read as
+# twice the true length.
+#
+# Regression: feed a prompt whose true instruction-section word count is
+# >200 and <=400 with an embedded em-dash. Bug-doubled buffer lands >400,
+# triggering the S1 structure warning. Fixed buffer stays under the limit.
+
+# Build ~270 instruction words with one em-dash. Stays <400 normally; doubled
+# to ~540 it would trip the "exceeds 400 limit" warning.
+_IC_SCOPE_WORDS=""
+for _i in $(seq 1 54); do
+    _IC_SCOPE_WORDS="${_IC_SCOPE_WORDS} alpha beta gamma delta epsilon"
+done
+
+# Insert one em-dash (UTF-8 E2 80 94) so iconv actually transliterates.
+ICONV_PROMPT=$(printf '<scope>\nimplement core/auth/handler.sh \xe2\x80\x94 %s\n</scope>\n<constraints>\nDo NOT skip tests\n</constraints>' "$_IC_SCOPE_WORDS")
+
+iconv_out=$(printf '%s' "$ICONV_PROMPT" | bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_not_contains "iconv fix: word count not doubled (no 'exceeds 400' warning)" "$iconv_out" "exceeds 400"
+
+# Also assert the linter still completes normally (clean structural output).
+assert_contains "iconv fix: linter runs to completion on em-dash prompt" "$iconv_out" "Disclaimer"
+
+# Static guard: the buggy `|| printf` fallback pattern must not return.
+if grep -qE '\| iconv [^|]*\|\| printf' "$VP_SCRIPT"; then
+    _fail "iconv fix: buggy '|| printf' fallback still present in validate-prompt.sh" \
+          "capture-into-temp pattern required; see #265 secondary finding"
+else
+    _pass "iconv fix: buggy '|| printf' fallback removed from validate-prompt.sh"
+fi
+
 suite_end
