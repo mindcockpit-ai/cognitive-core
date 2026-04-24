@@ -324,6 +324,196 @@ _cc_session_cache_has() {
     [ -f "$cache_file" ] && grep -qxF "$value" "$cache_file" 2>/dev/null
 }
 
+# Canonicalize a path without python3 dependency (#256).
+# Strategy: prefer the system `realpath` when available; fall back to a POSIX
+# shell resolver that uses `cd` + `pwd -P` to drop `..` and symlink components.
+# Signals failure via non-zero exit when the path cannot be resolved. Callers
+# must NOT fall back to the raw input on failure.
+_cc_realpath() {
+    local p="${1:-}"
+    [ -n "$p" ] || return 1
+    if command -v realpath >/dev/null 2>&1; then
+        realpath "$p" 2>/dev/null && return 0
+        return 1
+    fi
+    # POSIX fallback: resolve parent directory, then reattach basename.
+    # Handles both files and directories; rejects when dirname cannot be cd'd.
+    local dir base resolved
+    dir=$(dirname -- "$p")
+    base=$(basename -- "$p")
+    resolved=$(cd -- "$dir" 2>/dev/null && pwd -P) || return 1
+    case "$base" in
+        /) printf '/\n' ;;
+        .) printf '%s\n' "$resolved" ;;
+        *) printf '%s/%s\n' "$resolved" "$base" ;;
+    esac
+}
+
+# Validate a framework source path before any exec/git operation (#256).
+# Returns 0 only when ALL of these hold:
+#   1. $CC_FRAMEWORK_ROOT is set and non-empty (anchor must be pinned)
+#   2. Path argument is non-empty, absolute, free of `..` and null bytes
+#   3. Canonicalized path is within canonicalized $CC_FRAMEWORK_ROOT (prefix
+#      match must land on a `/` boundary to reject sibling-prefix attacks)
+#   4. The directory exists
+#   5. $path/update.sh is a regular file (not a symlink escaping the root),
+#      executable, not setuid/setgid, and owned by the current user
+# On accept: exports CC_VALIDATED_SOURCE to the canonical resolved path —
+# callers MUST consume $CC_VALIDATED_SOURCE only, never the raw input.
+# On deny: emits _cc_security_log DENY with {reason, path, caller} and
+# returns 1 without touching CC_VALIDATED_SOURCE.
+_cc_validate_framework_source() {
+    local path="${1:-}"
+    local caller="${FUNCNAME[1]:-top-level}"
+    local reason=""
+
+    # Anchor must be set
+    if [ -z "${CC_FRAMEWORK_ROOT:-}" ]; then
+        reason="CC_FRAMEWORK_ROOT unset"
+        _cc_security_log "DENY" "source-validation" "${reason} path=${path} caller=${caller}"
+        return 1
+    fi
+
+    # Non-empty, absolute
+    if [ -z "$path" ]; then
+        reason="empty path"
+        _cc_security_log "DENY" "source-validation" "${reason} caller=${caller}"
+        return 1
+    fi
+    case "$path" in
+        /*) ;;
+        *)
+            reason="path not absolute"
+            _cc_security_log "DENY" "source-validation" "${reason} path=${path} caller=${caller}"
+            return 1
+            ;;
+    esac
+
+    # No control characters (including NUL, newline, tab). Shell variables
+    # cannot actually hold a literal NUL byte (POSIX exec boundary strips it),
+    # but we reject every other control byte defensively — a path containing
+    # a newline would break logging and argv parsing in callers.
+    if LC_ALL=C printf '%s' "$path" | LC_ALL=C grep -q '[[:cntrl:]]'; then
+        reason="path contains control character"
+        _cc_security_log "DENY" "source-validation" "path=<redacted> caller=${caller}"
+        return 1
+    fi
+
+    # No `..` segments (reject before resolution so we see the original intent)
+    case "$path" in
+        */../*|*/..|../*|..)
+            reason="path contains .. segment"
+            _cc_security_log "DENY" "source-validation" "${reason} path=${path} caller=${caller}"
+            return 1
+            ;;
+    esac
+
+    # Canonicalize both sides
+    local canon_path canon_root
+    canon_path=$(_cc_realpath "$path") || {
+        reason="realpath failed"
+        _cc_security_log "DENY" "source-validation" "${reason} path=${path} caller=${caller}"
+        return 1
+    }
+    canon_root=$(_cc_realpath "$CC_FRAMEWORK_ROOT") || {
+        reason="framework root realpath failed"
+        _cc_security_log "DENY" "source-validation" "${reason} root=${CC_FRAMEWORK_ROOT} caller=${caller}"
+        return 1
+    }
+
+    # Boundary check: canon_path must equal canon_root or begin with canon_root + '/'
+    # Rejects sibling-prefix attacks like root=/tmp/foo, path=/tmp/foobar
+    if [ "$canon_path" != "$canon_root" ]; then
+        case "$canon_path" in
+            "${canon_root}/"*) ;;
+            *)
+                reason="path outside framework root"
+                _cc_security_log "DENY" "source-validation" "${reason} path=${canon_path} root=${canon_root} caller=${caller}"
+                return 1
+                ;;
+        esac
+    fi
+
+    # Directory must exist
+    if [ ! -d "$canon_path" ]; then
+        reason="directory does not exist"
+        _cc_security_log "DENY" "source-validation" "${reason} path=${canon_path} caller=${caller}"
+        return 1
+    fi
+
+    # update.sh checks — regular file, executable, no setuid/setgid
+    local updater="${canon_path}/update.sh"
+    # Refuse if update.sh is a symlink (regular-file test already excludes symlinks
+    # to non-files, but we want to reject even symlinks to regular files inside
+    # the root: the canonicalization would let a symlink-to-outside-file pass
+    # the directory boundary check).
+    if [ -L "$updater" ]; then
+        reason="update.sh is a symlink"
+        _cc_security_log "DENY" "source-validation" "${reason} path=${updater} caller=${caller}"
+        return 1
+    fi
+    if [ ! -f "$updater" ]; then
+        reason="update.sh missing or not a regular file"
+        _cc_security_log "DENY" "source-validation" "${reason} path=${updater} caller=${caller}"
+        return 1
+    fi
+    if [ ! -x "$updater" ]; then
+        reason="update.sh not executable"
+        _cc_security_log "DENY" "source-validation" "${reason} path=${updater} caller=${caller}"
+        return 1
+    fi
+
+    # setuid / setgid test — inline platform detection (no new helpers)
+    local perms owner
+    if stat -f %p "$updater" >/dev/null 2>&1; then
+        # BSD/macOS: stat -f %p yields a 6-digit octal mode
+        perms=$(stat -f %p "$updater" 2>/dev/null)
+        owner=$(stat -f %u "$updater" 2>/dev/null)
+    else
+        # GNU/Linux: stat -c uses %a (symbolic octal) and %u
+        perms=$(stat -c %a "$updater" 2>/dev/null)
+        owner=$(stat -c %u "$updater" 2>/dev/null)
+    fi
+    # setuid bit 4000 / setgid bit 2000 — test by extracting the second-most-significant
+    # octal digit (4 sticky-group position). We use modulo arithmetic for portability.
+    if [ -n "$perms" ]; then
+        # Normalize: pad to at least 5 digits (BSD) or keep short form (GNU 3-4 digits).
+        # Special-bits digit is the one at position "length - 4" (0 if absent).
+        local plen special
+        plen=${#perms}
+        if [ "$plen" -ge 4 ]; then
+            special=$(printf '%s' "$perms" | cut -c$((plen - 3)))
+        else
+            special=0
+        fi
+        case "$special" in
+            4|5|6|7)
+                reason="update.sh has setuid bit"
+                _cc_security_log "DENY" "source-validation" "${reason} path=${updater} perms=${perms} caller=${caller}"
+                return 1
+                ;;
+        esac
+        case "$special" in
+            2|3|6|7)
+                reason="update.sh has setgid bit"
+                _cc_security_log "DENY" "source-validation" "${reason} path=${updater} perms=${perms} caller=${caller}"
+                return 1
+                ;;
+        esac
+    fi
+
+    # Owner must match current user
+    if [ -n "$owner" ] && [ "$owner" != "$(id -u)" ]; then
+        reason="update.sh owner mismatch"
+        _cc_security_log "DENY" "source-validation" "${reason} path=${updater} owner=${owner} uid=$(id -u) caller=${caller}"
+        return 1
+    fi
+
+    # All checks passed
+    export CC_VALIDATED_SOURCE="$canon_path"
+    return 0
+}
+
 # Extract field from stdin JSON
 # Usage: echo "$JSON" | _cc_json_get ".tool_input.command"
 _cc_json_get() {

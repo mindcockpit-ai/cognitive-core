@@ -16,6 +16,23 @@ if [ "$CC_UPDATE_AUTO_CHECK" != "true" ]; then
     exit 0
 fi
 
+# Source framework library for _cc_validate_framework_source (#256)
+_CC_LIB=""
+for _candidate in \
+    "${CC_PROJECT_DIR:-.}/.claude/hooks/_lib.sh" \
+    "${CC_PROJECT_DIR:-.}/core/hooks/_lib.sh"; do
+    if [ -f "$_candidate" ]; then
+        _CC_LIB="$_candidate"
+        break
+    fi
+done
+if [ -n "$_CC_LIB" ]; then
+    # Load project config so CC_FRAMEWORK_ROOT is available for validation
+    # shellcheck disable=SC1090
+    source "$_CC_LIB"
+    _cc_load_config 2>/dev/null || true
+fi
+
 # Need version.json to find framework source
 VERSION_FILE="${CC_PROJECT_DIR:-.}/.claude/cognitive-core/version.json"
 if [ ! -f "$VERSION_FILE" ]; then
@@ -32,6 +49,15 @@ fi
 if [ -z "$SOURCE_DIR" ] || [ ! -d "$SOURCE_DIR" ]; then
     exit 0
 fi
+
+# Validate the framework source before any git invocation (#256).
+# On deny: skip silently — this is a session-start background check, never crash.
+if ! type _cc_validate_framework_source >/dev/null 2>&1 \
+        || ! _cc_validate_framework_source "$SOURCE_DIR" 2>/dev/null; then
+    # DENY is logged by the helper; be silent to avoid noisy SessionStart output.
+    exit 0
+fi
+SOURCE_DIR="$CC_VALIDATED_SOURCE"
 
 # Check interval: skip if checked recently
 LAST_CHECK_FILE="${CC_PROJECT_DIR:-.}/.claude/cognitive-core/last-check"
