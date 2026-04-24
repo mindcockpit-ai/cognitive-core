@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.6.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.5.0...v1.6.0) (2026-04-24)
+
+
+### Features
+
+* **cicd:** add pnpm detection, language gating, development branch ([#254](https://github.com/mindcockpit-ai/cognitive-core/issues/254)) ([234af7b](https://github.com/mindcockpit-ai/cognitive-core/commit/234af7bf4723bdb840efd8cd4571c7d8bfd1ef87))
+* **install:** CC_FRAMEWORK_ROOT anchor + TOFU migration + conf hardening ([#260](https://github.com/mindcockpit-ai/cognitive-core/issues/260)) ([#261](https://github.com/mindcockpit-ai/cognitive-core/issues/261)) ([933bef5](https://github.com/mindcockpit-ai/cognitive-core/commit/933bef544cd8d6bf336da225bb89e4e00cdbe8e4))
+
+
+### Bug Fixes
+
+* **cicd:** closure-guard routes reopened issue to To Be Tested ([#262](https://github.com/mindcockpit-ai/cognitive-core/issues/262)) ([#264](https://github.com/mindcockpit-ai/cognitive-core/issues/264)) ([3743c41](https://github.com/mindcockpit-ai/cognitive-core/commit/3743c41098389a4a3e7e3da1b687ff0e0380cb19))
+* **cicd:** guard closure-guard grep pattern with -- ([#262](https://github.com/mindcockpit-ai/cognitive-core/issues/262)) ([#263](https://github.com/mindcockpit-ai/cognitive-core/issues/263)) ([15e8695](https://github.com/mindcockpit-ai/cognitive-core/commit/15e86956d6365355fea345b0306f0a774f4e2816))
+* **install:** anchor state-dir matchers + add lint guard ([#265](https://github.com/mindcockpit-ai/cognitive-core/issues/265)) ([#276](https://github.com/mindcockpit-ai/cognitive-core/issues/276)) ([e3c118d](https://github.com/mindcockpit-ai/cognitive-core/commit/e3c118d4b5d1241959acb8a5f947a05386877af8))
+* **install:** escape $1 in generated conf to prevent unbound variable ([#249](https://github.com/mindcockpit-ai/cognitive-core/issues/249)) ([39a4024](https://github.com/mindcockpit-ai/cognitive-core/commit/39a40248f9b49b4dd0a7e1e9b3b17ac695a0279c))
+* **skills, cicd:** skill-sync preamble parsing + project-board workflow guards ([#259](https://github.com/mindcockpit-ai/cognitive-core/issues/259)) ([01cd92f](https://github.com/mindcockpit-ai/cognitive-core/commit/01cd92f95d681aed0d3a69fa7c79c39d693ee66f)), closes [#255](https://github.com/mindcockpit-ai/cognitive-core/issues/255)
+* **tests:** scope suite 25 lint + add real assertions ([#278](https://github.com/mindcockpit-ai/cognitive-core/issues/278)) ([#279](https://github.com/mindcockpit-ai/cognitive-core/issues/279)) ([bdd2d59](https://github.com/mindcockpit-ai/cognitive-core/commit/bdd2d5906c711175ac4874a598d9f4fd57854ffe))
+* **tests:** SIGPIPE race, macOS portability, stale suite 16 ([#252](https://github.com/mindcockpit-ai/cognitive-core/issues/252)) ([f2c3962](https://github.com/mindcockpit-ai/cognitive-core/commit/f2c39624b0c806128751deafbc61f6f6b3973674))
+
 ## [1.5.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.4.1...v1.5.0) (2026-04-14)
 
 
