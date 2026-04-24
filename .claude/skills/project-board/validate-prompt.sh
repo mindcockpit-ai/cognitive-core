@@ -61,7 +61,13 @@ INPUT_CLEAN=$(printf '%s' "$INPUT_CLEAN" | LC_ALL=C sed \
     -e 's/\xEF\xBB\xBF//g' 2>/dev/null) || true
 
 # Homoglyph normalisation (Cyrillic/Greek confusables → ASCII)
-INPUT_CLEAN=$(printf '%s' "$INPUT_CLEAN" | iconv -f UTF-8 -t ASCII//TRANSLIT//IGNORE 2>/dev/null || printf '%s' "$INPUT_CLEAN")
+# macOS iconv exits non-zero when any char is transliterated/ignored even with
+# valid output, so the previous `|| printf` fallback appended the original input
+# and doubled the buffer on em-dash-bearing prompts. Capture into a temp var and
+# accept it only when non-empty.
+_iconv_out=$(printf '%s' "$INPUT_CLEAN" | iconv -f UTF-8 -t ASCII//TRANSLIT//IGNORE 2>/dev/null || true)
+[ -n "$_iconv_out" ] && INPUT_CLEAN="$_iconv_out"
+unset _iconv_out
 
 # Save full text for structural checks
 FULL_TEXT="$INPUT_CLEAN"

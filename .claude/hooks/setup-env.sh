@@ -8,6 +8,46 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/_lib.sh"
 _cc_load_config
 
+# ---- TOFU migration: pin CC_FRAMEWORK_ROOT from version.json.source (#260) ----
+# One-shot: existing pre-#260 installs get CC_FRAMEWORK_ROOT appended on first
+# session after upgrade. Idempotent (second run sees line and skips).
+_TOFU_CONF=""
+if [ -f "${CC_PROJECT_DIR}/cognitive-core.conf" ]; then
+    _TOFU_CONF="${CC_PROJECT_DIR}/cognitive-core.conf"
+elif [ -f "${CC_PROJECT_DIR}/.claude/cognitive-core.conf" ]; then
+    _TOFU_CONF="${CC_PROJECT_DIR}/.claude/cognitive-core.conf"
+fi
+if [ -n "$_TOFU_CONF" ] && ! grep -qE '^CC_FRAMEWORK_ROOT=' "$_TOFU_CONF" 2>/dev/null; then
+    _ANCHOR_LOCKDIR="${CC_PROJECT_DIR}/.claude/cognitive-core/anchor.lock.d"
+    mkdir -p "$(dirname "$_ANCHOR_LOCKDIR")" 2>/dev/null || true
+    if mkdir "$_ANCHOR_LOCKDIR" 2>/dev/null; then
+        # shellcheck disable=SC2064
+        trap "rm -rf '${_ANCHOR_LOCKDIR}' 2>/dev/null || true" EXIT
+        _TOFU_VERSION_JSON="${CC_PROJECT_DIR}/.claude/cognitive-core/version.json"
+        if [ -f "$_TOFU_VERSION_JSON" ]; then
+            if command -v jq &>/dev/null; then
+                _TOFU_SOURCE=$(jq -r '.source // ""' "$_TOFU_VERSION_JSON" 2>/dev/null)
+            else
+                _TOFU_SOURCE=$(grep -o '"source"[[:space:]]*:[[:space:]]*"[^"]*"' "$_TOFU_VERSION_JSON" | head -1 | sed 's/.*"source"[[:space:]]*:[[:space:]]*"//;s/"$//')
+            fi
+            if [ -n "${_TOFU_SOURCE:-}" ] && [ -d "$_TOFU_SOURCE" ]; then
+                # Double-check absence under lock (another session may have raced)
+                if ! grep -qE '^CC_FRAMEWORK_ROOT=' "$_TOFU_CONF" 2>/dev/null; then
+                    _TOFU_RESOLVED="$(realpath "$_TOFU_SOURCE" 2>/dev/null || (cd "$_TOFU_SOURCE" && pwd))"
+                    chmod 0644 "$_TOFU_CONF" 2>/dev/null || true
+                    printf '\n# ===== FRAMEWORK ANCHOR (TOFU-migrated) =====\nCC_FRAMEWORK_ROOT="%s"\n' "$_TOFU_RESOLVED" >> "$_TOFU_CONF"
+                    chmod 0444 "$_TOFU_CONF" 2>/dev/null || true
+                    _cc_security_log "WARN" "tofu-migration" "Pinned CC_FRAMEWORK_ROOT=${_TOFU_RESOLVED} in ${_TOFU_CONF}"
+                    # Re-load config to pick up the newly pinned variable
+                    _cc_load_config
+                fi
+            fi
+        fi
+        rm -rf "$_ANCHOR_LOCKDIR" 2>/dev/null || true
+        trap - EXIT
+    fi
+fi
+
 # Set environment variables via CLAUDE_ENV_FILE (persists for session)
 if [ -n "${CLAUDE_ENV_FILE:-}" ] && [ -n "${CC_ENV_VARS:-}" ]; then
     # Replace ${PROJECT_DIR} placeholder with actual path
