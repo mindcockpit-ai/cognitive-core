@@ -49,6 +49,30 @@ SOURCE_DIR=$(grep -o '"source"[[:space:]]*:[[:space:]]*"[^"]*"' "$VERSION_FILE" 
 info "Installed version: ${CURRENT_VERSION}"
 info "Source: ${SOURCE_DIR}"
 
+# Validate the manifest-declared SOURCE_DIR before trusting it for display or
+# any later use (#256). Attack scenario: malicious manifest with
+# {"source": "/tmp/evil"} could redirect downstream consumers. update.sh itself
+# uses SCRIPT_DIR as the real framework root (line ~85), but we validate here
+# so the guard applies uniformly and any deny is logged with full context.
+_UPDATE_LIB="${SCRIPT_DIR}/core/hooks/_lib.sh"
+if [ -f "$_UPDATE_LIB" ]; then
+    # Export CC_PROJECT_DIR BEFORE sourcing so _cc_security_log writes to the
+    # project's security.log. Pre-command assignment (`VAR=x source`) does not
+    # reliably survive under set -u.
+    export CC_PROJECT_DIR="$PROJECT_DIR"
+    # shellcheck disable=SC1090
+    source "$_UPDATE_LIB"
+    _cc_load_config 2>/dev/null || true
+    # Use SCRIPT_DIR as the anchor when CC_FRAMEWORK_ROOT is unset — this script
+    # itself is running from the framework source, so SCRIPT_DIR is authoritative.
+    export CC_FRAMEWORK_ROOT="${CC_FRAMEWORK_ROOT:-$SCRIPT_DIR}"
+    if ! _cc_validate_framework_source "$SOURCE_DIR" 2>/dev/null; then
+        err "Refused to trust manifest-declared source: ${SOURCE_DIR}"
+        err "Check ${CLAUDE_DIR}/cognitive-core/security.log for details."
+        err "update.sh will use its own location (${SCRIPT_DIR}) instead."
+    fi
+fi
+
 # ---- Branch guard: prevent PR contamination (#199) ----
 # If the target project is a connected git repo on a feature branch,
 # auto-switch to a dedicated sync branch to keep updates out of feature PRs.

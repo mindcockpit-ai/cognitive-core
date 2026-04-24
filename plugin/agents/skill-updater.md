@@ -79,11 +79,19 @@ Delegate to the `/skill-sync` skill for interactive operations:
 # 1. Locate framework source
 SOURCE_DIR=$(jq -r '.source' .claude/cognitive-core/version.json)
 
-# 2. Pull latest framework
-git -C "$SOURCE_DIR" pull origin main
+# 2. Validate before any exec/git (#256)
+. .claude/hooks/_lib.sh
+_cc_load_config 2>/dev/null || true
+if ! _cc_validate_framework_source "$SOURCE_DIR" 2>/dev/null; then
+    echo "ERROR: Framework source rejected by validation guard — see .claude/cognitive-core/security.log" >&2
+    exit 1
+fi
 
-# 3. Run update
-"$SOURCE_DIR/update.sh" "$(pwd)"
+# 3. Pull latest framework (consume validated path only — never $SOURCE_DIR)
+git -C "$CC_VALIDATED_SOURCE" pull origin main
+
+# 4. Run update
+"$CC_VALIDATED_SOURCE/update.sh" "$(pwd)"
 ```
 
 ## Integration
