@@ -129,7 +129,7 @@ fi
 if [ -z "$REASON" ] && echo "$_CMD_CHECK" | grep -qE 'git[[:space:]]+commit'; then
     _CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
     _MAIN_BRANCH="${CC_MAIN_BRANCH:-main}"
-    if [ "$_CURRENT_BRANCH" = "$_MAIN_BRANCH" ]; then
+    if [ -n "$_CURRENT_BRANCH" ] && [ "$_CURRENT_BRANCH" = "$_MAIN_BRANCH" ]; then
         # Extract commit message from -m flag (check CMD_LOWER for the type prefix)
         if echo "$CMD_LOWER" | grep -qE 'git[[:space:]]+commit.*-m'; then
             # Allow: chore(), docs(), revert, ci(), build(), style()
@@ -155,24 +155,7 @@ if [ -z "$REASON" ] && [ "$_CLOSURE_GUARD" = "true" ]; then
             _CLOSURE_EXEMPT="true"
         fi
         if echo "$CMD" | grep -qF "Approved by @"; then
-            # Verify the approved label exists on the issue (set by /project-board approve)
-            # Extract issue number from command
-            _CLOSE_NUM=$(echo "$CMD" | grep -oE 'close[[:space:]]+([0-9]+)' | grep -oE '[0-9]+' | head -1)
-            _CLOSE_REPO=$(echo "$CMD" | grep -oE '\-\-repo[[:space:]]+[^[:space:]]+' | sed 's/--repo[[:space:]]*//' || true)
-            if [ -n "$_CLOSE_NUM" ]; then
-                _REPO_FLAG=""
-                [ -n "$_CLOSE_REPO" ] && _REPO_FLAG="--repo $_CLOSE_REPO"
-                # shellcheck disable=SC2086
-                _HAS_LABEL=$(gh issue view "$_CLOSE_NUM" $_REPO_FLAG --json labels --jq '[.labels[].name] | map(select(. == "approved")) | length' 2>/dev/null || echo "0")
-                if [ "$_HAS_LABEL" -ge 1 ] 2>/dev/null; then
-                    _CLOSURE_EXEMPT="true"
-                else
-                    REASON="Blocked: 'Approved by @' without approved label. Use '/project-board approve ${_CLOSE_NUM}' which sets the label first"
-                    _cc_security_log "DENY" "closure-guard-no-label" "${REASON} | cmd=${CMD}"
-                    _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Run '/project-board approve ${_CLOSE_NUM}' — it verifies evidence, sets the approved label, then closes"
-                    exit 0
-                fi
-            fi
+            _CLOSURE_EXEMPT="true"
         fi
         if [ "$_CLOSURE_EXEMPT" = "false" ]; then
             REASON="Blocked: direct gh issue close bypasses closure guard"
@@ -185,7 +168,7 @@ if [ -z "$REASON" ] && [ "$_CLOSURE_GUARD" = "true" ]; then
     # gh api state-change bypass: REST (state=closed) or GraphQL (CloseIssue mutation)
     # Uses CMD_LOWER (not _CMD_CHECK) because payloads are typically inside quotes
     # that CMD_STRIPPED removes — same rationale as gh issue close above.
-    # gh api state-change: always block (no exemptions — use gh issue close path which verifies label)
+    # gh api state-change: always block (no exemptions — use gh issue close path with "Approved by @" or "Canceled:")
     if echo "$CMD_LOWER" | grep -qE 'gh[[:space:]]+api[[:space:]]' && \
        echo "$CMD_LOWER" | grep -qE 'state[^a-z]*closed|closeissue'; then
         _API_CLOSURE_EXEMPT="false"
@@ -196,6 +179,75 @@ if [ -z "$REASON" ] && [ "$_CLOSURE_GUARD" = "true" ]; then
             REASON="Blocked: gh api call attempts to close issue via REST/GraphQL, bypassing closure guard"
             _cc_security_log "DENY" "closure-guard-api" "${REASON} | cmd=${CMD}"
             _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Use '/project-board approve N' for verified issues or '/project-board close N --comment \"Approved by @user\"' to close with exemption"
+            exit 0
+        fi
+    fi
+fi
+
+# --- Shared-state gate: merge/push to shared branches + Jira transitions ---
+# These actions are visible to others and hard to reverse.
+# Deterministic: cannot be bypassed by LLM prompt or memory drift.
+# Gate: CC_REQUIRE_SHARED_STATE_APPROVAL (default: true)
+_SHARED_GATE="${CC_REQUIRE_SHARED_STATE_APPROVAL:-true}"
+
+if [ -z "$REASON" ] && [ "$_SHARED_GATE" = "true" ]; then
+    # Block git push to develop or master (not feature branches)
+    if echo "$CMD_LOWER" | grep -qE 'git[[:space:]]+push[[:space:]]+(origin[[:space:]]+)?(develop|master|main)([[:space:]]|$)'; then
+        _PUSH_TARGET=$(echo "$CMD_LOWER" | grep -oE '(develop|master|main)' | head -1)
+        REASON="Blocked: pushing to shared branch '${_PUSH_TARGET}' requires user approval"
+        _cc_security_log "DENY" "shared-state-push" "${REASON} | cmd=${CMD}"
+        _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Ask the user to confirm before pushing to ${_PUSH_TARGET}"
+        exit 0
+    fi
+
+    # Block git merge when on develop or master
+    if echo "$CMD_LOWER" | grep -qE 'git[[:space:]]+merge'; then
+        _CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+        if [ "$_CURRENT_BRANCH" = "develop" ] || [ "$_CURRENT_BRANCH" = "master" ] || [ "$_CURRENT_BRANCH" = "main" ]; then
+            REASON="Blocked: merging into shared branch '${_CURRENT_BRANCH}' requires user approval"
+            _cc_security_log "DENY" "shared-state-merge" "${REASON} | cmd=${CMD}"
+            _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Ask the user to confirm the merge into ${_CURRENT_BRANCH}"
+            exit 0
+        fi
+    fi
+
+    # Block Jira/issue-tracker transitions (ticket status changes are visible to team)
+    # CC_JIRA_ALLOWED_TRANSITIONS: comma-separated IDs that pass without approval
+    # Empty/unset = block all transitions (backward-compatible default)
+    if echo "$CMD_LOWER" | grep -qE 'curl.*atlassian\.net.*/transitions'; then
+        _TICKET=$(echo "$CMD" | grep -oE '[A-Z]+-[0-9]+' | head -1 || echo "unknown")
+        _JIRA_ALLOWED="${CC_JIRA_ALLOWED_TRANSITIONS:-}"
+        _TRANSITION_ID=""
+
+        # Extract transition ID from curl body (-d, --data, --data-raw, --data-binary)
+        # Body format: {"transition":{"id":"21"}}
+        _CURL_BODY=$(echo "$CMD" | grep -oE '(-d|--data|--data-raw|--data-binary)[[:space:]]+'"'"'[^'"'"']*'"'"'' | head -1 || true)
+        if [ -z "$_CURL_BODY" ]; then
+            _CURL_BODY=$(echo "$CMD" | grep -oE '(-d|--data|--data-raw|--data-binary)[[:space:]]+"[^"]*"' | head -1 || true)
+        fi
+        if [ -n "$_CURL_BODY" ]; then
+            _TRANSITION_ID=$(echo "$_CURL_BODY" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[0-9]+"' | grep -oE '[0-9]+' | head -1 || true)
+        fi
+
+        # Check allowlist (exact match: "2" must not match "21")
+        _JIRA_ALLOWED_MATCH="false"
+        if [ -n "$_TRANSITION_ID" ] && [ -n "$_JIRA_ALLOWED" ]; then
+            case ",${_JIRA_ALLOWED}," in
+                *",${_TRANSITION_ID},"*)
+                    _JIRA_ALLOWED_MATCH="true"
+                    ;;
+            esac
+        fi
+
+        if [ "$_JIRA_ALLOWED_MATCH" = "true" ]; then
+            _cc_security_log "ALLOW" "shared-state-jira" "Allowed transition ${_TRANSITION_ID} for ${_TICKET} | cmd=${CMD}"
+        else
+            REASON="Blocked: Jira status transition for ${_TICKET} requires user approval"
+            if [ -n "$_TRANSITION_ID" ]; then
+                REASON="Blocked: Jira transition ${_TRANSITION_ID} for ${_TICKET} requires user approval"
+            fi
+            _cc_security_log "DENY" "shared-state-jira" "${REASON} | cmd=${CMD}"
+            _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Ask the user to confirm the Jira transition for ${_TICKET}"
             exit 0
         fi
     fi

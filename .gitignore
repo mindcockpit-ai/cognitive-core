@@ -361,3 +361,106 @@ docs/_build/
 
 # Environments
 *.sage.py
+# =============================================================================
+# .gitignore — cognitive-core base template
+# Applied automatically during install. Language-specific rules are appended
+# from the selected language pack.
+# =============================================================================
+
+# ---- OS generated files ----
+# macOS
+
+# Windows
+
+# Linux
+.fuse_hidden*
+.nfs*
+nohup.out
+*.stackdump
+
+# ---- Build output (common) ----
+
+# ---- IDE / Editor files ----
+
+# VS Code
+
+# JetBrains (IntelliJ IDEA, WebStorm, PyCharm, GoLand, Rider, CLion, RubyMine, PhpStorm, DataGrip)
+
+# Eclipse / Spring Tool Suite (STS)
+
+# NetBeans
+
+# Visual Studio
+
+# Xcode
+
+# Android Studio
+
+# Sublime Text
+
+# Vim / Neovim
+
+# Emacs
+
+# TextMate
+
+# Atom
+
+# Notepad++
+
+# Kate / KDevelop
+
+# Fleet (JetBrains)
+
+# Zed
+
+# Cursor
+
+# AI / LLM tool runtime (2025+)
+.aider*
+.windsurf/
+.cline/
+.continue/
+.codex/
+.amazonq/
+.tabnine_root
+
+# ---- Secrets and credentials ----
+.envrc
+.npmrc
+.docker/config.json
+
+# IaC and cloud credentials
+*.tfvars
+*.tfvars.json
+.terraformrc
+terraform.rc
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+# .terraform.lock.hcl — commit this (reproducible provider versions)
+.pulumi/
+cdk.out/
+.cdk.staging/
+cdk.context.json
+
+# JetBrains HTTP Client secrets (outside .idea/)
+http-client.private.env.json
+
+# ---- Logs ----
+
+# ---- Archives and binaries ----
+
+# ---- Temporary files ----
+
+# ---- Docker runtime ----
+
+# ---- Monitoring data (runtime, not config) ----
+
+# ---- Test artifacts ----
+
+# ---- cognitive-core runtime (machine-local) ----
+.claude/session.lock.d/

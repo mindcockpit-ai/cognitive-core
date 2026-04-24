@@ -45,7 +45,8 @@ fi
 
 # Run configured lint command (substitute $1 with file path)
 LINT_CMD="${CC_LINT_COMMAND//\$1/$FILE_PATH}"
-LINT_OUTPUT=$(eval "$LINT_CMD" 2>&1 || true)
+# shellcheck disable=SC2086
+LINT_OUTPUT=$(${LINT_CMD} 2>&1 || true)
 
 if [ -z "$LINT_OUTPUT" ]; then
     exit 0
