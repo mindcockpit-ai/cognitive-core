@@ -51,6 +51,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
         run: |
+          set -o pipefail
           if [ -z "$GH_TOKEN" ]; then
             echo "::warning::PROJECT_PAT not configured — skipping board automation"
             exit 0
@@ -68,10 +69,15 @@ jobs:
             exit 0
           fi
 
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1 | tr -d '\000-\037') || {
-            echo "::warning::Cannot access project board (ensure PROJECT_PAT has repo, project, and read:org scopes)"
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
+            echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
+          if ! printf '%s' "$ITEMS" | jq empty 2>/dev/null; then
+            echo "::warning::gh returned non-JSON (likely auth, rate-limit, or scope drift)"
+            echo "First 80 chars: $(printf '%s' "$ITEMS" | head -c 80)"
+            exit 0
+          fi
 
           for ISSUE_NUM in $ISSUES; do
             ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
@@ -114,6 +120,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
         run: |
+          set -o pipefail
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
           PR_BODY=$(cat <<'PREOF'
           ${{ github.event.pull_request.body }}
@@ -128,10 +135,15 @@ jobs:
             exit 0
           fi
 
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1 | tr -d '\000-\037') || {
-            echo "::warning::Cannot access project board (ensure PROJECT_PAT has repo, project, and read:org scopes)"
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
+            echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
+          if ! printf '%s' "$ITEMS" | jq empty 2>/dev/null; then
+            echo "::warning::gh returned non-JSON (likely auth, rate-limit, or scope drift)"
+            echo "First 80 chars: $(printf '%s' "$ITEMS" | head -c 80)"
+            exit 0
+          fi
 
           for ISSUE_NUM in $ISSUES; do
             ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
@@ -167,12 +179,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
         run: |
+          set -o pipefail
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
           ISSUE_NUM=${{ github.event.issue.number }}
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1 | tr -d '\000-\037') || {
-            echo "::warning::Cannot access project board (ensure PROJECT_PAT has repo, project, and read:org scopes)"
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
+            echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
+          if ! printf '%s' "$ITEMS" | jq empty 2>/dev/null; then
+            echo "::warning::gh returned non-JSON (likely auth, rate-limit, or scope drift)"
+            echo "First 80 chars: $(printf '%s' "$ITEMS" | head -c 80)"
+            exit 0
+          fi
 
           ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
             '.items[] | select(.content.number == $n) | .id')
@@ -255,12 +273,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
         run: |
+          set -o pipefail
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
           ISSUE_NUM=${{ github.event.issue.number }}
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1 | tr -d '\000-\037') || {
-            echo "::warning::Cannot access project board (ensure PROJECT_PAT has repo, project, and read:org scopes)"
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
+            echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
+          if ! printf '%s' "$ITEMS" | jq empty 2>/dev/null; then
+            echo "::warning::gh returned non-JSON (likely auth, rate-limit, or scope drift)"
+            echo "First 80 chars: $(printf '%s' "$ITEMS" | head -c 80)"
+            exit 0
+          fi
 
           ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
             '.items[] | select(.content.number == $n) | .id')
@@ -299,6 +323,7 @@ jobs:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
           GH_REPO: ${{ github.repository }}
         run: |
+          set -o pipefail
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
           ISSUE_NUM=${{ github.event.issue.number }}
 
@@ -322,10 +347,15 @@ jobs:
             # job only routes Done/Canceled → In Progress, so it will leave TBT alone.
             # Without this, pr-merged can miss the link (cross-repo `owner/repo#N` form)
             # and the issue ends up in In Progress instead of parked for review (#262).
-            GUARD_ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1 | tr -d '\000-\037') || {
-              echo "::warning::Cannot access project board — skipping TBT routing for #$ISSUE_NUM"
+            GUARD_ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
+              echo "::warning::Cannot access project board — skipping TBT routing for #$ISSUE_NUM (gh exit non-zero)"
               GUARD_ITEMS=""
             }
+            if [ -n "$GUARD_ITEMS" ] && ! printf '%s' "$GUARD_ITEMS" | jq empty 2>/dev/null; then
+              echo "::warning::gh returned non-JSON — skipping TBT routing for #$ISSUE_NUM"
+              echo "First 80 chars: $(printf '%s' "$GUARD_ITEMS" | head -c 80)"
+              GUARD_ITEMS=""
+            fi
             if [ -n "$GUARD_ITEMS" ]; then
               GUARD_ITEM_ID=$(echo "$GUARD_ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
                 '.items[] | select(.content.number == $n) | .id')
@@ -353,10 +383,15 @@ jobs:
 
           # --- Move to Done on board ---
           # Strip control chars (U+0000-U+001F) to prevent jq parse failures
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1 | tr -d '\000-\037') || {
-            echo "::warning::Cannot access project board (ensure PROJECT_PAT has repo, project, and read:org scopes)"
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
+            echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
+          if ! printf '%s' "$ITEMS" | jq empty 2>/dev/null; then
+            echo "::warning::gh returned non-JSON (likely auth, rate-limit, or scope drift)"
+            echo "First 80 chars: $(printf '%s' "$ITEMS" | head -c 80)"
+            exit 0
+          fi
 
           ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
             '.items[] | select(.content.number == $n) | .id')
@@ -389,10 +424,19 @@ jobs:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
           GH_REPO: ${{ github.repository }}
         run: |
+          set -o pipefail
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
 
           # Get all board items, strip control chars
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 2>&1 | tr -d '\000-\037') || exit 0
+          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
+            echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
+            exit 0
+          }
+          if ! printf '%s' "$ITEMS" | jq empty 2>/dev/null; then
+            echo "::warning::gh returned non-JSON (likely auth, rate-limit, or scope drift)"
+            echo "First 80 chars: $(printf '%s' "$ITEMS" | head -c 80)"
+            exit 0
+          fi
 
           # Find items NOT in Done/Canceled
           ACTIVE_NUMS=$(echo "$ITEMS" | jq -r '
