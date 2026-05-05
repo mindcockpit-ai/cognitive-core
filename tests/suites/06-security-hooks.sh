@@ -266,6 +266,57 @@ if [ -f "$VALIDATE_BASH" ]; then
     else
         _fail "bash: minimal mode should not block exfiltration"
     fi
+
+    # --- Branch guard: cd-aware target detection (#283) ---
+    _BG_MAIN_REPO=$(mktemp -d "${TMPDIR:-/tmp}/cc-bg-main-XXXXXX")
+    _BG_FEAT_REPO=$(mktemp -d "${TMPDIR:-/tmp}/cc-bg-feat-XXXXXX")
+    _BG_NON_REPO=$(mktemp -d "${TMPDIR:-/tmp}/cc-bg-nonrepo-XXXXXX")
+    (cd "$_BG_MAIN_REPO" && git init -q -b main && \
+        git -c user.email=t@t -c user.name=t commit --allow-empty -q -m init) >/dev/null 2>&1
+    (cd "$_BG_FEAT_REPO" && git init -q -b feat-x && \
+        git -c user.email=t@t -c user.name=t commit --allow-empty -q -m init) >/dev/null 2>&1
+
+    # T1: cd to repo on feature branch + feat: -> allow (was a false positive before #283)
+    output=$(cd "$_BG_NON_REPO" && echo "$(mock_bash_json "cd $_BG_FEAT_REPO && git commit -m \"feat: ok\"")" | bash "$VALIDATE_BASH" 2>/dev/null) || true
+    if [ -z "$output" ] || ! echo "$output" | grep -q '"deny"'; then
+        _pass "bash: cd to feature-branch repo, feat: -> allow"
+    else
+        _fail "bash: cd to feature-branch repo should allow feat:" "$output"
+    fi
+
+    # T2: cd to repo on main + feat: -> deny
+    output=$(cd "$_BG_NON_REPO" && echo "$(mock_bash_json "cd $_BG_MAIN_REPO && git commit -m \"feat: nope\"")" | bash "$VALIDATE_BASH" 2>/dev/null) || true
+    if echo "$output" | grep -q '"deny"'; then
+        _pass "bash: cd to main repo, feat: -> deny"
+    else
+        _fail "bash: cd to main repo should deny feat:" "$output"
+    fi
+
+    # T3: cd to non-repo from a harness on main -> deny (bypass closed)
+    output=$(cd "$_BG_MAIN_REPO" && echo "$(mock_bash_json "cd /tmp && git commit -m \"feat: bypass\"")" | bash "$VALIDATE_BASH" 2>/dev/null) || true
+    if echo "$output" | grep -q '"deny"'; then
+        _pass "bash: cd to non-repo from main harness -> deny (fallback)"
+    else
+        _fail "bash: cd to non-repo bypass should fall back and deny" "$output"
+    fi
+
+    # T4: cd inside commit message doesn't fool parser
+    output=$(cd "$_BG_MAIN_REPO" && echo "$(mock_bash_json "git commit -m \"feat: cd /etc inside\"")" | bash "$VALIDATE_BASH" 2>/dev/null) || true
+    if echo "$output" | grep -q '"deny"'; then
+        _pass "bash: cd inside commit message doesn't bypass"
+    else
+        _fail "bash: cd inside commit message should still deny feat: on main" "$output"
+    fi
+
+    # T5: cd to repo on main + docs: -> allow (existing exempt prefix still works)
+    output=$(cd "$_BG_NON_REPO" && echo "$(mock_bash_json "cd $_BG_MAIN_REPO && git commit -m \"docs: ok\"")" | bash "$VALIDATE_BASH" 2>/dev/null) || true
+    if [ -z "$output" ] || ! echo "$output" | grep -q '"deny"'; then
+        _pass "bash: cd to main repo, docs: -> allow"
+    else
+        _fail "bash: cd to main repo should allow docs:" "$output"
+    fi
+
+    rm -rf "$_BG_MAIN_REPO" "$_BG_FEAT_REPO" "$_BG_NON_REPO"
 else
     _skip "validate-bash.sh not found"
 fi

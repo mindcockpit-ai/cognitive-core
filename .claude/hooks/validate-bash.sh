@@ -9,6 +9,41 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/_lib.sh"
 _cc_load_config
 
+# Extract leading "cd <path>" from a bash command so branch-aware guards
+# inspect the actual target repo, not Claude Code's harness cwd.
+# Returns empty if no leading cd, or the path is not an existing directory.
+_cc_target_dir_from_cmd() {
+    local cmd="$1"
+    local first_line raw
+    first_line=$(printf '%s' "$cmd" | head -n 1)
+    raw=$(printf '%s' "$first_line" \
+        | grep -oE '^[[:space:]]*cd[[:space:]]+("[^"]+"|'"'"'[^'"'"']+'"'"'|[^[:space:];&|]+)' \
+        | head -1 \
+        | sed -E 's/^[[:space:]]*cd[[:space:]]+//' \
+        | sed -E 's/^"(.*)"$/\1/' \
+        | sed -E "s/^'(.*)'\$/\\1/")
+    if [ -n "$raw" ] && [ -d "$raw" ]; then
+        printf '%s' "$raw"
+    fi
+}
+
+# Current branch lookup that respects a leading "cd <dir>" in the command.
+# Falls back to harness-cwd lookup when the target is not a git repo, so a
+# malicious "cd /tmp && cd /repo-on-main && git commit" cannot bypass the
+# branch guard by parking the parser on a non-repo first cd.
+_cc_branch_from_cmd() {
+    local target branch
+    target=$(_cc_target_dir_from_cmd "$1")
+    if [ -n "$target" ]; then
+        branch=$(git -C "$target" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+        if [ -n "$branch" ]; then
+            printf '%s' "$branch"
+            return
+        fi
+    fi
+    git rev-parse --abbrev-ref HEAD 2>/dev/null || true
+}
+
 # Read stdin JSON
 INPUT=$(cat)
 
@@ -127,7 +162,7 @@ fi
 # Agents should work on feature branches, not commit directly to main.
 # Allowed on main: chore(), docs(), revert, merge commits, and git push.
 if [ -z "$REASON" ] && echo "$_CMD_CHECK" | grep -qE 'git[[:space:]]+commit'; then
-    _CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+    _CURRENT_BRANCH=$(_cc_branch_from_cmd "$CMD")
     _MAIN_BRANCH="${CC_MAIN_BRANCH:-main}"
     if [ -n "$_CURRENT_BRANCH" ] && [ "$_CURRENT_BRANCH" = "$_MAIN_BRANCH" ]; then
         # Extract commit message from -m flag (check CMD_LOWER for the type prefix)
@@ -202,7 +237,7 @@ if [ -z "$REASON" ] && [ "$_SHARED_GATE" = "true" ]; then
 
     # Block git merge when on develop or master
     if echo "$CMD_LOWER" | grep -qE 'git[[:space:]]+merge'; then
-        _CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+        _CURRENT_BRANCH=$(_cc_branch_from_cmd "$CMD")
         if [ "$_CURRENT_BRANCH" = "develop" ] || [ "$_CURRENT_BRANCH" = "master" ] || [ "$_CURRENT_BRANCH" = "main" ]; then
             REASON="Blocked: merging into shared branch '${_CURRENT_BRANCH}' requires user approval"
             _cc_security_log "DENY" "shared-state-merge" "${REASON} | cmd=${CMD}"
