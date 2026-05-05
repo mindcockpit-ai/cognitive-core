@@ -51,7 +51,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
         run: |
-          set -o pipefail
+          set -euo pipefail
           if [ -z "$GH_TOKEN" ]; then
             echo "::warning::PROJECT_PAT not configured — skipping board automation"
             exit 0
@@ -73,9 +73,9 @@ jobs:
             echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
-          if ! printf '%s' "$ITEMS" | jq empty 2>/dev/null; then
-            echo "::warning::gh returned non-JSON (likely auth, rate-limit, or scope drift)"
-            echo "First 80 chars: $(printf '%s' "$ITEMS" | head -c 80)"
+          if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
+            echo "::warning::gh returned non-JSON or unexpected shape (likely auth, rate-limit, scope drift, or truncated response)"
+            echo "First 80 chars: $(printf '%s' "$ITEMS" | tr -c '[:print:]' '?' | head -c 80)"
             exit 0
           fi
 
@@ -120,7 +120,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
         run: |
-          set -o pipefail
+          set -euo pipefail
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
           PR_BODY=$(cat <<'PREOF'
           ${{ github.event.pull_request.body }}
@@ -139,9 +139,9 @@ jobs:
             echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
-          if ! printf '%s' "$ITEMS" | jq empty 2>/dev/null; then
-            echo "::warning::gh returned non-JSON (likely auth, rate-limit, or scope drift)"
-            echo "First 80 chars: $(printf '%s' "$ITEMS" | head -c 80)"
+          if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
+            echo "::warning::gh returned non-JSON or unexpected shape (likely auth, rate-limit, scope drift, or truncated response)"
+            echo "First 80 chars: $(printf '%s' "$ITEMS" | tr -c '[:print:]' '?' | head -c 80)"
             exit 0
           fi
 
@@ -179,16 +179,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
         run: |
-          set -o pipefail
+          set -euo pipefail
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
           ISSUE_NUM=${{ github.event.issue.number }}
           ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
             echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
-          if ! printf '%s' "$ITEMS" | jq empty 2>/dev/null; then
-            echo "::warning::gh returned non-JSON (likely auth, rate-limit, or scope drift)"
-            echo "First 80 chars: $(printf '%s' "$ITEMS" | head -c 80)"
+          if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
+            echo "::warning::gh returned non-JSON or unexpected shape (likely auth, rate-limit, scope drift, or truncated response)"
+            echo "First 80 chars: $(printf '%s' "$ITEMS" | tr -c '[:print:]' '?' | head -c 80)"
             exit 0
           fi
 
@@ -230,6 +230,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
         run: |
+          set -euo pipefail
           if [ -z "$GH_TOKEN" ]; then
             echo "::warning::PROJECT_PAT not configured — new issue not added to board"
             exit 0
@@ -273,16 +274,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
         run: |
-          set -o pipefail
+          set -euo pipefail
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
           ISSUE_NUM=${{ github.event.issue.number }}
           ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
             echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
-          if ! printf '%s' "$ITEMS" | jq empty 2>/dev/null; then
-            echo "::warning::gh returned non-JSON (likely auth, rate-limit, or scope drift)"
-            echo "First 80 chars: $(printf '%s' "$ITEMS" | head -c 80)"
+          if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
+            echo "::warning::gh returned non-JSON or unexpected shape (likely auth, rate-limit, scope drift, or truncated response)"
+            echo "First 80 chars: $(printf '%s' "$ITEMS" | tr -c '[:print:]' '?' | head -c 80)"
             exit 0
           fi
 
@@ -323,7 +324,7 @@ jobs:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
           GH_REPO: ${{ github.repository }}
         run: |
-          set -o pipefail
+          set -euo pipefail
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
           ISSUE_NUM=${{ github.event.issue.number }}
 
@@ -351,9 +352,9 @@ jobs:
               echo "::warning::Cannot access project board — skipping TBT routing for #$ISSUE_NUM (gh exit non-zero)"
               GUARD_ITEMS=""
             }
-            if [ -n "$GUARD_ITEMS" ] && ! printf '%s' "$GUARD_ITEMS" | jq empty 2>/dev/null; then
-              echo "::warning::gh returned non-JSON — skipping TBT routing for #$ISSUE_NUM"
-              echo "First 80 chars: $(printf '%s' "$GUARD_ITEMS" | head -c 80)"
+            if [ -n "$GUARD_ITEMS" ] && ! printf '%s' "$GUARD_ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
+              echo "::warning::gh returned non-JSON or unexpected shape — skipping TBT routing for #$ISSUE_NUM"
+              echo "First 80 chars: $(printf '%s' "$GUARD_ITEMS" | tr -c '[:print:]' '?' | head -c 80)"
               GUARD_ITEMS=""
             fi
             if [ -n "$GUARD_ITEMS" ]; then
@@ -387,9 +388,9 @@ jobs:
             echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
-          if ! printf '%s' "$ITEMS" | jq empty 2>/dev/null; then
-            echo "::warning::gh returned non-JSON (likely auth, rate-limit, or scope drift)"
-            echo "First 80 chars: $(printf '%s' "$ITEMS" | head -c 80)"
+          if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
+            echo "::warning::gh returned non-JSON or unexpected shape (likely auth, rate-limit, scope drift, or truncated response)"
+            echo "First 80 chars: $(printf '%s' "$ITEMS" | tr -c '[:print:]' '?' | head -c 80)"
             exit 0
           fi
 
@@ -424,7 +425,7 @@ jobs:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
           GH_REPO: ${{ github.repository }}
         run: |
-          set -o pipefail
+          set -euo pipefail
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
 
           # Get all board items, strip control chars
@@ -432,9 +433,9 @@ jobs:
             echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
-          if ! printf '%s' "$ITEMS" | jq empty 2>/dev/null; then
-            echo "::warning::gh returned non-JSON (likely auth, rate-limit, or scope drift)"
-            echo "First 80 chars: $(printf '%s' "$ITEMS" | head -c 80)"
+          if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
+            echo "::warning::gh returned non-JSON or unexpected shape (likely auth, rate-limit, scope drift, or truncated response)"
+            echo "First 80 chars: $(printf '%s' "$ITEMS" | tr -c '[:print:]' '?' | head -c 80)"
             exit 0
           fi
 
