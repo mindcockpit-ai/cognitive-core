@@ -19,7 +19,7 @@ source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
 suite_start "19 - check-forbidden-chars hook"
 
-HOOK="${ROOT_DIR}/core/hooks/check-forbidden-chars.sh"
+HOOK="${ROOT_DIR}/core/git-hooks/check-forbidden-chars.sh"
 
 # ---- Hook exists and is executable ----
 assert_file_exists "hook script exists" "$HOOK"
@@ -238,10 +238,162 @@ assert_contains "BLOCK reports ellipsis" "$output" "U+2026 HORIZONTAL ELLIPSIS"
 # Simulate by staging the hook content under a different name (we can't
 # stage the actual hook outside its repo, so we replicate its self-exempt
 # behaviour: any file whose absolute path matches the script's own path).
-# This test is partial — full behaviour is exercised in integration with
+# This test is partial -- full behaviour is exercised in integration with
 # the real repo. We assert the script contains the self-exempt logic.
 assert_contains "hook contains self-exempt logic" \
     "$(cat "$HOOK")" \
     'abs_file" = "$SCRIPT_FILE'
+
+# ============================================================
+# Config overrides (CODE_EXT, DOC_EXT, ALLOW_DEFAULT, custom rule, !removal)
+# ============================================================
+
+# ---- Helper: run hook with a config file at .husky/forbidden-chars.conf ----
+# $1 - test name
+# $2 - filename to stage
+# $3 - file content (printf %b format)
+# $4 - config content
+# $5 - expected exit
+# $6 - bash binary to use (defaults to "bash"; pass /bin/bash to force 3.2 on macOS)
+run_hook_with_config() {
+    local name="$1" filename="$2" content="$3" config="$4" expected_exit="$5"
+    local bash_bin="${6:-bash}"
+
+    local tmp
+    tmp=$(mktemp -d)
+
+    git -C "$tmp" init -q
+    mkdir -p "$tmp/.husky"
+    printf "%b" "$config" > "$tmp/.husky/forbidden-chars.conf"
+    # Stage the file under test (mkdir -p in case the filename contains dirs)
+    mkdir -p "$tmp/$(dirname "$filename")"
+    printf "%b" "$content" > "$tmp/$filename"
+    git -C "$tmp" add -A 2>/dev/null
+
+    local actual_exit=0
+    pushd "$tmp" >/dev/null
+    "$bash_bin" "$HOOK" >/dev/null 2>&1 || actual_exit=$?
+    popd >/dev/null
+
+    if [ "$actual_exit" = "$expected_exit" ]; then
+        _pass "$name (exit=$actual_exit)"
+    else
+        _fail "$name (got exit=$actual_exit, expected=$expected_exit)"
+    fi
+
+    rm -rf "$tmp"
+}
+
+# CONFIG: CODE_EXT narrows scope -- staged .sh is no longer ASCII-checked
+run_hook_with_config "CONFIG: CODE_EXT=pm narrows scope, .sh w/ non-ASCII passes" \
+    "test.sh" \
+    "#!/bin/bash\n# em-dash: \xe2\x80\x94\necho ok\n" \
+    "CODE_EXT = pm\n" \
+    0
+
+# CONFIG: DOC_EXT narrows scope -- staged .md is no longer blocklist-checked
+run_hook_with_config "CONFIG: DOC_EXT=txt narrows scope, .md w/ em-dash passes" \
+    "doc.md" \
+    "Header \xe2\x80\x94 dash\n" \
+    "DOC_EXT = txt\n" \
+    0
+
+# CONFIG: ALLOW_DEFAULT=0 empties the blocklist
+run_hook_with_config "CONFIG: ALLOW_DEFAULT=0 empties blocklist, .md w/ em-dash passes" \
+    "doc.md" \
+    "Header \xe2\x80\x94 dash\n" \
+    "ALLOW_DEFAULT = 0\n" \
+    0
+
+# CONFIG: custom rule adds a new codepoint to the blocklist (U+2248 ALMOST EQUAL TO)
+run_hook_with_config "CONFIG: custom rule 2248 flags U+2248 in .md" \
+    "doc.md" \
+    "x \xe2\x89\x88 y\n" \
+    "2248 ALMOST EQUAL TO -> ~=\n" \
+    1
+
+# CONFIG: ! removal drops a default rule (U+2018 LEFT SINGLE QUOTATION MARK)
+run_hook_with_config "CONFIG: !2018 removes default, .md with U+2018 passes" \
+    "doc.md" \
+    "It\xe2\x80\x98s fine\n" \
+    "!2018\n" \
+    0
+
+# ============================================================
+# Empty staged set -- regression guard for line 146
+# ============================================================
+
+# When no files match CODE_EXT or DOC_EXT, hook exits 0 silently.
+empty_tmp=$(mktemp -d)
+git -C "$empty_tmp" init -q
+echo "irrelevant" > "$empty_tmp/data.bin"  # extension not in defaults
+git -C "$empty_tmp" add data.bin 2>/dev/null
+empty_exit=0
+pushd "$empty_tmp" >/dev/null
+empty_output=$(bash "$HOOK" 2>&1) || empty_exit=$?
+popd >/dev/null
+if [ "$empty_exit" = "0" ] && [ -z "$empty_output" ]; then
+    _pass "EMPTY: no matching staged files -> exit 0 silently"
+else
+    _fail "EMPTY: expected exit 0 + empty output, got exit=$empty_exit, output=[$empty_output]"
+fi
+rm -rf "$empty_tmp"
+
+# ============================================================
+# Filenames with spaces (#295 S2 regression)
+# ============================================================
+
+# Positive: file with space in name + em-dash -> still detected
+run_hook_fixture "SPACES: 'My Notes.md' with em-dash fails" \
+    "My Notes.md" \
+    "Header \xe2\x80\x94 dash\n" \
+    1
+
+# Negative: file with space in name + clean ASCII -> passes
+run_hook_fixture "SPACES: 'My Notes.md' clean ASCII passes" \
+    "My Notes.md" \
+    "Plain ASCII content.\n" \
+    0
+
+# Positive: subdirectory with space in path -- exercises both the spaces fix
+# and the per-file recursion. Uses run_hook_with_config (creates dirs) with
+# an empty config to avoid extending run_hook_fixture.
+run_hook_with_config "SPACES: 'sub dir/page.md' with em-dash fails" \
+    "sub dir/page.md" \
+    "Header \xe2\x80\x94 dash\n" \
+    "" \
+    1
+
+# ============================================================
+# Bash 3.2 + set -u empty-array safety (#295 S3 regression)
+# ============================================================
+
+# Force /bin/bash (macOS = 3.2.57). With ALLOW_DEFAULT=0 the EFFECTIVE
+# array is empty; any unsafe `"${EFFECTIVE[@]}"` would error under set -u.
+# Guard: run on /bin/bash and require exit 0 on a clean .md.
+if [ -x /bin/bash ]; then
+    run_hook_with_config "BASH-3.2: ALLOW_DEFAULT=0 + clean .md does not error under /bin/bash" \
+        "clean.md" \
+        "Plain ASCII content.\n" \
+        "ALLOW_DEFAULT = 0\n" \
+        0 \
+        /bin/bash
+else
+    _skip "BASH-3.2: /bin/bash not present, skipping bash-3.2 regression"
+fi
+
+# Bash-3.2 + config rule whose name contains spaces -- regression guard for
+# the `${arr[@]+"${arr[@]}"}` quoting fix. Rule name "EM DASH" must survive
+# the EFFECTIVE assignment loop intact, so em-dash is still flagged.
+if [ -x /bin/bash ]; then
+    run_hook_with_config "BASH-3.2: rule 'EM DASH' (spaces in name) preserved under /bin/bash" \
+        "doc.md" \
+        "Header \xe2\x80\x94 dash\n" \
+        "ALLOW_DEFAULT = 0\n2014 EM DASH -> -\n" \
+        1 \
+        /bin/bash
+else
+    _skip "BASH-3.2: /bin/bash not present, skipping spaces-in-rule-name regression"
+fi
 
 suite_end
