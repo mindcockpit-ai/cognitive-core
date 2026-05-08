@@ -76,6 +76,11 @@ DOC_EXT="$DEFAULT_DOC_EXT"
 declare -a EFFECTIVE
 EFFECTIVE=("${DEFAULT_FORBIDDEN[@]}")
 
+# Note: `${arr[@]+"${arr[@]}"}` idiom is required for bash 3.2 (macOS default)
+# safety under `set -u`: expanding `"${arr[@]}"` on an empty array errors as
+# "unbound variable" on bash 3.2 (fixed in 4.4+). The `+` form expands to
+# nothing when the array is unset/empty, avoiding the trap.
+
 if [ -n "$CONFIG_FILE" ] && [ -f "$CONFIG_FILE" ]; then
     while IFS= read -r line; do
         line="${line%%#*}"
@@ -104,10 +109,10 @@ if [ -n "$CONFIG_FILE" ] && [ -f "$CONFIG_FILE" ]; then
         if [ "${line#!}" != "$line" ]; then
             hex=$(echo "${line#!}" | awk '{print toupper($1)}')
             new=()
-            for entry in "${EFFECTIVE[@]}"; do
+            for entry in ${EFFECTIVE[@]+"${EFFECTIVE[@]}"}; do
                 [ "${entry%%|*}" != "$hex" ] && new+=("$entry")
             done
-            EFFECTIVE=("${new[@]}")
+            EFFECTIVE=(${new[@]+"${new[@]}"})
             continue
         fi
 
@@ -141,7 +146,7 @@ STAGED=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null | grep -E "
 [ -z "$STAGED" ] && exit 0
 
 PERL_HASH=""
-for entry in "${EFFECTIVE[@]}"; do
+for entry in ${EFFECTIVE[@]+"${EFFECTIVE[@]}"}; do
     [ -z "$entry" ] && continue
     hex="${entry%%|*}"
     rest="${entry#*|}"
@@ -153,7 +158,10 @@ VIOLATIONS=0
 SCRIPT_FILE="$(cd "$(dirname "$0")" && pwd -P)/$(basename "$0")"
 ABS_CONFIG_FILE="${CONFIG_FILE:+$(cd "$(dirname "$CONFIG_FILE")" && pwd -P)/$(basename "$CONFIG_FILE")}"
 
-for file in $STAGED; do
+# Read line-by-line: paths from `git diff --cached --name-only` are NL-separated.
+# Avoids word-splitting on spaces in filenames (e.g., "docs/My Notes.md").
+while IFS= read -r file; do
+    [ -z "$file" ] && continue
     [ ! -f "$file" ] && continue
     abs_file="$(cd "$(dirname "$file")" && pwd -P)/$(basename "$file")"
     [ "$abs_file" = "$SCRIPT_FILE" ] && continue
@@ -207,7 +215,7 @@ for file in $STAGED; do
         echo "$OUTPUT"
         VIOLATIONS=$((VIOLATIONS + 1))
     fi
-done
+done <<< "$STAGED"
 
 if [ $VIOLATIONS -gt 0 ]; then
     echo ""
@@ -215,7 +223,7 @@ if [ $VIOLATIONS -gt 0 ]; then
     echo ""
     echo "Auto-fix doc files (default replacement table):"
     echo "    perl -i -CSD -pe '"
-    for entry in "${EFFECTIVE[@]}"; do
+    for entry in ${EFFECTIVE[@]+"${EFFECTIVE[@]}"}; do
         [ -z "$entry" ] && continue
         hex="${entry%%|*}"
         rest="${entry#*|}"
