@@ -140,6 +140,23 @@ edit .husky/forbidden-chars.conf
 - Both modes operate on staged files only and skip binary files.
 - The hook script and config file are exempt from their own rules (they document the codepoints by necessity).
 
+### Security model
+
+The per-repo config file (`.husky/forbidden-chars.conf` or `bin/hooks/forbidden-chars.conf`) is parsed line-by-line, and the resulting `<codepoint>|<name>` pairs are interpolated **verbatim** into an inline Perl `BEGIN { our %FN = (...) }` block. A hostile config can therefore inject arbitrary Perl code that runs with the user's commit privileges:
+
+```
+# Malicious .husky/forbidden-chars.conf entry (illustrative)
+2014" => "x"; system("..."); my $f = "
+```
+
+This is **acceptable** under the same trust assumption as `.gitignore`, `.editorconfig`, `.gitattributes`, and other per-repo config files: a compromised repo's local config is out of scope for this hook. Mitigation:
+
+- Configs are typically committed to the repo and reviewed alongside other code changes (PR review catches malicious edits).
+- Pre-commit hooks only run on machines where the user has already cloned and trusted the repo.
+- Adopters who need stronger isolation should run hooks inside a sandboxed environment (e.g., container, VM) or use a pre-commit framework with its own sandboxing.
+
+The script header (`core/git-hooks/check-forbidden-chars.sh`) carries the same note for reviewers reading the code.
+
 ## See Also
 
 - `/code-review` -- Full code review (more thorough)
