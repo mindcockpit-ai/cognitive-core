@@ -42,8 +42,25 @@
 #   !<hex>                              # remove a default blocklist rule
 #
 # Bypass (not recommended): git commit --no-verify
+#
+# Trust boundary
+# --------------
+# The per-repo config file (.husky/forbidden-chars.conf or
+# bin/hooks/forbidden-chars.conf) is parsed line-by-line and the resulting
+# codepoint/name pairs are interpolated verbatim into an inline Perl
+# `BEGIN { our %FN = (...) }` block (see PERL_HASH below). A hostile config
+# (e.g., `2014" => "x"; system("..."); my $f = "`) could inject arbitrary
+# Perl code that runs with the user's commit privileges.
+#
+# This is **acceptable** under the same trust assumption as `.gitignore`,
+# `.editorconfig`, or any other per-repo config: a compromised repo's local
+# config is out of scope for this hook. Mitigation: configs are typically
+# committed to the repo and reviewed alongside other code changes.
+#
+# See `core/skills/pre-commit/SKILL.md` § "Security model" for the
+# adopter-facing version of this note.
 
-set -uo pipefail
+set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
@@ -172,6 +189,9 @@ while IFS= read -r file; do
 
     if echo "$file" | grep -qE "$CODE_REGEX"; then
         MODE="ASCII"
+        # `|| true`: under `set -e`, a failing perl (e.g., file disappeared
+        # between the existence check and the read) would abort the script.
+        # An empty capture is the natural "no violation" signal here.
         OUTPUT=$(perl -ne '
             while (/([^\x00-\x7F]+)/g) {
                 my $ln = $.;
@@ -184,12 +204,13 @@ while IFS= read -r file; do
                 print "    line $ln [non-ASCII: $cp_str]: $excerpt\n";
                 last;
             }
-        ' "$file" 2>/dev/null)
+        ' "$file" 2>/dev/null || true)
     elif echo "$file" | grep -qE "$DOC_REGEX"; then
         MODE="BLOCK"
         if [ "${#EFFECTIVE[@]}" = "0" ]; then
             continue
         fi
+        # `|| true`: see ASCII-mode comment above. Identical rationale.
         OUTPUT=$(perl -CSD -ne "
             BEGIN { our %FN = ($PERL_HASH); our @KEYS = sort keys %FN; }
             for my \$c (@KEYS) {
@@ -202,7 +223,7 @@ while IFS= read -r file; do
                     last;
                 }
             }
-        " "$file" 2>/dev/null)
+        " "$file" 2>/dev/null || true)
     fi
 
     if [ -n "$OUTPUT" ]; then
