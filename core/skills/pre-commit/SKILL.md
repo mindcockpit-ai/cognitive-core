@@ -81,7 +81,7 @@ Failed: N
 | `LINT_WARN=1` | Warn only, do not block |
 | `SKIP_LINT=1` | Skip all lint checks |
 
-## Forbidden-Character Enforcement (optional, via `core/hooks/check-forbidden-chars.sh`)
+## Forbidden-Character Enforcement (optional, via `core/git-hooks/check-forbidden-chars.sh`)
 
 Cognitive-core ships a standalone pre-commit script that blocks AI-tell characters in staged files. It is **not auto-installed** by `update.sh`; projects opt in by referencing the script from their git pre-commit hook (or husky pre-commit).
 
@@ -122,7 +122,7 @@ ALLOW_DEFAULT = 0                   # blocklist: start from empty
 
 ```bash
 # 1. Reference the cognitive-core hook from your pre-commit
-ln -s "$CC_FRAMEWORK_ROOT/core/hooks/check-forbidden-chars.sh" \
+ln -s "$CC_FRAMEWORK_ROOT/core/git-hooks/check-forbidden-chars.sh" \
       "$REPO_ROOT/bin/hooks/checkForbiddenChars.sh"
 
 # 2. Add a step to .husky/pre-commit (or .git/hooks/pre-commit)
@@ -145,4 +145,4 @@ edit .husky/forbidden-chars.conf
 - `/code-review` -- Full code review (more thorough)
 - `/fitness` -- Quality fitness scoring
 - `CLAUDE.md` -- Project standards reference
-- `core/hooks/check-forbidden-chars.sh` -- AI-tell character pre-commit hook
+- `core/git-hooks/check-forbidden-chars.sh` -- AI-tell character pre-commit hook

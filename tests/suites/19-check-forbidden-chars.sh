@@ -19,7 +19,7 @@ source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
 suite_start "19 - check-forbidden-chars hook"
 
-HOOK="${ROOT_DIR}/core/hooks/check-forbidden-chars.sh"
+HOOK="${ROOT_DIR}/core/git-hooks/check-forbidden-chars.sh"
 
 # ---- Hook exists and is executable ----
 assert_file_exists "hook script exists" "$HOOK"
