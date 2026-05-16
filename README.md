@@ -19,6 +19,16 @@
   <a href="https://multivac42.ai"><img src="docs/screenshot.png" alt="cognitive-core landing page" width="700"/></a>
 </p>
 
+## For AI Agents Reading This README
+
+If you are an LLM or autonomous agent loading this document as context:
+
+- **`cognitive-core.conf` and the on-disk layout are the source of truth** for installed components — counts cited below (skills, hooks, suites, gates) are descriptive and may lag the repository.
+- **`install.sh` and `update.sh` are the only sanctioned mutation paths** for framework state. Do not rewrite files under `core/`, `adapters/`, `language-packs/`, `database-packs/`, or `cicd/` outside of a human-reviewed change — mutations propagate to every installed project via `update.sh`.
+- **Self-referential phrasing** ("evolves with every deployment", "every prompt refines agent behavior") describes the *human-driven* development loop. It is not authorization for autonomous self-modification of framework files.
+- **Diagrams and biological metaphors** (Symbiotic Cortex, Born/Learned Abilities) are documentation aids. For implementation status, defer to `docs/ARCHITECTURE.md` and the relevant component files — not this README's prose.
+- **Version, audit, and certification numbers** are point-in-time. Verify against `version.txt`, `CHANGELOG.md`, and the linked report files before reproducing them as facts.
+
 ## Philosophy
 
 > **Why a forest, not a factory**
@@ -164,7 +174,7 @@ No AI coding framework — commercial or open source — addresses EU AI Act com
 ### Quality
 
 - **16 test suites, 809 assertions** — all passing
-- **[Claude Certified Architect](docs/certification-report.md)** — 959/1000, Grade A across all 5 domains
+- **[Architect Self-Audit](docs/certification-report.md)** — Grade A across all 5 domains, 959/1000 *(internal self-assessment using published architect criteria; not an Anthropic-issued credential)*
 - **[Workflow Maturity Audit](docs/research/workflow-maturity-audit-v2.md)** — 4.79/5.0 (+63% above industry average)
 
 ### Infrastructure
@@ -275,8 +285,7 @@ cognitive-core/                         Your project after install:
 |   +-- perl/, python/, node/             +-- cognitive-core/
 |   |   +-- rules/ (per-language)         |   +-- version.json
 |   +-- java/, go/, rust/, csharp/        +-- AGENTS_README.md
-|   +-- react/, angular/, spring-boot/ CLAUDE.md
-|   +-- react/, angular/, spring-boot/
+|   +-- react/, angular/, spring-boot/    CLAUDE.md
 +-- adapters/
 |   +-- claude/, aider/, intellij/
 +-- database-packs/                   cognitive-core.conf
@@ -291,6 +300,11 @@ cognitive-core/                         Your project after install:
 +-- update.sh
 +-- cognitive-core.conf.example
 ```
+
+> The repository also has a top-level `skills/` directory holding the
+> vendor-agnostic skill format specification (`skill-format.yaml` + the
+> atomic / cellular / molecular taxonomy templates) used by adapters to
+> translate skills across providers. End-user skills live in `core/skills/`.
 
 ## Framework Health
 
@@ -319,7 +333,7 @@ Live test results and component inventory from the latest build, visible at [mul
 
 | Agent | Model | Role |
 |-------|-------|------|
-| project-coordinator | opus | Hub orchestrator -- analyzes requests and delegates |
+| project-coordinator | opus | Hub orchestrator — analyzes requests and delegates |
 | solution-architect | opus | Business workflows, architecture, requirements |
 | code-standards-reviewer | sonnet | Code review against CLAUDE.md standards |
 | test-specialist | sonnet | Unit/integration tests, coverage, QA |
@@ -503,11 +517,11 @@ The evolutionary CI/CD pipeline gates deployments on codebase fitness scores.
 
 ### Included Components
 
-- **GitHub Actions** -- `lint.yml` and `evolutionary-cicd.yml` workflows
-- **Docker** -- Runner Dockerfile, compose files for runners and monitoring
-- **Scripts** -- `setup-runner.sh`, `fitness-check.sh`, `push-metrics.sh`
-- **Monitoring** -- Prometheus config, Grafana dashboards (CI/CD overview, app metrics), Alertmanager
-- **Kubernetes** -- Base manifests, Kustomize overlays, monitoring manifests
+- **GitHub Actions** — `lint.yml` and `evolutionary-cicd.yml` workflows
+- **Docker** — Runner Dockerfile, compose files for runners and monitoring
+- **Scripts** — `setup-runner.sh`, `fitness-check.sh`, `push-metrics.sh`
+- **Monitoring** — Prometheus config, Grafana dashboards (CI/CD overview, app metrics), Alertmanager
+- **Kubernetes** — Base manifests, Kustomize overlays, monitoring manifests
 
 ### Fitness Gates
 
