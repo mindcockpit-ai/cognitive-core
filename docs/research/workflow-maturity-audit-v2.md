@@ -1,11 +1,52 @@
 # Workflow Maturity Audit v2 — cognitive-core v1.0.0
 
+> **Status**: Historical snapshot of framework v1.0.0 as of 2026-03-18.
+> The framework has since progressed (current: v1.5.0); a v3 audit
+> reflecting the current state is planned. This document is preserved as
+> the baseline against which subsequent audits are measured.
+>
+> **Type**: Internal self-audit. The auditor is an agent that is part of
+> the framework being scored, evaluated against benchmarks compiled from
+> public 2024-2025 reports (DORA, OWASP, Puppet, Splunk, ThoughtWorks).
+> Numbers should be read as an internal assessment, not an external
+> evaluation.
+
 **Date**: 2026-03-18
-**Auditor**: Research Analyst Agent (cognitive-core)
+**Auditor**: Research Analyst Agent (cognitive-core) — internal
 **Framework Version**: v1.0.0 (released 2026-03-18)
-**Previous Audit**: February 2026 (scored 4.43/5 weighted)
-**Methodology**: Source Authority Model (T1-T5), codebase evidence + industry benchmarks
-**Result**: **4.79 / 5.0** (+0.36 from previous, +63% above industry average)
+**Previous Audit**: 2026-02 (scored 4.43 / 5.0 average)
+**Methodology**: Source Authority Model (T1-T5), codebase evidence + public industry benchmarks
+**Result**: **4.79 / 5.0** (+0.36 from previous; +63% above the equal-weighted industry baseline of 2.93 derived from the cited per-dimension sources)
+
+---
+
+## How to read this audit
+
+**Scoring scale** (5-point Likert applied per dimension):
+
+- **5.0** — Feature implemented and verifiable in codebase; meets or exceeds documented industry practice.
+- **4.0** — Implemented with one identifiable omission.
+- **3.0** — Partially implemented; some sub-components missing.
+- **2.0** — Planned or in pipeline; not yet active.
+- **1.0** — Absent.
+
+**Industry-average** values are equal-weighted estimates derived from the
+cited 2024-2025 reports for each dimension. The reports use varying
+metrics (DORA archetype distributions, OWASP DSOMM levels, Puppet
+adoption percentages); the mapping to the 5-point scale is the auditor's
+judgment. Where no direct industry-survey value exists for a dimension
+(e.g., Branching Strategy, Code Quality), the value is an auditor
+estimate and is annotated inline.
+
+**Aggregate score** is the equal-weighted average of the 7 dimension
+scores. It is not "weighted" in the sense of explicit per-dimension
+weights — none are documented.
+
+**Novelty labels** in dimension tables:
+
+- **Implemented** — present, no novelty claim.
+- **New** — added or substantially expanded since the previous audit (2026-02).
+- **(Novel)** — no equivalent implementation identified in surveyed open-source AI-coding frameworks as of 2026-03-18.
 
 ---
 
@@ -20,7 +61,7 @@
 | 5 | Code Quality & Standards | 5.0 | **5.0** | 0.0 | 3.0 | +2.0 |
 | 6 | AI-Assisted Development | 5.0 | **5.0** | 0.0 | 2.0 | +3.0 |
 | 7 | Security & Governance | 4.0 | **4.5** | +0.5 | 3.0 | +1.5 |
-| | **Weighted Total** | **4.43** | **4.79** | **+0.36** | **2.93** | **+1.86** |
+| | **Aggregate (equal-weighted average)** | **4.43** | **4.79** | **+0.36** | **2.93** | **+1.86** |
 
 ---
 
@@ -58,7 +99,7 @@ Largest improvement (+1.0). Gap to 5.0: burndown charts, velocity forecasting (P
 
 ## Dimension 3: Branching Strategy — 4.5/5.0 (unchanged)
 
-**Industry Average: 3.5** | Already comprehensive. No change warranted.
+**Industry Average: 3.5** (auditor estimate — no direct branching-strategy maturity value in the cited reports). Already comprehensive. No change warranted.
 
 ---
 
@@ -78,7 +119,7 @@ Largest improvement (+1.0). Gap to 5.0: burndown charts, velocity forecasting (P
 
 ## Dimension 5: Code Quality & Standards — 5.0/5.0 (unchanged)
 
-**Industry Average: 3.0** | 46 skills, 13 suites, 525+ tests, 959/1000 certification.
+**Industry Average: 3.0** (auditor estimate, derived from DORA 2025 quality-signal distributions). 46 skills, 13 suites, 525+ tests, 959/1000 certification.
 
 ---
 
@@ -93,9 +134,9 @@ Largest improvement (+1.0). Gap to 5.0: burndown charts, velocity forecasting (P
 | Information provenance (W3C PROV) | **New** |
 | Session lifecycle (5 states) | **New** |
 | MCP server (5 tools, shared) | **New** |
-| 3 adapters (Claude, Aider, IntelliJ) | IntelliJ new |
+| 3 adapters (Claude, Aider, IntelliJ) | IntelliJ **new** |
 
-Widest gap: +3.0 above industry. 4 novel features with no equivalent in any framework.
+Widest gap: +3.0 above industry. 4 features for which we have not identified equivalent implementations in surveyed open-source AI-coding frameworks as of 2026-03-18.
 
 ---
 
@@ -129,6 +170,10 @@ OWASP DSOMM Level 3-4. Gap to 5.0: SBOM, CVE scanning, runtime security.
 ---
 
 ## Sources
+
+> *This list captures public, open-access sources cited in the dimension
+> analyses. Additional internal references (codebase evidence, paywalled
+> analyses) are mentioned inline but not URL-linked here.*
 
 - [DORA 2024-2025 Report](https://dora.dev/research/2024/dora-report/) (T1)
 - [OWASP DevSecOps Maturity Model](https://owasp.org/www-project-devsecops-maturity-model/) (T1)
