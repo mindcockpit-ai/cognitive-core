@@ -79,7 +79,7 @@ across layers. Parsimony applies *within* each security layer, never *across* th
 |----------|-------------|
 | **Solo developers** using Claude Code | Production-grade safety hooks, structured agents, and skills from first install |
 | **Development teams** adopting AI-assisted workflows | Consistent coding standards, CI/CD fitness gates, multi-agent coordination |
-| **Enterprise architects** | Portable framework across 11 languages, 3 database packs, 4 platform adapters |
+| **Enterprise architects** | Portable framework across 12 languages, 3 database packs, 4 platform adapters |
 | **Security-conscious organizations** | Defense-in-depth hooks that block dangerous commands, scan for secrets, audit external access |
 
 **Not for**: Single-file scripts, throwaway prototypes, or teams that want AI without governance. If you want uncontrolled AI code generation, use Copilot directly — cognitive-core adds structure, not speed.
@@ -110,8 +110,6 @@ cognitive-core is not a static product you install and use "as is." Like a livin
 - **Every session** strengthens project-specific patterns
 
 We don't have product managers — we have cognitive-core. Every idea is evaluated immediately. What survives evolution, stays. What doesn't add value, naturally fades.
-
-Multi-agent peer review — where agents check each other's work — was implemented in cognitive-core before Anthropic officially added it to their tools.
 
 ### Born Abilities (work from first install)
 
@@ -173,7 +171,7 @@ No AI coding framework — commercial or open source — addresses EU AI Act com
 
 ### Quality
 
-- **16 test suites, 809 assertions** — all passing
+- **25 test suites, 1,404 assertions** — 1,400 passing (4 known regressions in suite 21, tracked separately)
 - **[Architect Self-Audit](docs/certification-report.md)** — Grade A across all 5 domains, 959/1000 *(internal self-assessment using published architect criteria; not an Anthropic-issued credential)*
 - **[Workflow Maturity Audit](docs/research/workflow-maturity-audit-v2.md)** — 4.79/5.0 (+63% above industry average)
 
@@ -189,12 +187,18 @@ No AI coding framework — commercial or open source — addresses EU AI Act com
 ### Option 1: Claude Code Plugin (Quick Start)
 
 ```bash
-# Load the plugin — hooks, agents, and skills activate instantly
-claude --plugin-dir https://github.com/mindcockpit-ai/cognitive-core/plugin
+# 1. Clone the framework (plugin lives at ./plugin)
+git clone https://github.com/mindcockpit-ai/cognitive-core.git
 
-# Configure for your project
+# 2. Start Claude Code in your project with the plugin loaded for this session
+cd /path/to/your-project
+claude --plugin-dir /path/to/cognitive-core/plugin
+
+# 3. Configure for your project
 /setup
 ```
+
+> `--plugin-dir` accepts a local directory or `.zip`. To load from a remote `.zip` (e.g. a release artifact), use `--plugin-url` instead.
 
 ### Option 2: Full Install (CI/CD, Language Packs, Multi-Platform)
 
@@ -327,7 +331,12 @@ Live test results and component inventory from the latest build, visible at [mul
 | `compact-reminder.sh` | Notification (compact) | Re-injects critical rules after context compaction |
 | `angular-version-guard.sh` | PreToolUse (Write/Edit) | Angular version-aware pattern enforcement (v18-21) |
 | `spring-boot-version-guard.sh` | PreToolUse (Write/Edit) | Spring Boot version-aware pattern enforcement (v2-4) |
+| `notify-complete.sh` | Stop / SubagentStop / Notification | Dispatches completion notifications to enabled channels |
+| `post-fetch-cache.sh` | PostToolUse (WebFetch) | Caches allowed domains so subsequent fetches skip the prompt |
+| `session-guard.sh` | SessionStart | Inter-session coordination: detects concurrent sessions on the same repo (advisory, warns only) |
+| `session-cleanup.sh` | Stop | Removes the session from the registry and cleans up its lock dir |
 | `_lib.sh` | (shared) | Config loading, JSON output helpers for all hooks |
+| `_session-hygiene.sh` | (shared) | Session-state helpers used by `session-guard` / `session-cleanup` |
 
 ### Agents
 
@@ -490,6 +499,7 @@ Language packs add language-specific skills and patterns.
 | React | `language-packs/react/` | react-patterns, react-testing, react-migration, react-e2e-mocking |
 | Angular | `language-packs/angular/` | angular-patterns, angular-testing, angular-migration, angular-e2e-mocking |
 | Spring Boot | `language-packs/spring-boot/` | spring-boot-patterns, spring-boot-testing, spring-boot-migration, spring-boot-e2e-testing |
+| Struts / JSP (legacy) | `language-packs/struts-jsp/` | struts-jsp-patterns, struts-jsp-testing, struts-jsp-migration |
 
 ### Database Packs
 
