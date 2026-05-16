@@ -79,7 +79,7 @@ across layers. Parsimony applies *within* each security layer, never *across* th
 |----------|-------------|
 | **Solo developers** using Claude Code | Production-grade safety hooks, structured agents, and skills from first install |
 | **Development teams** adopting AI-assisted workflows | Consistent coding standards, CI/CD fitness gates, multi-agent coordination |
-| **Enterprise architects** | Portable framework across 12 languages, 3 database packs, 4 platform adapters |
+| **Enterprise architects** | Portable framework across 11 languages, 3 database packs, 4 platform adapters |
 | **Security-conscious organizations** | Defense-in-depth hooks that block dangerous commands, scan for secrets, audit external access |
 
 **Not for**: Single-file scripts, throwaway prototypes, or teams that want AI without governance. If you want uncontrolled AI code generation, use Copilot directly — cognitive-core adds structure, not speed.
