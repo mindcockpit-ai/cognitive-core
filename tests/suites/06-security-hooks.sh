@@ -543,6 +543,7 @@ if [ -f "$VALIDATE_WRITE" ]; then
     pem_file="${test_dir}/key.conf"
     echo '-----BEGIN PRIVATE KEY-----' > "$pem_file"
     echo 'MIIEvgIBADANBg...' >> "$pem_file"
+    echo '-----END PRIVATE KEY-----' >> "$pem_file"
 
     output=$(echo "$(mock_write_json "$pem_file" "")" | \
         CC_PROJECT_DIR="$test_dir" bash "$VALIDATE_WRITE" 2>/dev/null) || true
@@ -562,6 +563,18 @@ if [ -f "$VALIDATE_WRITE" ]; then
         _pass "write: skips test files"
     else
         _fail "write: should skip test files" "$output"
+    fi
+
+    # Markdown is NOT skipped: a secret copied into a report/doc must still be caught
+    md_file="${test_dir}/audit-report.md"
+    echo 'Found credential: AWS_KEY = "AKIAIOSFODNN7EXAMPLE1"' > "$md_file"
+
+    output=$(echo "$(mock_write_json "$md_file" "")" | \
+        CC_PROJECT_DIR="$test_dir" bash "$VALIDATE_WRITE" 2>/dev/null) || true
+    if echo "$output" | grep -qiE "aws|secret|key"; then
+        _pass "write: scans markdown documents for secrets"
+    else
+        _fail "write: should scan markdown for secrets" "$output"
     fi
 
     # Clean file should produce no output
