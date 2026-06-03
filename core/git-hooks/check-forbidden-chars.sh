@@ -37,6 +37,7 @@
 # Config directives:
 #   CODE_EXT = pm pl t sh js ...        # space-separated; override code extensions
 #   DOC_EXT  = md txt rst ...           # space-separated; override doc extensions
+#   EXCLUDE  = .claude/ vendor/         # space-separated path prefixes to skip
 #   ALLOW_DEFAULT = 0                   # blocklist: start from empty list
 #   <hex> <NAME> [-> <repl>]            # add/override a blocklist rule
 #   !<hex>                              # remove a default blocklist rule
@@ -90,6 +91,7 @@ fi
 
 CODE_EXT="$DEFAULT_CODE_EXT"
 DOC_EXT="$DEFAULT_DOC_EXT"
+EXCLUDE=""
 declare -a EFFECTIVE
 EFFECTIVE=("${DEFAULT_FORBIDDEN[@]}")
 
@@ -111,6 +113,10 @@ if [ -n "$CONFIG_FILE" ] && [ -f "$CONFIG_FILE" ]; then
                 ;;
             DOC_EXT*=*)
                 DOC_EXT="$(echo "$line" | sed -E 's/^DOC_EXT[[:space:]]*=[[:space:]]*//')"
+                continue
+                ;;
+            EXCLUDE*=*)
+                EXCLUDE="$(echo "$line" | sed -E 's/^EXCLUDE[[:space:]]*=[[:space:]]*//')"
                 continue
                 ;;
             ALLOW_DEFAULT*=*0*)
@@ -161,6 +167,20 @@ ALL_REGEX="${CODE_REGEX}|${DOC_REGEX}"
 
 STAGED=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null | grep -E "$ALL_REGEX" || true)
 [ -z "$STAGED" ] && exit 0
+
+# Optional path exclusions: drop staged files under any space-separated path
+# prefix listed in EXCLUDE (e.g. vendored/framework dirs that legitimately
+# contain AI-tell characters in comments).
+if [ -n "$EXCLUDE" ]; then
+    EXCLUDE_REGEX=""
+    for p in $EXCLUDE; do
+        esc=$(printf '%s' "$p" | sed -E 's/[][(){}.^$*+?|\\]/\\&/g')
+        [ -n "$EXCLUDE_REGEX" ] && EXCLUDE_REGEX="$EXCLUDE_REGEX|"
+        EXCLUDE_REGEX="$EXCLUDE_REGEX^$esc"
+    done
+    STAGED=$(printf '%s\n' "$STAGED" | grep -vE "$EXCLUDE_REGEX" || true)
+    [ -z "$STAGED" ] && exit 0
+fi
 
 PERL_HASH=""
 for entry in ${EFFECTIVE[@]+"${EFFECTIVE[@]}"}; do
