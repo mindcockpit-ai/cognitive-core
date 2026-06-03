@@ -113,10 +113,15 @@ Project-local override file at `.husky/forbidden-chars.conf` or `bin/hooks/forbi
 ```
 CODE_EXT = pm pl t sh js ...        # override code extensions
 DOC_EXT  = md txt rst ...           # override doc extensions
+EXCLUDE  = .claude/ vendor/         # skip files under these path prefixes
 ALLOW_DEFAULT = 0                   # blocklist: start from empty
 2248 ALMOST EQUAL TO -> ~=          # add a custom rule
 !2018                               # remove a default rule
 ```
+
+`EXCLUDE` skips files under the given space-separated path prefixes — useful for
+vendored or framework directories (e.g. `.claude/`) whose comments legitimately
+contain AI-tell characters; without it, committing those files trips the guard.
 
 ### Working with inline locale strings
 
