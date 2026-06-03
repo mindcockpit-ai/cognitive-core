@@ -6,6 +6,14 @@
 
 - `core/git-hooks/check-forbidden-chars.sh` — opt-in pre-commit hook that blocks AI-tell characters (em-dash, smart quotes, zero-width spaces, etc.) in staged files. Two enforcement modes: ASCII-only for source code, configurable blocklist for docs. Not auto-installed by `update.sh` — see [`core/skills/pre-commit/SKILL.md`](core/skills/pre-commit/SKILL.md) for opt-in instructions. ([#291](https://github.com/mindcockpit-ai/cognitive-core/pull/291))
 
+### Fixed
+
+- `core/git-hooks/check-forbidden-chars.sh` is now pure ASCII — a stray `§` in a comment would have failed the hook's own ASCII-only check when committed under a project that lints `.sh` in ASCII mode.
+
+### Documentation
+
+- `core/skills/pre-commit/SKILL.md`: document the inline-locale-strings case (put such extensions in `DOC_EXT`/blocklist so accented letters are allowed) and clarify that a single commit is bypassed with `git commit --no-verify` (distinct from the lint hook's `SKIP_LINT`).
+
 ## [1.5.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.4.1...v1.5.0) (2026-04-14)
 
 

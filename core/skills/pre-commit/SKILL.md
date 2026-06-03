@@ -118,6 +118,19 @@ ALLOW_DEFAULT = 0                   # blocklist: start from empty
 !2018                               # remove a default rule
 ```
 
+### Working with inline locale strings
+
+Source files that legitimately contain non-ASCII (e.g. UI locale strings inline
+in a `translations.ts`) are rejected by **ASCII-only** mode. Put those extensions
+in `DOC_EXT` (blocklist) rather than `CODE_EXT`, so AI-tell characters are still
+banned while accented letters (German, Slovak, etc.) are allowed.
+
+### Bypassing a single commit
+
+The hook blocks by exiting non-zero. To let one commit through — e.g. when
+committing vendored files that legitimately contain em-dashes — use
+`git commit --no-verify`. This is separate from the lint hook's `SKIP_LINT`.
+
 ### Installation in a project
 
 ```bash

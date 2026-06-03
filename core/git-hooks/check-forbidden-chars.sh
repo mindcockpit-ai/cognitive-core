@@ -57,7 +57,7 @@
 # config is out of scope for this hook. Mitigation: configs are typically
 # committed to the repo and reviewed alongside other code changes.
 #
-# See `core/skills/pre-commit/SKILL.md` § "Security model" for the
+# See `core/skills/pre-commit/SKILL.md` section "Security model" for the
 # adopter-facing version of this note.
 
 set -euo pipefail
