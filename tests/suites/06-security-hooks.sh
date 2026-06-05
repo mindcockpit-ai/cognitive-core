@@ -500,6 +500,37 @@ if [ -f "$VALIDATE_FETCH" ]; then
         _skip "post-fetch-cache.sh not found"
     fi
 
+    # Regression (#119): real-world flow with NO CLAUDE_SESSION_KEY set.
+    # Production exports CLAUDE_CODE_SESSION_ID, not CLAUDE_SESSION_KEY. Each hook
+    # is its own process, so the old ppid_$$ fallback used the hook's OWN pid and
+    # the PostToolUse write never matched the next PreToolUse read — the cache
+    # silently never hit and "don't ask again" re-prompted forever. This drives
+    # post-fetch (write) and validate-fetch (read) as SEPARATE processes sharing
+    # only the ambient session id.
+    if [ -f "$POST_FETCH" ]; then
+        _e2e_sid="e2e-session-$$-$(date +%s)"
+        _e2e_cache_file="${TMPDIR:-/tmp}/cc-session-allowed-domains-${_e2e_sid}"
+        rm -f "$_e2e_cache_file"
+
+        # Process 1: post-fetch caches the domain (CLAUDE_SESSION_KEY unset)
+        echo "$(mock_fetch_json "https://e2e-domain.example.org/x")" | \
+            env -u CLAUDE_SESSION_KEY CLAUDE_PROJECT_DIR=/tmp \
+            CLAUDE_CODE_SESSION_ID="$_e2e_sid" \
+            bash "$POST_FETCH" 2>/dev/null
+
+        # Process 2: validate-fetch must now find the cache and NOT ask
+        output=$(echo "$(mock_fetch_json "https://e2e-domain.example.org/x")" | \
+            env -u CLAUDE_SESSION_KEY CLAUDE_PROJECT_DIR=/tmp \
+            CLAUDE_CODE_SESSION_ID="$_e2e_sid" \
+            bash "$VALIDATE_FETCH" 2>/dev/null) || true
+        if [ -z "$output" ] || ! echo "$output" | grep -q '"ask"\|"deny"'; then
+            _pass "fetch: cross-process cache hit via CLAUDE_CODE_SESSION_ID"
+        else
+            _fail "fetch: cross-process cache should hit without CLAUDE_SESSION_KEY" "$output"
+        fi
+        rm -f "$_e2e_cache_file"
+    fi
+
     # Cleanup session cache test files
     rm -f "$_test_cache_file"
     rm -f "${TMPDIR:-/tmp}/cc-session-allowed-domains-${_other_session_key}"
