@@ -266,6 +266,57 @@ if [ -f "$VALIDATE_BASH" ]; then
     else
         _fail "bash: minimal mode should not block exfiltration"
     fi
+
+    # --- Branch guard: cd-aware target detection (#283) ---
+    _BG_MAIN_REPO=$(mktemp -d "${TMPDIR:-/tmp}/cc-bg-main-XXXXXX")
+    _BG_FEAT_REPO=$(mktemp -d "${TMPDIR:-/tmp}/cc-bg-feat-XXXXXX")
+    _BG_NON_REPO=$(mktemp -d "${TMPDIR:-/tmp}/cc-bg-nonrepo-XXXXXX")
+    (cd "$_BG_MAIN_REPO" && git init -q -b main && \
+        git -c user.email=t@t -c user.name=t commit --allow-empty -q -m init) >/dev/null 2>&1
+    (cd "$_BG_FEAT_REPO" && git init -q -b feat-x && \
+        git -c user.email=t@t -c user.name=t commit --allow-empty -q -m init) >/dev/null 2>&1
+
+    # T1: cd to repo on feature branch + feat: -> allow (was a false positive before #283)
+    output=$(cd "$_BG_NON_REPO" && echo "$(mock_bash_json "cd $_BG_FEAT_REPO && git commit -m \"feat: ok\"")" | bash "$VALIDATE_BASH" 2>/dev/null) || true
+    if [ -z "$output" ] || ! echo "$output" | grep -q '"deny"'; then
+        _pass "bash: cd to feature-branch repo, feat: -> allow"
+    else
+        _fail "bash: cd to feature-branch repo should allow feat:" "$output"
+    fi
+
+    # T2: cd to repo on main + feat: -> deny
+    output=$(cd "$_BG_NON_REPO" && echo "$(mock_bash_json "cd $_BG_MAIN_REPO && git commit -m \"feat: nope\"")" | bash "$VALIDATE_BASH" 2>/dev/null) || true
+    if echo "$output" | grep -q '"deny"'; then
+        _pass "bash: cd to main repo, feat: -> deny"
+    else
+        _fail "bash: cd to main repo should deny feat:" "$output"
+    fi
+
+    # T3: cd to non-repo from a harness on main -> deny (bypass closed)
+    output=$(cd "$_BG_MAIN_REPO" && echo "$(mock_bash_json "cd /tmp && git commit -m \"feat: bypass\"")" | bash "$VALIDATE_BASH" 2>/dev/null) || true
+    if echo "$output" | grep -q '"deny"'; then
+        _pass "bash: cd to non-repo from main harness -> deny (fallback)"
+    else
+        _fail "bash: cd to non-repo bypass should fall back and deny" "$output"
+    fi
+
+    # T4: cd inside commit message doesn't fool parser
+    output=$(cd "$_BG_MAIN_REPO" && echo "$(mock_bash_json "git commit -m \"feat: cd /etc inside\"")" | bash "$VALIDATE_BASH" 2>/dev/null) || true
+    if echo "$output" | grep -q '"deny"'; then
+        _pass "bash: cd inside commit message doesn't bypass"
+    else
+        _fail "bash: cd inside commit message should still deny feat: on main" "$output"
+    fi
+
+    # T5: cd to repo on main + docs: -> allow (existing exempt prefix still works)
+    output=$(cd "$_BG_NON_REPO" && echo "$(mock_bash_json "cd $_BG_MAIN_REPO && git commit -m \"docs: ok\"")" | bash "$VALIDATE_BASH" 2>/dev/null) || true
+    if [ -z "$output" ] || ! echo "$output" | grep -q '"deny"'; then
+        _pass "bash: cd to main repo, docs: -> allow"
+    else
+        _fail "bash: cd to main repo should allow docs:" "$output"
+    fi
+
+    rm -rf "$_BG_MAIN_REPO" "$_BG_FEAT_REPO" "$_BG_NON_REPO"
 else
     _skip "validate-bash.sh not found"
 fi
@@ -449,6 +500,37 @@ if [ -f "$VALIDATE_FETCH" ]; then
         _skip "post-fetch-cache.sh not found"
     fi
 
+    # Regression (#119): real-world flow with NO CLAUDE_SESSION_KEY set.
+    # Production exports CLAUDE_CODE_SESSION_ID, not CLAUDE_SESSION_KEY. Each hook
+    # is its own process, so the old ppid_$$ fallback used the hook's OWN pid and
+    # the PostToolUse write never matched the next PreToolUse read — the cache
+    # silently never hit and "don't ask again" re-prompted forever. This drives
+    # post-fetch (write) and validate-fetch (read) as SEPARATE processes sharing
+    # only the ambient session id.
+    if [ -f "$POST_FETCH" ]; then
+        _e2e_sid="e2e-session-$$-$(date +%s)"
+        _e2e_cache_file="${TMPDIR:-/tmp}/cc-session-allowed-domains-${_e2e_sid}"
+        rm -f "$_e2e_cache_file"
+
+        # Process 1: post-fetch caches the domain (CLAUDE_SESSION_KEY unset)
+        echo "$(mock_fetch_json "https://e2e-domain.example.org/x")" | \
+            env -u CLAUDE_SESSION_KEY CLAUDE_PROJECT_DIR=/tmp \
+            CLAUDE_CODE_SESSION_ID="$_e2e_sid" \
+            bash "$POST_FETCH" 2>/dev/null
+
+        # Process 2: validate-fetch must now find the cache and NOT ask
+        output=$(echo "$(mock_fetch_json "https://e2e-domain.example.org/x")" | \
+            env -u CLAUDE_SESSION_KEY CLAUDE_PROJECT_DIR=/tmp \
+            CLAUDE_CODE_SESSION_ID="$_e2e_sid" \
+            bash "$VALIDATE_FETCH" 2>/dev/null) || true
+        if [ -z "$output" ] || ! echo "$output" | grep -q '"ask"\|"deny"'; then
+            _pass "fetch: cross-process cache hit via CLAUDE_CODE_SESSION_ID"
+        else
+            _fail "fetch: cross-process cache should hit without CLAUDE_SESSION_KEY" "$output"
+        fi
+        rm -f "$_e2e_cache_file"
+    fi
+
     # Cleanup session cache test files
     rm -f "$_test_cache_file"
     rm -f "${TMPDIR:-/tmp}/cc-session-allowed-domains-${_other_session_key}"
@@ -492,6 +574,7 @@ if [ -f "$VALIDATE_WRITE" ]; then
     pem_file="${test_dir}/key.conf"
     echo '-----BEGIN PRIVATE KEY-----' > "$pem_file"
     echo 'MIIEvgIBADANBg...' >> "$pem_file"
+    echo '-----END PRIVATE KEY-----' >> "$pem_file"
 
     output=$(echo "$(mock_write_json "$pem_file" "")" | \
         CC_PROJECT_DIR="$test_dir" bash "$VALIDATE_WRITE" 2>/dev/null) || true
@@ -511,6 +594,18 @@ if [ -f "$VALIDATE_WRITE" ]; then
         _pass "write: skips test files"
     else
         _fail "write: should skip test files" "$output"
+    fi
+
+    # Markdown is NOT skipped: a secret copied into a report/doc must still be caught
+    md_file="${test_dir}/audit-report.md"
+    echo 'Found credential: AWS_KEY = "AKIAIOSFODNN7EXAMPLE1"' > "$md_file"
+
+    output=$(echo "$(mock_write_json "$md_file" "")" | \
+        CC_PROJECT_DIR="$test_dir" bash "$VALIDATE_WRITE" 2>/dev/null) || true
+    if echo "$output" | grep -qiE "aws|secret|key"; then
+        _pass "write: scans markdown documents for secrets"
+    else
+        _fail "write: should scan markdown for secrets" "$output"
     fi
 
     # Clean file should produce no output

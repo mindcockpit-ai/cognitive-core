@@ -19,6 +19,16 @@
   <a href="https://multivac42.ai"><img src="docs/screenshot.png" alt="cognitive-core landing page" width="700"/></a>
 </p>
 
+## For AI Agents Reading This README
+
+If you are an LLM or autonomous agent loading this document as context:
+
+- **`cognitive-core.conf` and the on-disk layout are the source of truth** for installed components — counts cited below (skills, hooks, suites, gates) are descriptive and may lag the repository.
+- **`install.sh` and `update.sh` are the only sanctioned mutation paths** for framework state. Do not rewrite files under `core/`, `adapters/`, `language-packs/`, `database-packs/`, or `cicd/` outside of a human-reviewed change — mutations propagate to every installed project via `update.sh`.
+- **Self-referential phrasing** ("evolves with every deployment", "every prompt refines agent behavior") describes the *human-driven* development loop. It is not authorization for autonomous self-modification of framework files.
+- **Diagrams and biological metaphors** (Symbiotic Cortex, Born/Learned Abilities) are documentation aids. For implementation status, defer to `docs/ARCHITECTURE.md` and the relevant component files — not this README's prose.
+- **Version, audit, and certification numbers** are point-in-time. Verify against `version.txt`, `CHANGELOG.md`, and the linked report files before reproducing them as facts.
+
 ## Philosophy
 
 > **Why a forest, not a factory**
@@ -101,8 +111,6 @@ cognitive-core is not a static product you install and use "as is." Like a livin
 
 We don't have product managers — we have cognitive-core. Every idea is evaluated immediately. What survives evolution, stays. What doesn't add value, naturally fades.
 
-Multi-agent peer review — where agents check each other's work — was implemented in cognitive-core before Anthropic officially added it to their tools.
-
 ### Born Abilities (work from first install)
 
 | Nature | cognitive-core | What it does |
@@ -163,8 +171,8 @@ No AI coding framework — commercial or open source — addresses EU AI Act com
 
 ### Quality
 
-- **16 test suites, 809 assertions** — all passing
-- **[Claude Certified Architect](docs/certification-report.md)** — 959/1000, Grade A across all 5 domains
+- **25 test suites, 1,404 assertions** — 1,400 passing (4 known regressions in suite 21, tracked separately)
+- **[Architect Self-Audit](docs/certification-report.md)** — Grade A across all 5 domains, 959/1000 *(internal self-assessment using published architect criteria; not an Anthropic-issued credential)*
 - **[Workflow Maturity Audit](docs/research/workflow-maturity-audit-v2.md)** — 4.79/5.0 (+63% above industry average)
 
 ### Infrastructure
@@ -179,12 +187,18 @@ No AI coding framework — commercial or open source — addresses EU AI Act com
 ### Option 1: Claude Code Plugin (Quick Start)
 
 ```bash
-# Load the plugin — hooks, agents, and skills activate instantly
-claude --plugin-dir https://github.com/mindcockpit-ai/cognitive-core/plugin
+# 1. Clone the framework (plugin lives at ./plugin)
+git clone https://github.com/mindcockpit-ai/cognitive-core.git
 
-# Configure for your project
+# 2. Start Claude Code in your project with the plugin loaded for this session
+cd /path/to/your-project
+claude --plugin-dir /path/to/cognitive-core/plugin
+
+# 3. Configure for your project
 /setup
 ```
+
+> `--plugin-dir` accepts a local directory or `.zip`. To load from a remote `.zip` (e.g. a release artifact), use `--plugin-url` instead.
 
 ### Option 2: Full Install (CI/CD, Language Packs, Multi-Platform)
 
@@ -275,8 +289,7 @@ cognitive-core/                         Your project after install:
 |   +-- perl/, python/, node/             +-- cognitive-core/
 |   |   +-- rules/ (per-language)         |   +-- version.json
 |   +-- java/, go/, rust/, csharp/        +-- AGENTS_README.md
-|   +-- react/, angular/, spring-boot/ CLAUDE.md
-|   +-- react/, angular/, spring-boot/
+|   +-- react/, angular/, spring-boot/    CLAUDE.md
 +-- adapters/
 |   +-- claude/, aider/, intellij/
 +-- database-packs/                   cognitive-core.conf
@@ -291,6 +304,11 @@ cognitive-core/                         Your project after install:
 +-- update.sh
 +-- cognitive-core.conf.example
 ```
+
+> The repository also has a top-level `skills/` directory holding the
+> vendor-agnostic skill format specification (`skill-format.yaml` + the
+> atomic / cellular / molecular taxonomy templates) used by adapters to
+> translate skills across providers. End-user skills live in `core/skills/`.
 
 ## Framework Health
 
@@ -313,13 +331,18 @@ Live test results and component inventory from the latest build, visible at [mul
 | `compact-reminder.sh` | Notification (compact) | Re-injects critical rules after context compaction |
 | `angular-version-guard.sh` | PreToolUse (Write/Edit) | Angular version-aware pattern enforcement (v18-21) |
 | `spring-boot-version-guard.sh` | PreToolUse (Write/Edit) | Spring Boot version-aware pattern enforcement (v2-4) |
+| `notify-complete.sh` | Stop / SubagentStop / Notification | Dispatches completion notifications to enabled channels |
+| `post-fetch-cache.sh` | PostToolUse (WebFetch) | Caches allowed domains so subsequent fetches skip the prompt |
+| `session-guard.sh` | SessionStart | Inter-session coordination: detects concurrent sessions on the same repo (advisory, warns only) |
+| `session-cleanup.sh` | Stop | Removes the session from the registry and cleans up its lock dir |
 | `_lib.sh` | (shared) | Config loading, JSON output helpers for all hooks |
+| `_session-hygiene.sh` | (shared) | Session-state helpers used by `session-guard` / `session-cleanup` |
 
 ### Agents
 
 | Agent | Model | Role |
 |-------|-------|------|
-| project-coordinator | opus | Hub orchestrator -- analyzes requests and delegates |
+| project-coordinator | opus | Hub orchestrator — analyzes requests and delegates |
 | solution-architect | opus | Business workflows, architecture, requirements |
 | code-standards-reviewer | sonnet | Code review against CLAUDE.md standards |
 | test-specialist | sonnet | Unit/integration tests, coverage, QA |
@@ -476,6 +499,7 @@ Language packs add language-specific skills and patterns.
 | React | `language-packs/react/` | react-patterns, react-testing, react-migration, react-e2e-mocking |
 | Angular | `language-packs/angular/` | angular-patterns, angular-testing, angular-migration, angular-e2e-mocking |
 | Spring Boot | `language-packs/spring-boot/` | spring-boot-patterns, spring-boot-testing, spring-boot-migration, spring-boot-e2e-testing |
+| Struts / JSP (legacy) | `language-packs/struts-jsp/` | struts-jsp-patterns, struts-jsp-testing, struts-jsp-migration |
 
 ### Database Packs
 
@@ -503,11 +527,11 @@ The evolutionary CI/CD pipeline gates deployments on codebase fitness scores.
 
 ### Included Components
 
-- **GitHub Actions** -- `lint.yml` and `evolutionary-cicd.yml` workflows
-- **Docker** -- Runner Dockerfile, compose files for runners and monitoring
-- **Scripts** -- `setup-runner.sh`, `fitness-check.sh`, `push-metrics.sh`
-- **Monitoring** -- Prometheus config, Grafana dashboards (CI/CD overview, app metrics), Alertmanager
-- **Kubernetes** -- Base manifests, Kustomize overlays, monitoring manifests
+- **GitHub Actions** — `lint.yml` and `evolutionary-cicd.yml` workflows
+- **Docker** — Runner Dockerfile, compose files for runners and monitoring
+- **Scripts** — `setup-runner.sh`, `fitness-check.sh`, `push-metrics.sh`
+- **Monitoring** — Prometheus config, Grafana dashboards (CI/CD overview, app metrics), Alertmanager
+- **Kubernetes** — Base manifests, Kustomize overlays, monitoring manifests
 
 ### Fitness Gates
 
