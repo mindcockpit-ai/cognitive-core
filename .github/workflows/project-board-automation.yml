@@ -117,9 +117,12 @@ jobs:
       github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-      - name: Move linked issues to Done
+      - name: Move linked issues (respects approval gate)
         env:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          # When "true": a merged PR parks linked issues at To Be Tested for
+          # human /project-board approve. When "false": PR merge → Done (autonomous).
+          REQUIRE_HUMAN_APPROVAL: "true"
         run: |
           set -euo pipefail
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
@@ -135,6 +138,20 @@ jobs:
           if [ -z "$ISSUES" ]; then
             echo "No linked issues found in PR body"
             exit 0
+          fi
+
+          # Select target column based on the approval gate (#312). With the gate
+          # on, a merged PR must park the issue at To Be Tested for human approval,
+          # NOT slam it to Done — that bypassed the gate. This also removes the only
+          # "Done" writer in the merge path, so the issue-reopened job (which only
+          # acts on Done/Canceled) no longer races on a stale Done and bounces the
+          # card to In Progress after GitHub auto-closes the issue via "Closes #N".
+          if [ "$REQUIRE_HUMAN_APPROVAL" = "true" ]; then
+            TARGET_ID="$TESTING_ID"
+            TARGET_NAME="To Be Tested"
+          else
+            TARGET_ID="$DONE_ID"
+            TARGET_NAME="Done"
           fi
 
           ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
@@ -161,13 +178,13 @@ jobs:
                 projectId: "'"$PROJECT_ID"'"
                 itemId: "'"$ITEM_ID"'"
                 fieldId: "'"$STATUS_FIELD_ID"'"
-                value: { singleSelectOptionId: "'"$DONE_ID"'" }
+                value: { singleSelectOptionId: "'"$TARGET_ID"'" }
               }) { projectV2Item { id } }
             }' || {
               echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes or project permissions)"
               continue
             }
-            echo "Moved #$ISSUE_NUM → Done (PR merged)"
+            echo "Moved #$ISSUE_NUM → $TARGET_NAME (PR merged)"
           done
 
   # ── Issue assigned (from Backlog/Roadmap) → Todo ──
