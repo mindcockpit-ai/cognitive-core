@@ -1,5 +1,48 @@
 # Changelog
 
+## [1.6.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.5.0...v1.6.0) (2026-06-06)
+
+
+### Features
+
+* **cicd:** add pnpm detection, language gating, development branch ([#254](https://github.com/mindcockpit-ai/cognitive-core/issues/254)) ([234af7b](https://github.com/mindcockpit-ai/cognitive-core/commit/234af7bf4723bdb840efd8cd4571c7d8bfd1ef87))
+* **hooks:** add check-forbidden-chars.sh for AI-tell character enforcement ([#291](https://github.com/mindcockpit-ai/cognitive-core/issues/291)) ([382063a](https://github.com/mindcockpit-ai/cognitive-core/commit/382063a11b0c246951bdff7c271b9a4112b12218))
+* **hooks:** EXCLUDE path-prefix directive for check-forbidden-chars (re-land) ([#308](https://github.com/mindcockpit-ai/cognitive-core/issues/308)) ([9974508](https://github.com/mindcockpit-ai/cognitive-core/commit/9974508624c318e72d11fbf5b7c208c8f6470c38))
+* **install:** CC_FRAMEWORK_ROOT anchor + TOFU migration + conf hardening ([#260](https://github.com/mindcockpit-ai/cognitive-core/issues/260)) ([#261](https://github.com/mindcockpit-ai/cognitive-core/issues/261)) ([933bef5](https://github.com/mindcockpit-ai/cognitive-core/commit/933bef544cd8d6bf336da225bb89e4e00cdbe8e4))
+
+
+### Bug Fixes
+
+* **cicd:** board-automation handles PRs with no linked issues ([#302](https://github.com/mindcockpit-ai/cognitive-core/issues/302)) ([d480ee8](https://github.com/mindcockpit-ai/cognitive-core/commit/d480ee82c33ca7bd338e227dd5a7b97cbd33ded9))
+* **cicd:** closure-guard routes reopened issue to To Be Tested ([#262](https://github.com/mindcockpit-ai/cognitive-core/issues/262)) ([#264](https://github.com/mindcockpit-ai/cognitive-core/issues/264)) ([3743c41](https://github.com/mindcockpit-ai/cognitive-core/commit/3743c41098389a4a3e7e3da1b687ff0e0380cb19))
+* **cicd:** guard closure-guard grep pattern with -- ([#262](https://github.com/mindcockpit-ai/cognitive-core/issues/262)) ([#263](https://github.com/mindcockpit-ai/cognitive-core/issues/263)) ([15e8695](https://github.com/mindcockpit-ai/cognitive-core/commit/15e86956d6365355fea345b0306f0a774f4e2816))
+* **cicd:** harden project-board automation against silent gh failures ([#285](https://github.com/mindcockpit-ai/cognitive-core/issues/285)) ([#286](https://github.com/mindcockpit-ai/cognitive-core/issues/286)) ([cbf36d1](https://github.com/mindcockpit-ai/cognitive-core/commit/cbf36d1961888b96832d01341a01e6443ce398e8))
+* **cicd:** pr-merged respects approval gate, stops In-Progress bounce ([#312](https://github.com/mindcockpit-ai/cognitive-core/issues/312)) ([#313](https://github.com/mindcockpit-ai/cognitive-core/issues/313)) ([c434b67](https://github.com/mindcockpit-ai/cognitive-core/commit/c434b67eaa440d276eb005876e5b466b6bfa3180))
+* **cicd:** replace per-issue REST loop in board-reconcile with bulk GraphQL ([#287](https://github.com/mindcockpit-ai/cognitive-core/issues/287)) ([#288](https://github.com/mindcockpit-ai/cognitive-core/issues/288)) ([c6f5943](https://github.com/mindcockpit-ai/cognitive-core/commit/c6f5943b8883ea94865e5d1da3e0ea25bac6760b))
+* **hooks:** forbidden-chars portability + relocation + tests ([#293](https://github.com/mindcockpit-ai/cognitive-core/issues/293) [#294](https://github.com/mindcockpit-ai/cognitive-core/issues/294) [#295](https://github.com/mindcockpit-ai/cognitive-core/issues/295)) ([#298](https://github.com/mindcockpit-ai/cognitive-core/issues/298)) ([157565a](https://github.com/mindcockpit-ai/cognitive-core/commit/157565aca6804743da8dea1af0d4c545801a4129))
+* **hooks:** make check-forbidden-chars.sh pure ASCII; clarify docs ([#306](https://github.com/mindcockpit-ai/cognitive-core/issues/306)) ([7077e90](https://github.com/mindcockpit-ai/cognitive-core/commit/7077e90444281ede01f2361c2ec16c92f745d1c0))
+* **hooks:** scan markdown for secrets, require BEGIN+END for PEM ([#305](https://github.com/mindcockpit-ai/cognitive-core/issues/305)) ([2605385](https://github.com/mindcockpit-ai/cognitive-core/commit/26053853d505914cf0bf48b03dbeabd9dfa38bb6))
+* **hooks:** validate-bash branch/merge guards respect leading "cd &lt;path&gt;" ([#283](https://github.com/mindcockpit-ai/cognitive-core/issues/283)) ([#284](https://github.com/mindcockpit-ai/cognitive-core/issues/284)) ([f3aac78](https://github.com/mindcockpit-ai/cognitive-core/commit/f3aac78e1087057db1e3d452287002e02cf2cdfb))
+* **hooks:** WebFetch 'don't ask again' never persists — repair session cache key ([#310](https://github.com/mindcockpit-ai/cognitive-core/issues/310)) ([#311](https://github.com/mindcockpit-ai/cognitive-core/issues/311)) ([89be9c3](https://github.com/mindcockpit-ai/cognitive-core/commit/89be9c30edaa90d9d7f5312d2df661a6c78c78e7))
+* **install:** anchor state-dir matchers + add lint guard ([#265](https://github.com/mindcockpit-ai/cognitive-core/issues/265)) ([#276](https://github.com/mindcockpit-ai/cognitive-core/issues/276)) ([e3c118d](https://github.com/mindcockpit-ai/cognitive-core/commit/e3c118d4b5d1241959acb8a5f947a05386877af8))
+* **install:** escape $1 in generated conf to prevent unbound variable ([#249](https://github.com/mindcockpit-ai/cognitive-core/issues/249)) ([39a4024](https://github.com/mindcockpit-ai/cognitive-core/commit/39a40248f9b49b4dd0a7e1e9b3b17ac695a0279c))
+* **install:** register post-fetch-cache hook + add patch utility ([#309](https://github.com/mindcockpit-ai/cognitive-core/issues/309)) ([452b850](https://github.com/mindcockpit-ai/cognitive-core/commit/452b850967a47049ecdaebde22ef478f6f4d8b59))
+* **security:** validate $SOURCE at every consumer ([#256](https://github.com/mindcockpit-ai/cognitive-core/issues/256)) ([#282](https://github.com/mindcockpit-ai/cognitive-core/issues/282)) ([0d943ea](https://github.com/mindcockpit-ai/cognitive-core/commit/0d943ea8129a326591ac18046e33b473cbb9a5d6))
+* **skills, cicd:** skill-sync preamble parsing + project-board workflow guards ([#259](https://github.com/mindcockpit-ai/cognitive-core/issues/259)) ([01cd92f](https://github.com/mindcockpit-ai/cognitive-core/commit/01cd92f95d681aed0d3a69fa7c79c39d693ee66f)), closes [#255](https://github.com/mindcockpit-ai/cognitive-core/issues/255)
+* **skills:** approve flow adds 'approved' label before closing ([#314](https://github.com/mindcockpit-ai/cognitive-core/issues/314)) ([#315](https://github.com/mindcockpit-ai/cognitive-core/issues/315)) ([1254c70](https://github.com/mindcockpit-ai/cognitive-core/commit/1254c7083a3564006dffd6411c880503c739bdaa))
+* **tests:** scope suite 25 lint + add real assertions ([#278](https://github.com/mindcockpit-ai/cognitive-core/issues/278)) ([#279](https://github.com/mindcockpit-ai/cognitive-core/issues/279)) ([bdd2d59](https://github.com/mindcockpit-ai/cognitive-core/commit/bdd2d5906c711175ac4874a598d9f4fd57854ffe))
+* **tests:** SIGPIPE race, macOS portability, stale suite 16 ([#252](https://github.com/mindcockpit-ai/cognitive-core/issues/252)) ([f2c3962](https://github.com/mindcockpit-ai/cognitive-core/commit/f2c39624b0c806128751deafbc61f6f6b3973674))
+
+
+### Code Refactoring
+
+* **hooks:** set -e alignment + Perl trust-boundary doc (closes [#297](https://github.com/mindcockpit-ai/cognitive-core/issues/297)) ([#300](https://github.com/mindcockpit-ai/cognitive-core/issues/300)) ([429b81e](https://github.com/mindcockpit-ai/cognitive-core/commit/429b81e95fa70a638053bfe37047c34c2135de75))
+
+
+### Tests
+
+* **hooks:** unit-test check-forbidden-chars.sh (31 cases) ([#292](https://github.com/mindcockpit-ai/cognitive-core/issues/292)) ([8e1d9ca](https://github.com/mindcockpit-ai/cognitive-core/commit/8e1d9caaa20ec1e1afab274c0021388dcad3283f))
+
 ## [Unreleased]
 
 ### Added
