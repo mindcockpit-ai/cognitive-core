@@ -161,6 +161,29 @@ if [ -d "$HOOKS_DIR" ]; then
         SOURCE_DIR=$(grep -o '"source"[[:space:]]*:[[:space:]]*"[^"]*"' "$VERSION_FILE" 2>/dev/null | head -1 | sed 's/.*"source"[[:space:]]*:[[:space:]]*"//;s/"//')
     fi
 
+    # Validate SOURCE_DIR before using it (#256)
+    # Source the framework library if available and validate. If validation
+    # fails, clear SOURCE_DIR so downstream comparisons skip the framework check.
+    if [ -n "$SOURCE_DIR" ]; then
+        _HC_LIB=""
+        for _cand in "$PROJECT_DIR/.claude/hooks/_lib.sh" "$PROJECT_DIR/core/hooks/_lib.sh"; do
+            if [ -f "$_cand" ]; then _HC_LIB="$_cand"; break; fi
+        done
+        if [ -n "$_HC_LIB" ]; then
+            # shellcheck disable=SC1090
+            CC_PROJECT_DIR="$PROJECT_DIR" source "$_HC_LIB"
+            _cc_load_config 2>/dev/null || true
+            if type _cc_validate_framework_source >/dev/null 2>&1 \
+                    && _cc_validate_framework_source "$SOURCE_DIR" 2>/dev/null; then
+                SOURCE_DIR="$CC_VALIDATED_SOURCE"
+            else
+                echo -e "  ${YELLOW}[WARN]${NC} SOURCE rejected by validation guard; skipping integrity compare"
+                SOURCE_DIR=""
+                ((WARNINGS++)) || true
+            fi
+        fi
+    fi
+
     HOOK_COUNT=0
     HOOK_MISMATCHES=0
     while IFS= read -r hook_file; do

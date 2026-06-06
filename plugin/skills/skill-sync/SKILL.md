@@ -22,7 +22,7 @@ Manages the synchronization of cognitive-core components (agents, skills, hooks)
 !`cat .claude/cognitive-core/version.json 2>/dev/null | head -20 || echo "ERROR: No version.json found. Run install.sh first."`
 
 ### Framework Source
-!`SOURCE=$(cat .claude/cognitive-core/version.json 2>/dev/null | grep '"source"' | sed 's/.*"source"[[:space:]]*:[[:space:]]*"//;s/".*//' ); if [ -d "$SOURCE" ]; then echo "Framework: $SOURCE"; git -C "$SOURCE" log --oneline -3 2>/dev/null; else echo "ERROR: Framework source not found at $SOURCE"; fi`
+!`SOURCE=$(cat .claude/cognitive-core/version.json 2>/dev/null | grep '"source"' | sed 's/.*"source"[[:space:]]*:[[:space:]]*"//;s/".*//'); LIB=.claude/hooks/_lib.sh; if [ -f "$LIB" ]; then . "$LIB"; _cc_load_config 2>/dev/null || true; if _cc_validate_framework_source "$SOURCE" 2>/dev/null; then echo "Framework: $CC_VALIDATED_SOURCE"; git -C "$CC_VALIDATED_SOURCE" log --oneline -3 2>/dev/null; else echo "ERROR: Framework source rejected by validation guard (see security.log)"; fi; else if [ -d "$SOURCE" ]; then echo "Framework: $SOURCE (unvalidated — _lib.sh unavailable)"; git -C "$SOURCE" log --oneline -3 2>/dev/null; else echo "ERROR: Framework source not found at $SOURCE"; fi; fi`
 
 ### Installed Components
 !`echo "=== Agents ==="; ls -1 .claude/agents/*.md 2>/dev/null | xargs -I{} basename {} .md; echo "=== Skills ==="; ls -d .claude/skills/*/SKILL.md 2>/dev/null | sed 's|.claude/skills/||;s|/SKILL.md||'; echo "=== Hooks ==="; ls -1 .claude/hooks/*.sh 2>/dev/null | xargs -I{} basename {} .sh`
@@ -89,10 +89,17 @@ If `--auto` flag: suppress interactive output, only report errors/conflicts.
 Execute update using the framework's updater:
 ```bash
 SOURCE=$(cat .claude/cognitive-core/version.json 2>/dev/null | grep '"source"' | sed 's/.*"source"[[:space:]]*:[[:space:]]*"//;s/".*//');
-# Pull latest framework source first
-git -C "$SOURCE" pull origin main --quiet 2>/dev/null || true
+# Validate SOURCE before any exec (#256)
+. .claude/hooks/_lib.sh
+_cc_load_config 2>/dev/null || true
+if ! _cc_validate_framework_source "$SOURCE" 2>/dev/null; then
+    echo "ERROR: Framework source rejected by validation guard. See .claude/cognitive-core/security.log"
+    exit 1
+fi
+# Pull latest framework source first (consume validated path only)
+git -C "$CC_VALIDATED_SOURCE" pull origin main --quiet 2>/dev/null || true
 # Run the checksum-based updater
-"$SOURCE/update.sh" "$(pwd)"
+"$CC_VALIDATED_SOURCE/update.sh" "$(pwd)"
 ```
 
 ### `install <name>` — Install a Specific Component
@@ -101,13 +108,20 @@ Install a component from the framework that isn't currently installed:
 
 ```bash
 SOURCE=$(cat .claude/cognitive-core/version.json 2>/dev/null | grep '"source"' | sed 's/.*"source"[[:space:]]*:[[:space:]]*"//;s/".*//');
+# Validate SOURCE before using it (#256)
+. .claude/hooks/_lib.sh
+_cc_load_config 2>/dev/null || true
+if ! _cc_validate_framework_source "$SOURCE" 2>/dev/null; then
+    echo "ERROR: Framework source rejected by validation guard. See .claude/cognitive-core/security.log"
+    exit 1
+fi
 ```
 
-- **Agent**: `cp "$SOURCE/core/agents/<name>.md" .claude/agents/`
-- **Skill**: `cp -R "$SOURCE/core/skills/<name>/" .claude/skills/<name>/`
-- **Hook**: `cp "$SOURCE/core/hooks/<name>.sh" .claude/hooks/ && chmod +x .claude/hooks/<name>.sh`
+- **Agent**: `cp "$CC_VALIDATED_SOURCE/core/agents/<name>.md" .claude/agents/`
+- **Skill**: `cp -R "$CC_VALIDATED_SOURCE/core/skills/<name>/" .claude/skills/<name>/`
+- **Hook**: `cp "$CC_VALIDATED_SOURCE/core/hooks/<name>.sh" .claude/hooks/ && chmod +x .claude/hooks/<name>.sh`
 
-After installing, run `"$SOURCE/update.sh"` to update the version manifest.
+After installing, run `"$CC_VALIDATED_SOURCE/update.sh"` to update the version manifest.
 
 ### `list` — Show All Available Components
 
