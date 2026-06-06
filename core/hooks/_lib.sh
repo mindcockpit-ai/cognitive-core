@@ -297,10 +297,16 @@ _cc_guard_run() {
 
 # Session-scoped domain cache for hooks (e.g., validate-fetch "don't ask again")
 # Cache file is scoped to the Claude session to prevent cross-session leakage.
-# Uses CLAUDE_SESSION_KEY (set by Claude Code) or falls back to parent PID.
+# Session key resolution order:
+#   1. CLAUDE_SESSION_KEY     — explicit override (used by tests)
+#   2. CLAUDE_CODE_SESSION_ID — the real session id Claude Code exports; stable
+#      across every hook invocation AND subagent in a session (incl. workflows)
+#   3. ppid_$PPID            — fallback to the parent (the persistent Claude Code
+#      process), NOT $$ which is each hook's own one-shot PID and never matches
+#      between a PostToolUse write and the next PreToolUse read.
 _cc_session_cache_file() {
     local namespace="${1:-domains}"
-    local session_key="${CLAUDE_SESSION_KEY:-ppid_$$}"
+    local session_key="${CLAUDE_SESSION_KEY:-${CLAUDE_CODE_SESSION_ID:-ppid_$PPID}}"
     local cache_dir="${TMPDIR:-/tmp}"
     echo "${cache_dir}/cc-session-${namespace}-${session_key}"
 }
