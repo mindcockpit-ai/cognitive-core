@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: FSL-1.1-ALv2
 # =============================================================================
-# cognitive-core update.sh — Checksum-based updater
+# cognitive-core update.sh - Checksum-based updater
 # Safely updates framework files while preserving user modifications.
 #
 # Usage:
@@ -17,7 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/core/brand.sh"
 
-# Legacy aliases — existing code uses short names and direct color vars
+# Legacy aliases - existing code uses short names and direct color vars
 BOLD="${_CC_BOLD}" CYAN="${_CC_CYAN}" RESET="${_CC_RESET}"
 info()  { _cc_info "$@"; }
 warn()  { _cc_warn "$@"; }
@@ -63,7 +63,7 @@ if [ -f "$_UPDATE_LIB" ]; then
     # shellcheck disable=SC1090
     source "$_UPDATE_LIB"
     _cc_load_config 2>/dev/null || true
-    # Use SCRIPT_DIR as the anchor when CC_FRAMEWORK_ROOT is unset — this script
+    # Use SCRIPT_DIR as the anchor when CC_FRAMEWORK_ROOT is unset - this script
     # itself is running from the framework source, so SCRIPT_DIR is authoritative.
     export CC_FRAMEWORK_ROOT="${CC_FRAMEWORK_ROOT:-$SCRIPT_DIR}"
     if ! _cc_validate_framework_source "$SOURCE_DIR" 2>/dev/null; then
@@ -81,7 +81,7 @@ _CC_SYNC_ENFORCE="${CC_SYNC_ENFORCE:-true}"
 _CC_ORIGINAL_BRANCH=""
 
 if [ "$_CC_SYNC_ENFORCE" = "true" ] && git -C "$PROJECT_DIR" rev-parse --git-dir &>/dev/null; then
-    # Git repo detected — check if it has a remote (connected vs local-only)
+    # Git repo detected - check if it has a remote (connected vs local-only)
     if git -C "$PROJECT_DIR" remote get-url origin &>/dev/null; then
         _CC_CURRENT_BRANCH=$(git -C "$PROJECT_DIR" branch --show-current 2>/dev/null || true)
         # Allow updates on: main, develop, master, the sync branch itself
@@ -500,7 +500,7 @@ else
     info "Everything is up to date. No changes needed."
     # Restore original branch if we switched and nothing changed
     if [ -n "$_CC_ORIGINAL_BRANCH" ]; then
-        info "No updates — switching back to ${_CC_ORIGINAL_BRANCH}"
+        info "No updates - switching back to ${_CC_ORIGINAL_BRANCH}"
         git -C "$PROJECT_DIR" checkout "$_CC_ORIGINAL_BRANCH" --quiet 2>/dev/null || true
         git -C "$PROJECT_DIR" stash pop --quiet 2>/dev/null || true
     fi

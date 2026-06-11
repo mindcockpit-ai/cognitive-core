@@ -1,6 +1,6 @@
 #!/bin/bash
 # Test suite: skill-sync preamble parsing
-# Regression guard for #255 — brittle grep|sed JSON parsing + unguarded git log exit
+# Regression guard for #255 - brittle grep|sed JSON parsing + unguarded git log exit
 # in core/skills/skill-sync/SKILL.md caused /skill-sync to fail on session start.
 set -euo pipefail
 
@@ -10,12 +10,12 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "22 — Skill Sync Preamble"
+suite_start "22 - Skill Sync Preamble"
 
 SKILL_FILE="${ROOT_DIR}/core/skills/skill-sync/SKILL.md"
 
 # =============================================================================
-# Section 1: Static content guards — non-regression against the buggy pattern
+# Section 1: Static content guards - non-regression against the buggy pattern
 # =============================================================================
 
 assert_file_exists "skill-sync SKILL.md exists" "$SKILL_FILE"
@@ -24,7 +24,7 @@ assert_file_exists "skill-sync SKILL.md exists" "$SKILL_FILE"
 # Use a distinctive substring that only appears in the old buggy form.
 if grep -qF "s/\".*//" "$SKILL_FILE"; then
     _fail "non-regression: old sed pattern 's/\".*//' must not appear" \
-          "found buggy sed pattern — should be 's/\"//' in the tighter form"
+          "found buggy sed pattern - should be 's/\"//' in the tighter form"
 else
     _pass "non-regression: old sed pattern 's/\".*//' removed"
 fi
@@ -47,7 +47,7 @@ else
 fi
 
 # =============================================================================
-# Section 2: Runtime behaviour — extract and execute the preamble block
+# Section 2: Runtime behaviour - extract and execute the preamble block
 # =============================================================================
 
 # The auto-executed preamble is on the line starting with "!`VF=".
@@ -65,13 +65,13 @@ if [ -z "$PREAMBLE" ]; then
 fi
 _pass "extract: preamble shell fragment found"
 
-# Security guard — the suite evaluates the extracted preamble with bash -c.
+# Security guard - the suite evaluates the extracted preamble with bash -c.
 # If an attacker modifies SKILL.md to inject shell, refuse to execute.
 # Blocks: network tools, shell escapes, TCP redirects, dynamic eval.
-# Pattern expanded per POSIX ERE (no \b — use word boundaries via surrounding chars).
+# Pattern expanded per POSIX ERE (no \b - use word boundaries via surrounding chars).
 if echo "$PREAMBLE" | grep -qE '(^|[^a-zA-Z0-9_-])(curl|wget|nc|netcat|ssh|scp|eval|exec)[[:space:]]|/dev/tcp|/dev/udp|\$\(.*curl|\$\(.*wget|bash[[:space:]]+-i|python[[:space:]]+-c|perl[[:space:]]+-e'; then
     _fail "security: preamble contains disallowed tokens" \
-          "extracted preamble includes network/eval tokens — refusing to execute"
+          "extracted preamble includes network/eval tokens - refusing to execute"
     suite_end
     exit $?
 fi
@@ -129,7 +129,7 @@ OUT="${RESULT#*|}"
 assert_eq "bad path: exit code is 0" "0" "$RC"
 assert_contains "bad path: outputs ERROR message" "$OUT" "ERROR:"
 
-# --- Test: uninitialized git repo — verifies '|| true' guards git log failure ---
+# --- Test: uninitialized git repo - verifies '|| true' guards git log failure ---
 NONGIT_DIR=$(create_test_dir)
 RESULT=$(run_preamble "$(printf '{"source": "%s", "version": "1.5.0"}' "$NONGIT_DIR")")
 RC="${RESULT%%|*}"
@@ -174,7 +174,7 @@ if [ -n "$JQ_PATH" ]; then
     fi
     rm -rf "$SHADOW_DIR"
 else
-    _skip "jq-absent fallback (jq not installed — cannot verify two-tier parse)"
+    _skip "jq-absent fallback (jq not installed - cannot verify two-tier parse)"
 fi
 
 suite_end

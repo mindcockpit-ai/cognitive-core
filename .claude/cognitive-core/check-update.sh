@@ -1,5 +1,5 @@
 #!/bin/bash
-# cognitive-core: Connected Projects — update check
+# cognitive-core: Connected Projects - update check
 # Checks if the framework source has updates available.
 # Called by setup-env.sh at session start on a configurable interval.
 #

@@ -17,7 +17,7 @@ def load_config(config_file: str = "", *, project_dir: str = "") -> dict[str, st
 
     Args:
         config_file: Direct path to cognitive-core.conf.
-        project_dir: Project root — searches for conf file if config_file not given.
+        project_dir: Project root - searches for conf file if config_file not given.
     """
     # Resolve config file path
     conf_path = ""

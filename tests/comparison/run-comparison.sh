@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# run-comparison.sh — OLD monolithic vs NEW ability-decomposed smoke-test
+# run-comparison.sh - OLD monolithic vs NEW ability-decomposed smoke-test
 #
 # Runs each design 3 times against identical mock environment.
 # Compares: consistency, correctness, step completion, latency.
@@ -84,7 +84,7 @@ echo "[SETUP] Extracted OLD SKILL.md from main branch"
 echo ""
 
 # ---- Phase A: OLD flow (LLM-interpreted monolithic SKILL.md) x3 ----
-echo "=== Phase A: OLD flow (monolithic) — ${RUNS} runs ==="
+echo "=== Phase A: OLD flow (monolithic) - ${RUNS} runs ==="
 
 for i in $(seq 1 $RUNS); do
     echo -n "  OLD run ${i}/${RUNS}..."
@@ -119,7 +119,7 @@ done
 echo ""
 
 # ---- Phase B: NEW flow (D-type scripts + LLM table formatting) x3 ----
-echo "=== Phase B: NEW flow (ability-decomposed) — ${RUNS} runs ==="
+echo "=== Phase B: NEW flow (ability-decomposed) - ${RUNS} runs ==="
 
 for i in $(seq 1 $RUNS); do
     echo -n "  NEW run ${i}/${RUNS}..."
@@ -137,10 +137,10 @@ for i in $(seq 1 $RUNS); do
     echo "$EXECUTE_OUT" > "${RESULTS_DIR}/new-run-${i}-execute.json"
     echo "$EXECUTE_EXIT" > "${RESULTS_DIR}/new-run-${i}-execute-exit.txt"
 
-    # Step 3 [S]: format table (LLM — the only stochastic step)
+    # Step 3 [S]: format table (LLM - the only stochastic step)
     TABLE_OUT=$(claude -p "Format this smoke test JSON as a markdown table. Use EXACTLY this format:
 
-# Smoke Test Results — <timestamp>
+# Smoke Test Results - <timestamp>
 Server: <server> | Environment: <environment>
 
 | # | Page | URL | HTTP | Status | Errors |
@@ -278,8 +278,8 @@ cat > "$REPORT" << REPORTEOF
 
 | Component | OLD (monolithic) | NEW (decomposed) |
 |-----------|:---:|:---:|
-| Preflight output | N/A (LLM-interpreted) | $(if [[ "$PREFLIGHT_CONSISTENT" == "true" ]]; then echo "PASS — ${RUNS}/${RUNS} identical"; else echo "FAIL — outputs differ"; fi) |
-| Test execution JSON | N/A (LLM-interpreted) | $(if [[ "$EXECUTE_CONSISTENT" == "true" ]]; then echo "PASS — ${RUNS}/${RUNS} identical"; else echo "FAIL — outputs differ"; fi) |
+| Preflight output | N/A (LLM-interpreted) | $(if [[ "$PREFLIGHT_CONSISTENT" == "true" ]]; then echo "PASS - ${RUNS}/${RUNS} identical"; else echo "FAIL - outputs differ"; fi) |
+| Test execution JSON | N/A (LLM-interpreted) | $(if [[ "$EXECUTE_CONSISTENT" == "true" ]]; then echo "PASS - ${RUNS}/${RUNS} identical"; else echo "FAIL - outputs differ"; fi) |
 | Full output (incl. table) | ${OLD_CONSISTENT_LABEL} identical | ${NEW_CONSISTENT_LABEL} identical |
 | **D-type overall** | **N/A** | **$(if [[ "$PREFLIGHT_CONSISTENT" == "true" && "$EXECUTE_CONSISTENT" == "true" ]]; then echo "100% deterministic"; else echo "variance detected"; fi)** |
 
@@ -336,7 +336,7 @@ $(head -50 "${RESULTS_DIR}/old-run-1.txt" 2>/dev/null || echo "(empty)")
 
 </details>
 
-<details><summary>NEW run 1 — D-type preflight output</summary>
+<details><summary>NEW run 1 - D-type preflight output</summary>
 
 \`\`\`
 $(cat "${RESULTS_DIR}/new-run-1-preflight.txt" 2>/dev/null || echo "(empty)")
@@ -344,7 +344,7 @@ $(cat "${RESULTS_DIR}/new-run-1-preflight.txt" 2>/dev/null || echo "(empty)")
 
 </details>
 
-<details><summary>NEW run 1 — D-type execute-test output (JSON)</summary>
+<details><summary>NEW run 1 - D-type execute-test output (JSON)</summary>
 
 \`\`\`json
 $(cat "${RESULTS_DIR}/new-run-1-execute.json" 2>/dev/null || echo "(empty)")
@@ -352,7 +352,7 @@ $(cat "${RESULTS_DIR}/new-run-1-execute.json" 2>/dev/null || echo "(empty)")
 
 </details>
 
-<details><summary>NEW run 1 — S-type table output</summary>
+<details><summary>NEW run 1 - S-type table output</summary>
 
 \`\`\`
 $(head -50 "${RESULTS_DIR}/new-run-1.txt" 2>/dev/null || echo "(empty)")
@@ -371,7 +371,7 @@ $(diff "${RESULTS_DIR}/old-run-1.txt" "${RESULTS_DIR}/old-run-2.txt" 2>/dev/null
 <details><summary>NEW D-type run 1 vs run 2 diff (execute-test.sh)</summary>
 
 \`\`\`diff
-$(diff "${RESULTS_DIR}/new-run-1-execute.json" "${RESULTS_DIR}/new-run-2-execute.json" 2>/dev/null || echo "(no diff — expected for D-type)")
+$(diff "${RESULTS_DIR}/new-run-1-execute.json" "${RESULTS_DIR}/new-run-2-execute.json" 2>/dev/null || echo "(no diff - expected for D-type)")
 \`\`\`
 
 </details>
@@ -383,7 +383,7 @@ REPORTEOF
 # Generate conclusion
 if [[ "$PREFLIGHT_CONSISTENT" == "true" && "$EXECUTE_CONSISTENT" == "true" ]]; then
     cat >> "$REPORT" << 'CONCEOF'
-**D-type scripts are 100% deterministic** — preflight and execute-test produced byte-identical output across all runs. This validates the core claim of #195: deterministic operations extracted into scripts eliminate LLM variance for those steps.
+**D-type scripts are 100% deterministic** - preflight and execute-test produced byte-identical output across all runs. This validates the core claim of #195: deterministic operations extracted into scripts eliminate LLM variance for those steps.
 
 The S-type table formatting step (present in both designs) shows expected LLM variance. The key difference is that the NEW design **isolates variance to the S-type step only**, while the OLD design has variance across the entire pipeline.
 

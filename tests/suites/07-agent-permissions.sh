@@ -8,7 +8,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "07 — Agent Permissions"
+suite_start "07 - Agent Permissions"
 
 AGENTS_DIR="${ROOT_DIR}/core/agents"
 

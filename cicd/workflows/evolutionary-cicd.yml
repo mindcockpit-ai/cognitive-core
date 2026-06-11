@@ -1,5 +1,5 @@
 # =============================================================================
-# Evolutionary CI/CD Pipeline — cognitive-core framework
+# Evolutionary CI/CD Pipeline - cognitive-core framework
 # =============================================================================
 # 5-gate progressive quality pipeline. Findings resolved:
 #   #2=self-hosted permissions, #3=continue-on-error syntax, #5=mkdir -p logs,
@@ -132,7 +132,7 @@ jobs:
           done
 
       # CC2: ESLint + TypeScript type-check for Node projects
-      - name: Lint check (Node — ESLint + tsc) (CC2)
+      - name: Lint check (Node - ESLint + tsc) (CC2)
         if: steps.lang.outputs.lang == 'node'
         continue-on-error: true
         run: |
@@ -155,7 +155,7 @@ jobs:
           retention-days: 7
 
   # =========================================================================
-  # GATE 2: COMMIT — Pre-commit validation + security scan
+  # GATE 2: COMMIT - Pre-commit validation + security scan
   # =========================================================================
   gate-2-commit:
     name: "Gate 2: Commit Validation"
@@ -180,7 +180,7 @@ jobs:
               echo "::error file=$f::Potential secret detected"; FOUND=1
             fi
           done
-          [ "$FOUND" = "1" ] && echo "::warning::Potential secrets — review before merge"; true
+          [ "$FOUND" = "1" ] && echo "::warning::Potential secrets - review before merge"; true
 
       # Finding #20: Semgrep security scan
       - name: Semgrep security scan (Finding #20)
@@ -203,7 +203,7 @@ jobs:
           done
 
   # =========================================================================
-  # GATE 3: TEST — Single-pass execution + fitness scoring
+  # GATE 3: TEST - Single-pass execution + fitness scoring
   # =========================================================================
   gate-3-test:
     name: "Gate 3: Test"
@@ -258,7 +258,7 @@ jobs:
           esac
 
       # Finding #19: Run tests ONCE, output JUnit directly (no double-run)
-      - name: Run tests — single pass (Finding #19)
+      - name: Run tests - single pass (Finding #19)
         id: run-tests
         continue-on-error: true
         run: |
@@ -346,7 +346,7 @@ jobs:
           fail_on_failure: false
 
   # =========================================================================
-  # GATE 4: MERGE — Quality gate for merge readiness
+  # GATE 4: MERGE - Quality gate for merge readiness
   # =========================================================================
   gate-4-merge:
     name: "Gate 4: Merge Readiness"
@@ -374,7 +374,7 @@ jobs:
           echo "Merge readiness: APPROVED"
 
   # =========================================================================
-  # GATE 5: DEPLOY — Container build and deployment
+  # GATE 5: DEPLOY - Container build and deployment
   # =========================================================================
   gate-5-deploy:
     name: "Gate 5: Deploy"

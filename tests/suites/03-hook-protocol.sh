@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test suite: Hook protocol — mock stdin → verify JSON output format
+# Test suite: Hook protocol - mock stdin -> verify JSON output format
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -8,7 +8,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "03 — Hook Protocol (JSON I/O)"
+suite_start "03 - Hook Protocol (JSON I/O)"
 
 HOOKS_DIR="${ROOT_DIR}/core/hooks"
 
@@ -18,41 +18,41 @@ VALIDATE_BASH="${HOOKS_DIR}/validate-bash.sh"
 if [ -f "$VALIDATE_BASH" ]; then
     # Test: rm -rf / should be denied
     assert_hook_denies \
-        "validate-bash: rm -rf / → deny" \
+        "validate-bash: rm -rf / -> deny" \
         "$VALIDATE_BASH" \
         "$(mock_bash_json "rm -rf /")"
 
     # Test: git push --force main should be denied
     assert_hook_denies \
-        "validate-bash: git push --force main → deny" \
+        "validate-bash: git push --force main -> deny" \
         "$VALIDATE_BASH" \
         "$(mock_bash_json "git push --force origin main")"
 
     # Test: git reset --hard should be denied
     assert_hook_denies \
-        "validate-bash: git reset --hard → deny" \
+        "validate-bash: git reset --hard -> deny" \
         "$VALIDATE_BASH" \
         "$(mock_bash_json "git reset --hard HEAD~1")"
 
     # Test: chmod 777 should be denied
     assert_hook_denies \
-        "validate-bash: chmod 777 → deny" \
+        "validate-bash: chmod 777 -> deny" \
         "$VALIDATE_BASH" \
         "$(mock_bash_json "chmod 777 /tmp/foo")"
 
     # Test: safe commands should pass
     assert_hook_allows \
-        "validate-bash: ls -la → allow" \
+        "validate-bash: ls -la -> allow" \
         "$VALIDATE_BASH" \
         "$(mock_bash_json "ls -la")"
 
     assert_hook_allows \
-        "validate-bash: git status → allow" \
+        "validate-bash: git status -> allow" \
         "$VALIDATE_BASH" \
         "$(mock_bash_json "git status")"
 
     assert_hook_allows \
-        "validate-bash: npm test → allow" \
+        "validate-bash: npm test -> allow" \
         "$VALIDATE_BASH" \
         "$(mock_bash_json "npm test")"
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-cognitive-core MCP Server — shared across all adapters.
+cognitive-core MCP Server - shared across all adapters.
 
 Exposes cognitive-core capabilities as MCP tools over stdio transport.
 Works with Claude Code (.mcp.json), IntelliJ plugins (DevoxxGenie,
@@ -10,8 +10,8 @@ Usage:
   python3 server.py
 
 Environment:
-  CC_PROJECT_DIR  — Project root directory (auto-detected if not set)
-  CC_INSTALL_DIR  — cognitive-core install dir (default: <project>/.cognitive-core)
+  CC_PROJECT_DIR  - Project root directory (auto-detected if not set)
+  CC_INSTALL_DIR  - cognitive-core install dir (default: <project>/.cognitive-core)
 
 See TOOLS.md for tool boundaries and JSON schemas.
 """
@@ -407,7 +407,7 @@ def handle_request(request: dict) -> dict:
         })
 
     elif method == "notifications/initialized":
-        # Client acknowledgement — no response needed
+        # Client acknowledgement - no response needed
         return None
 
     elif method == "tools/list":

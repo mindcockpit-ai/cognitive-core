@@ -1,5 +1,5 @@
 # =============================================================================
-# Prometheus Stack — cognitive-core framework
+# Prometheus Stack - cognitive-core framework
 # =============================================================================
 # Prometheus deployment with Kubernetes service discovery for pod scraping.
 # Includes ServiceAccount, ClusterRole, and ClusterRoleBinding for API access.
@@ -8,7 +8,7 @@
 # =============================================================================
 
 # ---------------------------------------------------------------------------
-# ServiceAccount — identity for Prometheus pods
+# ServiceAccount - identity for Prometheus pods
 # ---------------------------------------------------------------------------
 apiVersion: v1
 kind: ServiceAccount
@@ -21,7 +21,7 @@ metadata:
 
 ---
 # ---------------------------------------------------------------------------
-# ClusterRole — permissions to discover and scrape pods/services/endpoints
+# ClusterRole - permissions to discover and scrape pods/services/endpoints
 # ---------------------------------------------------------------------------
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -49,7 +49,7 @@ rules:
 
 ---
 # ---------------------------------------------------------------------------
-# ClusterRoleBinding — bind the ClusterRole to the ServiceAccount
+# ClusterRoleBinding - bind the ClusterRole to the ServiceAccount
 # ---------------------------------------------------------------------------
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -69,7 +69,7 @@ subjects:
 
 ---
 # ---------------------------------------------------------------------------
-# ConfigMap — Prometheus configuration with Kubernetes service discovery
+# ConfigMap - Prometheus configuration with Kubernetes service discovery
 # ---------------------------------------------------------------------------
 apiVersion: v1
 kind: ConfigMap
@@ -82,7 +82,7 @@ metadata:
 data:
   prometheus.yml: |
     # ===========================================================================
-    # Prometheus Configuration — cognitive-core framework
+    # Prometheus Configuration - cognitive-core framework
     # ===========================================================================
     global:
       scrape_interval: 15s
@@ -189,7 +189,7 @@ data:
 
 ---
 # ---------------------------------------------------------------------------
-# Deployment — Prometheus server
+# Deployment - Prometheus server
 # ---------------------------------------------------------------------------
 apiVersion: apps/v1
 kind: Deployment
@@ -274,7 +274,7 @@ spec:
 
 ---
 # ---------------------------------------------------------------------------
-# Service — expose Prometheus within the cluster
+# Service - expose Prometheus within the cluster
 # ---------------------------------------------------------------------------
 apiVersion: v1
 kind: Service

@@ -1,5 +1,5 @@
 # =============================================================================
-# Example Overlay — cognitive-core framework
+# Example Overlay - cognitive-core framework
 # =============================================================================
 # Demonstrates how to customize the base manifests for a specific environment.
 # Copy this directory to create overlays for dev, staging, production, etc.

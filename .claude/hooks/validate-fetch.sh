@@ -15,7 +15,7 @@ INPUT=$(cat)
 URL=$(echo "$INPUT" | _cc_json_get ".tool_input.url")
 QUERY=$(echo "$INPUT" | _cc_json_get ".tool_input.query")
 
-# For WebSearch, just log and allow — no domain filtering on search queries
+# For WebSearch, just log and allow - no domain filtering on search queries
 if [ -n "$QUERY" ] && [ -z "$URL" ]; then
     _cc_security_log "INFO" "web-search" "query=${QUERY}"
     exit 0

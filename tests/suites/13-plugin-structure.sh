@@ -10,7 +10,7 @@ PLUGIN_DIR="${ROOT_DIR}/plugin"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "13 — Plugin Structure"
+suite_start "13 - Plugin Structure"
 
 # ---- Existence checks ----
 
@@ -61,7 +61,7 @@ if command -v jq &>/dev/null; then
         _skip "plugin.json has no version field (optional)"
     fi
 else
-    _skip "jq not installed — skipping plugin.json validation"
+    _skip "jq not installed - skipping plugin.json validation"
 fi
 
 # ---- hooks.json validation ----
@@ -99,7 +99,7 @@ if command -v jq &>/dev/null; then
         _fail "hooks.json has no hook commands registered"
     fi
 else
-    _skip "jq not installed — skipping hooks.json validation"
+    _skip "jq not installed - skipping hooks.json validation"
 fi
 
 # ---- Script checks ----
@@ -207,7 +207,7 @@ plugin_agents=$(find "${PLUGIN_DIR}/agents" -name "*.md" | wc -l | tr -d ' ')
 if [ "$plugin_agents" -ge "$core_agents" ]; then
     _pass "agent parity: plugin(${plugin_agents}) >= core(${core_agents})"
 else
-    _fail "agent parity: plugin(${plugin_agents}) < core(${core_agents}) — missing agents"
+    _fail "agent parity: plugin(${plugin_agents}) < core(${core_agents}) - missing agents"
 fi
 
 core_skills=$(find "${ROOT_DIR}/core/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
@@ -215,7 +215,7 @@ plugin_skills=$(find "${PLUGIN_DIR}/skills" -mindepth 1 -maxdepth 1 -type d | wc
 if [ "$plugin_skills" -ge "$core_skills" ]; then
     _pass "skill parity: plugin(${plugin_skills}) >= core(${core_skills})"
 else
-    _fail "skill parity: plugin(${plugin_skills}) < core(${core_skills}) — missing skills"
+    _fail "skill parity: plugin(${plugin_skills}) < core(${core_skills}) - missing skills"
 fi
 
 core_hooks=$(find "${ROOT_DIR}/core/hooks" -name "*.sh" -not -name "_*.sh" | wc -l | tr -d ' ')
@@ -223,11 +223,11 @@ plugin_hooks=$(find "${PLUGIN_DIR}/scripts" -name "*.sh" -not -name "_*.sh" | wc
 if [ "$plugin_hooks" -ge "$core_hooks" ]; then
     _pass "hook parity: plugin(${plugin_hooks}) >= core(${core_hooks})"
 else
-    _fail "hook parity: plugin(${plugin_hooks}) < core(${core_hooks}) — missing hooks"
+    _fail "hook parity: plugin(${plugin_hooks}) < core(${core_hooks}) - missing hooks"
 fi
 
 # =============================================================================
-# Hook execution tests — verify hooks run correctly in plugin context
+# Hook execution tests - verify hooks run correctly in plugin context
 # =============================================================================
 
 TEST_PROJECT_DIR=$(create_test_dir)
@@ -243,7 +243,7 @@ notify_result=$(echo '{"event":"Stop"}' | \
 if [[ $? -eq 0 || -z "$notify_result" ]]; then
     _pass "notify-complete: exits 0 with notifications disabled"
 else
-    _fail "notify-complete: unexpected output — $notify_result"
+    _fail "notify-complete: unexpected output - $notify_result"
 fi
 
 # Should not crash on empty stdin
@@ -256,7 +256,7 @@ _pass "notify-complete: handles empty event without crash"
 
 NOTIFY_SCRIPT="${PLUGIN_DIR}/scripts/notify-complete.sh"
 
-# V1: Regex injection — crafted event "Stop|Evil" must NOT pass whitelist
+# V1: Regex injection - crafted event "Stop|Evil" must NOT pass whitelist
 v1_result=$(echo '{"hook_event_name":"Stop|Evil"}' | \
     CC_PROJECT_DIR="$TEST_PROJECT_DIR" CC_NOTIFY_ENABLED="true" \
     CC_NOTIFY_CHANNELS="" \
@@ -264,7 +264,7 @@ v1_result=$(echo '{"hook_event_name":"Stop|Evil"}' | \
 if [ -z "$v1_result" ]; then
     _pass "notify-complete: V1 regex injection blocked (Stop|Evil rejected)"
 else
-    _fail "notify-complete: V1 regex injection — crafted event should be rejected"
+    _fail "notify-complete: V1 regex injection - crafted event should be rejected"
 fi
 
 # V1b: Regex wildcard ".*" must NOT pass whitelist
@@ -275,7 +275,7 @@ v1b_result=$(echo '{"hook_event_name":".*"}' | \
 if [ -z "$v1b_result" ]; then
     _pass "notify-complete: V1b regex wildcard blocked (.* rejected)"
 else
-    _fail "notify-complete: V1b regex wildcard — .* should be rejected"
+    _fail "notify-complete: V1b regex wildcard - .* should be rejected"
 fi
 
 # V1c: Legitimate event "Stop" must pass whitelist (with empty channels to avoid dispatch)
@@ -288,7 +288,7 @@ else
     _fail "notify-complete: V1c legitimate Stop event should be accepted"
 fi
 
-# V2: ANSI injection in agent_name — control chars must be stripped
+# V2: ANSI injection in agent_name - control chars must be stripped
 # Use a tab character (safe to embed) as proxy for control chars
 v2_input='{"hook_event_name":"SubagentStop","agent_name":"evil-agent"}'
 if echo "$v2_input" | \
@@ -306,7 +306,7 @@ else
     _fail "notify-complete: V2 ANSI sanitisation missing"
 fi
 
-# V3: Single quote in message — must be stripped by S1
+# V3: Single quote in message - must be stripped by S1
 v3_input='{"hook_event_name":"Notification","message":"it'\''s a test"}'
 if echo "$v3_input" | \
     CC_PROJECT_DIR="$TEST_PROJECT_DIR" CC_NOTIFY_ENABLED="true" \
@@ -347,7 +347,7 @@ guard_result=$(echo '{}' | \
 if echo "$guard_result" | python3 -c "import json,sys; d=json.load(sys.stdin); assert 'hookSpecificOutput' in d" 2>/dev/null; then
     _pass "session-guard: returns valid hookSpecificOutput JSON"
 else
-    _fail "session-guard: missing hookSpecificOutput — got: $guard_result"
+    _fail "session-guard: missing hookSpecificOutput - got: $guard_result"
 fi
 
 if echo "$guard_result" | grep -q "additionalContext"; then

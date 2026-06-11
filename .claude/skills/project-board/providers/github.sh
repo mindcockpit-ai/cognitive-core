@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# github.sh — GitHub Projects provider for project-board skill
+# github.sh - GitHub Projects provider for project-board skill
 #
 # Implements the project-board provider interface using GitHub CLI (gh)
 # and GitHub GraphQL API for project board operations.
@@ -196,11 +196,11 @@ pb_issue_close() {
     # Uses "Approved by @system" when CC_REQUIRE_HUMAN_APPROVAL=false,
     # or "Canceled:" prefix (already in comment from cancel path).
     # When approval is required, pb_board_approve handles closure directly.
-    local marker="Closed via /project-board — Approved by @system"
+    local marker="Closed via /project-board - Approved by @system"
     if [[ -n "$comment" ]]; then
-        # Cancel path already has "Canceled:" prefix — keep it as-is for hook exemption
+        # Cancel path already has "Canceled:" prefix - keep it as-is for hook exemption
         if [[ "$comment" != Canceled:* ]]; then
-            comment="${comment} — ${marker}"
+            comment="${comment} - ${marker}"
         fi
     else
         comment="$marker"
@@ -303,7 +303,7 @@ pb_board_move() {
     item_id=$(_gh_get_item_id "$number") || _pb_die "Issue #$number not found on project board"
 
     # The status option ID must be provided via config or discovered
-    # Provider expects the caller (SKILL.md) to resolve status_key → option ID
+    # Provider expects the caller (SKILL.md) to resolve status_key -> option ID
     # using the status option IDs configured in the skill
     local option_id="${3:-}"
     if [[ -z "$option_id" ]]; then
@@ -379,14 +379,14 @@ for item in json.load(sys.stdin).get('items', []):
 " 2>/dev/null)
 
     if [[ "$current_status" != "To Be Tested" && "$current_status" != "In Review" ]]; then
-        _pb_die "Cannot approve #$number — current status is '$current_status', expected 'To Be Tested'"
+        _pb_die "Cannot approve #$number - current status is '$current_status', expected 'To Be Tested'"
     fi
 
     # Verify evidence exists (at least one comment on the issue)
     local comment_count
     comment_count=$(gh issue view "$number" --repo "$CC_GITHUB_REPO" --json comments --jq '.comments | length')
     if [[ "$comment_count" -eq 0 ]]; then
-        _pb_die "Cannot approve #$number — no verification evidence found (0 comments)"
+        _pb_die "Cannot approve #$number - no verification evidence found (0 comments)"
     fi
 
     # Get current user for attribution

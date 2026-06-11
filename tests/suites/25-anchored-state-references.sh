@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test suite 25 — Anchored State References (#265, #278)
+# Test suite 25 - Anchored State References (#265, #278)
 #
 # Regression + structural invariant for the manifest-regeneration bug where
 # `find ... -not -path "*/cognitive-core/*"` excluded every file whenever the
@@ -7,13 +7,13 @@
 # the exclusion to ${CLAUDE_DIR}/cognitive-core/* (update.sh) and
 # ${CC_INSTALL_DIR}/cognitive-core/* (install.sh).
 #
-# Section 1: Lint scan — fails if any path-filter flag in a shell source file
+# Section 1: Lint scan - fails if any path-filter flag in a shell source file
 #            is followed by the unanchored glob `*/cognitive-core/*`. Converts
 #            the one-off fix into a structural invariant. Scoped to *.sh so
 #            markdown documentation describing the bug does not false-trigger.
 #            Also self-tests the regex (positive + negative) so regex drift
 #            silently weakening the invariant is caught.
-# Section 2: Self-host runtime fixture — installs into a tempdir whose name
+# Section 2: Self-host runtime fixture - installs into a tempdir whose name
 #            literally contains `cognitive-core` (the substring that triggers
 #            the original bug) and asserts the regenerated manifest is
 #            non-empty, contains known-present hook entries, AND excludes the
@@ -28,15 +28,15 @@ SUITE_SELF_NAME="$(basename "${BASH_SOURCE[0]}")"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "25 — Anchored State References"
+suite_start "25 - Anchored State References"
 
 # =============================================================================
-# Section 1: Lint scan — no unanchored `*/cognitive-core/*` in path-filter flags
+# Section 1: Lint scan - no unanchored `*/cognitive-core/*` in path-filter flags
 # =============================================================================
 # Pattern: one of the path-filter flags (-path, -not -path, -iname, --include,
 # --exclude) followed by an optional opening quote and then the unanchored glob.
 # The bug class is shell-specific (find/grep/rsync style flags), so scope to
-# *.sh — markdown and other docs may legitimately quote the buggy pattern when
+# *.sh - markdown and other docs may legitimately quote the buggy pattern when
 # describing the bug itself (see #278 false-positive from the #265 session log).
 
 LINT_REGEX='(-path|-not[[:space:]]+-path|-iname|--include|--exclude)[[:space:]]+["'\'']?\*/cognitive-core/\*'
@@ -81,10 +81,10 @@ else
 fi
 
 # =============================================================================
-# Section 2: Self-host fixture — install + update into a cognitive-core-named
+# Section 2: Self-host fixture - install + update into a cognitive-core-named
 # project and assert the manifest is populated.
 # =============================================================================
-# The tempdir name MUST contain `cognitive-core` — that substring is exactly
+# The tempdir name MUST contain `cognitive-core` - that substring is exactly
 # what triggered the original unanchored-glob bug (see issue #265).
 
 if ! command -v python3 >/dev/null 2>&1; then
@@ -108,7 +108,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Confirm the substring is present — if the platform's mktemp stripped the
+# Confirm the substring is present - if the platform's mktemp stripped the
 # template prefix the fixture is not meaningful.
 case "$FIXTURE_DIR" in
     *cognitive-core*) _pass "self-host fixture: tempdir contains 'cognitive-core' trigger substring" ;;

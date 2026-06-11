@@ -11,7 +11,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "24 — Framework Root Anchor"
+suite_start "24 - Framework Root Anchor"
 
 EXPECTED_ROOT="$(realpath "$ROOT_DIR" 2>/dev/null || (cd "$ROOT_DIR" && pwd))"
 
@@ -36,7 +36,7 @@ get_uid() {
 }
 
 # Seeds a synthetic pre-upgrade project with a conf that has NO CC_FRAMEWORK_ROOT
-# (suite 04 pattern — skips install.sh heredoc path, useful for TOFU tests).
+# (suite 04 pattern - skips install.sh heredoc path, useful for TOFU tests).
 seed_suite04_conf() {
     local d="$1"
     cat > "${d}/cognitive-core.conf" <<'EOF'
@@ -86,7 +86,7 @@ EOF
 }
 
 # =============================================================================
-# Section A — Fresh install (no pre-existing conf) writes CC_FRAMEWORK_ROOT
+# Section A - Fresh install (no pre-existing conf) writes CC_FRAMEWORK_ROOT
 # =============================================================================
 
 test_dir=$(create_test_dir)
@@ -149,7 +149,7 @@ fi
 rm -rf "$test_dir"
 
 # =============================================================================
-# Section B — install --force against fresh conf: stays 0444, line unchanged
+# Section B - install --force against fresh conf: stays 0444, line unchanged
 # =============================================================================
 
 test_dir=$(create_test_dir)
@@ -176,7 +176,7 @@ assert_eq "install --force: CC_FRAMEWORK_ROOT appears exactly once" "1" "$COUNT"
 rm -rf "$test_dir"
 
 # =============================================================================
-# Section C — install refuses when pre-existing CC_FRAMEWORK_ROOT differs
+# Section C - install refuses when pre-existing CC_FRAMEWORK_ROOT differs
 # =============================================================================
 
 test_dir=$(create_test_dir)
@@ -196,7 +196,7 @@ assert_contains "mismatch: error message mentions refusal" "$mismatch_out" "Refu
 rm -rf "$test_dir"
 
 # =============================================================================
-# Section D — TOFU migration (synthetic pre-#260 install)
+# Section D - TOFU migration (synthetic pre-#260 install)
 # =============================================================================
 
 test_dir=$(create_test_dir)
@@ -273,7 +273,7 @@ assert_eq "TOFU idempotency: CC_FRAMEWORK_ROOT appears exactly once" "1" "$COUNT
 rm -rf "$test_dir"
 
 # =============================================================================
-# Section E — TOFU no-op when CC_FRAMEWORK_ROOT already present
+# Section E - TOFU no-op when CC_FRAMEWORK_ROOT already present
 # =============================================================================
 
 test_dir=$(create_test_dir)
@@ -308,7 +308,7 @@ assert_eq "TOFU no-op: existing value not overwritten" "/preset/anchor/path" "$P
 rm -rf "$test_dir"
 
 # =============================================================================
-# Section F — Owner mismatch fails install (shadow-PATH stat mock)
+# Section F - Owner mismatch fails install (shadow-PATH stat mock)
 # =============================================================================
 
 STAT_PATH=$(command -v stat 2>/dev/null || true)
@@ -368,7 +368,7 @@ STATEOF
 
         rm -rf "$shadow_test_dir" "$skip_test_dir"
     else
-        _skip "owner-mismatch shadow-PATH (could not shadow stat — sanity=${SANITY})"
+        _skip "owner-mismatch shadow-PATH (could not shadow stat - sanity=${SANITY})"
     fi
     rm -rf "$SHADOW_DIR"
 fi

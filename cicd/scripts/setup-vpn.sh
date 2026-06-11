@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# WireGuard VPN Setup — cognitive-core framework
+# WireGuard VPN Setup - cognitive-core framework
 # =============================================================================
 # Installs and configures WireGuard for secure runner-to-monitoring tunnels.
 # Supports --server and --client modes for easy multi-node deployment.
@@ -212,7 +212,7 @@ setup_server() {
 
     sudo tee "$server_config" > /dev/null <<EOF
 # =============================================================================
-# WireGuard Server Configuration — cognitive-core framework
+# WireGuard Server Configuration - cognitive-core framework
 # Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 # Project: ${CC_PROJECT_NAME:-cognitive-core}
 # =============================================================================
@@ -253,7 +253,7 @@ EOF
         local peer_config="${peer_dir}/peer-${i}.conf"
         sudo tee "$peer_config" > /dev/null <<EOF
 # =============================================================================
-# WireGuard Client Configuration — Peer ${i}
+# WireGuard Client Configuration - Peer ${i}
 # Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 # Project: ${CC_PROJECT_NAME:-cognitive-core}
 # =============================================================================
@@ -321,7 +321,7 @@ setup_client() {
 
     sudo tee "$client_config" > /dev/null <<EOF
 # =============================================================================
-# WireGuard Client Configuration — cognitive-core framework
+# WireGuard Client Configuration - cognitive-core framework
 # Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 # Project: ${CC_PROJECT_NAME:-cognitive-core}
 # =============================================================================
@@ -363,7 +363,7 @@ enable_service() {
     fi
 
     if ! command -v systemctl &>/dev/null; then
-        log_warn "systemctl not found — skipping service setup"
+        log_warn "systemctl not found - skipping service setup"
         log_info "Start manually with: sudo wg-quick up ${WG_INTERFACE}"
         return 0
     fi

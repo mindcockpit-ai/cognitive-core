@@ -1,5 +1,5 @@
 # =============================================================================
-# Grafana Dashboard Provisioning — cognitive-core framework
+# Grafana Dashboard Provisioning - cognitive-core framework
 # =============================================================================
 # Auto-loads dashboards from the dashboards folder on Grafana startup.
 # =============================================================================

@@ -10,7 +10,7 @@ echo "Configuring Python lint tools for: $PROJECT_DIR"
 # Create ruff.toml if not present
 if [ ! -f "$PROJECT_DIR/ruff.toml" ] && [ ! -f "$PROJECT_DIR/pyproject.toml" ]; then
     cat > "$PROJECT_DIR/ruff.toml" << 'RUFF'
-# cognitive-core default ruff configuration — Python 3.12+
+# cognitive-core default ruff configuration - Python 3.12+
 target-version = "py312"
 line-length = 100
 

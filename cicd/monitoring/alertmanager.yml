@@ -1,5 +1,5 @@
 # =============================================================================
-# Alertmanager Configuration — cognitive-core framework
+# Alertmanager Configuration - cognitive-core framework
 # =============================================================================
 # Finding #14 fix: REAL receiver templates with actual webhook/SMTP/PagerDuty
 # configuration. Previous version had stubs pointing to localhost:9999.
@@ -26,7 +26,7 @@ global:
   resolve_timeout: 5m
 
 # ---------------------------------------------------------------------------
-# Inhibition rules — suppress lower-severity alerts when critical fires
+# Inhibition rules - suppress lower-severity alerts when critical fires
 # ---------------------------------------------------------------------------
 inhibit_rules:
   # If a critical alert fires, suppress warnings for the same alertname
@@ -44,7 +44,7 @@ inhibit_rules:
     equal: ['instance']
 
 # ---------------------------------------------------------------------------
-# Routing tree — route alerts by severity to appropriate receivers
+# Routing tree - route alerts by severity to appropriate receivers
 # Finding #14: Proper routing tree, not stub receivers
 # ---------------------------------------------------------------------------
 route:
@@ -61,7 +61,7 @@ route:
 
   # Child routes (evaluated in order, first match wins)
   routes:
-    # Critical alerts → PagerDuty + Slack
+    # Critical alerts -> PagerDuty + Slack
     - matchers:
         - severity="critical"
       receiver: 'pagerduty-critical'
@@ -74,27 +74,27 @@ route:
       receiver: 'slack-critical'
       group_wait: 10s
 
-    # Warning alerts → Slack warnings channel
+    # Warning alerts -> Slack warnings channel
     - matchers:
         - severity="warning"
       receiver: 'slack-warnings'
       repeat_interval: 4h
 
-    # Info/watchdog → email digest
+    # Info/watchdog -> email digest
     - matchers:
         - severity="info"
       receiver: 'email-digest'
       group_wait: 1m
       repeat_interval: 12h
 
-    # CI/CD pipeline alerts → dedicated Slack channel
+    # CI/CD pipeline alerts -> dedicated Slack channel
     - matchers:
         - category="cicd"
       receiver: 'slack-cicd'
       repeat_interval: 2h
 
 # ---------------------------------------------------------------------------
-# Receivers — actual notification targets
+# Receivers - actual notification targets
 # Finding #14: These are REAL receivers, not stubs
 # ---------------------------------------------------------------------------
 receivers:
@@ -187,7 +187,7 @@ receivers:
           </table>
 
 # ---------------------------------------------------------------------------
-# Templates (optional — for custom notification formatting)
+# Templates (optional - for custom notification formatting)
 # ---------------------------------------------------------------------------
 # templates:
 #   - '/etc/alertmanager/templates/*.tmpl'

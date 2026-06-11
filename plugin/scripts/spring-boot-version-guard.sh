@@ -2,7 +2,7 @@
 # cognitive-core hook: PreToolUse (Write, Edit)
 # Spring Boot version-aware pattern enforcement
 # Detects Spring Boot version from pom.xml or build.gradle and warns about deprecated patterns
-# Uses "ask" (not "deny") — graduated response per framework philosophy
+# Uses "ask" (not "deny") - graduated response per framework philosophy
 # All patterns use POSIX ERE (no \s, \b, \w) for macOS + Linux compatibility
 set -euo pipefail
 
@@ -87,7 +87,7 @@ REASON=""
 if [ "$SB_VERSION" -ge 3 ]; then
     # Warn about javax.* imports (must use jakarta.*)
     if echo "$CONTENT" | grep -qE 'import[[:space:]]+javax\.(persistence|validation|servlet|annotation|mail|transaction|inject|enterprise)'; then
-        REASON="Spring Boot v${SB_VERSION}: Use jakarta.* imports instead of javax.* — Jakarta EE 10 namespace is required since Spring Boot 3.0."
+        REASON="Spring Boot v${SB_VERSION}: Use jakarta.* imports instead of javax.* - Jakarta EE 10 namespace is required since Spring Boot 3.0."
     fi
 
     # Warn about WebSecurityConfigurerAdapter (removed in Security 6)

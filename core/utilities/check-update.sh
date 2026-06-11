@@ -1,5 +1,5 @@
 #!/bin/bash
-# cognitive-core: Connected Projects — update check
+# cognitive-core: Connected Projects - update check
 # Checks if the framework source has updates available.
 # Called by setup-env.sh at session start on a configurable interval.
 #
@@ -51,7 +51,7 @@ if [ -z "$SOURCE_DIR" ] || [ ! -d "$SOURCE_DIR" ]; then
 fi
 
 # Validate the framework source before any git invocation (#256).
-# On deny: skip silently — this is a session-start background check, never crash.
+# On deny: skip silently - this is a session-start background check, never crash.
 if ! type _cc_validate_framework_source >/dev/null 2>&1 \
         || ! _cc_validate_framework_source "$SOURCE_DIR" 2>/dev/null; then
     # DENY is logged by the helper; be silent to avoid noisy SessionStart output.

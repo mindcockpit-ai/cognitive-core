@@ -1,5 +1,5 @@
 # =============================================================================
-# Application Deployment — cognitive-core framework
+# Application Deployment - cognitive-core framework
 # =============================================================================
 # Generic application deployment template.
 # Customize placeholders marked with CUSTOMIZE comments for your project.
@@ -71,7 +71,7 @@ spec:
           #         name: my-app-secrets
           #         key: db-password
           # -----------------------------------------------------------------
-          # Resource limits — adjust based on your application profile
+          # Resource limits - adjust based on your application profile
           # -----------------------------------------------------------------
           resources:
             requests:
@@ -81,7 +81,7 @@ spec:
               cpu: 500m
               memory: 512Mi
           # -----------------------------------------------------------------
-          # Probes — adjust paths and timing for your application
+          # Probes - adjust paths and timing for your application
           # -----------------------------------------------------------------
           readinessProbe:
             httpGet:

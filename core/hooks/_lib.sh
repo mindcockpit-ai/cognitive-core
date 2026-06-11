@@ -298,10 +298,10 @@ _cc_guard_run() {
 # Session-scoped domain cache for hooks (e.g., validate-fetch "don't ask again")
 # Cache file is scoped to the Claude session to prevent cross-session leakage.
 # Session key resolution order:
-#   1. CLAUDE_SESSION_KEY     — explicit override (used by tests)
-#   2. CLAUDE_CODE_SESSION_ID — the real session id Claude Code exports; stable
+#   1. CLAUDE_SESSION_KEY     - explicit override (used by tests)
+#   2. CLAUDE_CODE_SESSION_ID - the real session id Claude Code exports; stable
 #      across every hook invocation AND subagent in a session (incl. workflows)
-#   3. ppid_$PPID            — fallback to the parent (the persistent Claude Code
+#   3. ppid_$PPID            - fallback to the parent (the persistent Claude Code
 #      process), NOT $$ which is each hook's own one-shot PID and never matches
 #      between a PostToolUse write and the next PreToolUse read.
 _cc_session_cache_file() {
@@ -364,7 +364,7 @@ _cc_realpath() {
 #   4. The directory exists
 #   5. $path/update.sh is a regular file (not a symlink escaping the root),
 #      executable, not setuid/setgid, and owned by the current user
-# On accept: exports CC_VALIDATED_SOURCE to the canonical resolved path —
+# On accept: exports CC_VALIDATED_SOURCE to the canonical resolved path -
 # callers MUST consume $CC_VALIDATED_SOURCE only, never the raw input.
 # On deny: emits _cc_security_log DENY with {reason, path, caller} and
 # returns 1 without touching CC_VALIDATED_SOURCE.
@@ -397,7 +397,7 @@ _cc_validate_framework_source() {
 
     # No control characters (including NUL, newline, tab). Shell variables
     # cannot actually hold a literal NUL byte (POSIX exec boundary strips it),
-    # but we reject every other control byte defensively — a path containing
+    # but we reject every other control byte defensively - a path containing
     # a newline would break logging and argv parsing in callers.
     if LC_ALL=C printf '%s' "$path" | LC_ALL=C grep -q '[[:cntrl:]]'; then
         reason="path contains control character"
@@ -447,7 +447,7 @@ _cc_validate_framework_source() {
         return 1
     fi
 
-    # update.sh checks — regular file, executable, no setuid/setgid
+    # update.sh checks - regular file, executable, no setuid/setgid
     local updater="${canon_path}/update.sh"
     # Refuse if update.sh is a symlink (regular-file test already excludes symlinks
     # to non-files, but we want to reject even symlinks to regular files inside
@@ -469,7 +469,7 @@ _cc_validate_framework_source() {
         return 1
     fi
 
-    # setuid / setgid test — inline platform detection (no new helpers)
+    # setuid / setgid test - inline platform detection (no new helpers)
     local perms owner
     if stat -f %p "$updater" >/dev/null 2>&1; then
         # BSD/macOS: stat -f %p yields a 6-digit octal mode
@@ -480,7 +480,7 @@ _cc_validate_framework_source() {
         perms=$(stat -c %a "$updater" 2>/dev/null)
         owner=$(stat -c %u "$updater" 2>/dev/null)
     fi
-    # setuid bit 4000 / setgid bit 2000 — test by extracting the second-most-significant
+    # setuid bit 4000 / setgid bit 2000 - test by extracting the second-most-significant
     # octal digit (4 sticky-group position). We use modulo arithmetic for portability.
     if [ -n "$perms" ]; then
         # Normalize: pad to at least 5 digits (BSD) or keep short form (GNU 3-4 digits).

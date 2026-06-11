@@ -1,7 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2009
 # =============================================================================
-# _session-hygiene.sh — Glymphatic cleanup at session start
+# _session-hygiene.sh - Glymphatic cleanup at session start
 # =============================================================================
 # Biomimetic: brain's glymphatic system flushes metabolic waste during sleep.
 # This library flushes stale processes, orphaned worktrees, and old temp files
@@ -91,7 +91,7 @@ EOF
         local _tmp_size_mb
         _tmp_size_mb=$(du -sm "$_tmp_dir" 2>/dev/null | cut -f1)
         if [ "${_tmp_size_mb:-0}" -ge 50 ] 2>/dev/null; then
-            warnings="${warnings:+${warnings}, }temp dir ${_tmp_size_mb}MB — consider running context-cleanup.sh"
+            warnings="${warnings:+${warnings}, }temp dir ${_tmp_size_mb}MB - consider running context-cleanup.sh"
         fi
     fi
 
@@ -118,14 +118,14 @@ EOF
 }
 
 # =============================================================================
-# _cc_check_agent_health — Detect stuck background agents
+# _cc_check_agent_health - Detect stuck background agents
 # =============================================================================
 # Checks for Claude agent/subagent processes that exceed the configured
 # timeout threshold. Logs to agent-health.log and optionally recommends kill.
 #
 # Config (from cognitive-core.conf):
-#   CC_AGENT_TIMEOUT_MINUTES  — default timeout (default: 30)
-#   CC_AGENT_AUTO_KILL        — recommend kill when true (default: false)
+#   CC_AGENT_TIMEOUT_MINUTES  - default timeout (default: 30)
+#   CC_AGENT_AUTO_KILL        - recommend kill when true (default: false)
 # =============================================================================
 
 _cc_check_agent_health() {
@@ -180,14 +180,14 @@ EOF
     if [ "$stuck_count" -gt 0 ]; then
         local msg="${stuck_count} background agent(s) exceed ${timeout_minutes}min timeout: ${stuck_info}"
         if [ "$auto_kill" = "true" ]; then
-            msg="${msg} — recommend TaskStop to terminate"
+            msg="${msg} - recommend TaskStop to terminate"
         fi
         echo "$msg"
     fi
 }
 
 # =============================================================================
-# _cc_check_orphaned_subprocesses — Detect tool processes orphaned by crash
+# _cc_check_orphaned_subprocesses - Detect tool processes orphaned by crash
 # =============================================================================
 # After a session crash, tool subprocesses (git, node, curl, etc.) may survive
 # as orphans (PPID=1, no controlling TTY). This function detects them by:
@@ -197,7 +197,7 @@ EOF
 #   4. Filtering by minimum elapsed time (_ORPHAN_MIN_MINUTES)
 #
 # Config (from cognitive-core.conf):
-#   CC_ORPHAN_AUTO_KILL — send SIGTERM to orphans when true (default: false)
+#   CC_ORPHAN_AUTO_KILL - send SIGTERM to orphans when true (default: false)
 # =============================================================================
 
 _cc_check_orphaned_subprocesses() {
@@ -230,7 +230,7 @@ _cc_check_orphaned_subprocesses() {
 
         # Filter: command basename must match known tool patterns.
         # Check both the first token (direct execution) and second token
-        # (when executed via interpreter: /bin/bash /path/to/git → "git").
+        # (when executed via interpreter: /bin/bash /path/to/git -> "git").
         _base=$(echo "$_cmd" | awk '{print $1}')
         _base=$(basename "$_base" 2>/dev/null || echo "$_base")
         _match="false"
@@ -308,7 +308,7 @@ EOF
     if [ "$orphan_count" -gt 0 ]; then
         local msg="${orphan_count} orphaned tool process(es) detected: ${orphan_info}"
         if [ "$auto_kill" = "true" ]; then
-            msg="${msg} — SIGTERM sent"
+            msg="${msg} - SIGTERM sent"
         fi
         echo "$msg"
     fi

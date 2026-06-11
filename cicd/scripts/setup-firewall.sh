@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Firewall Setup — cognitive-core framework
+# Firewall Setup - cognitive-core framework
 # =============================================================================
 # Configures UFW or iptables firewall rules for the CI/CD infrastructure.
 # Allows only required ports and restricts internal services to localhost.
@@ -259,7 +259,7 @@ setup_iptables() {
             sudo mkdir -p /etc/iptables
             sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
         else
-            log_warn "iptables-persistent not found — rules will not survive reboot"
+            log_warn "iptables-persistent not found - rules will not survive reboot"
             log_warn "Install with: sudo apt-get install iptables-persistent"
         fi
     fi
@@ -272,7 +272,7 @@ show_summary() {
     echo ""
     echo "========================================="
     if [ "$DRY_RUN" = "true" ]; then
-        echo "  Firewall Rules (DRY RUN — not applied)"
+        echo "  Firewall Rules (DRY RUN - not applied)"
     else
         echo "  Firewall Rules Applied"
     fi

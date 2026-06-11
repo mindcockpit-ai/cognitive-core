@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# github-app-token.sh — Generate GitHub App installation token
+# github-app-token.sh - Generate GitHub App installation token
 #
 # Usage:
 #   github-app-token.sh [--installation-id ID] [--config PATH] [--pem PATH]
@@ -61,7 +61,7 @@ INSTALLATION_ID="${INSTALLATION_ID:-$DEFAULT_INSTALLATION_ID}"
 
 if [[ ! -f "$PEM_FILE" ]]; then
     echo "PEM file not found: $PEM_FILE" >&2
-    echo "Download from GitHub App settings → Private keys" >&2
+    echo "Download from GitHub App settings -> Private keys" >&2
     exit 1
 fi
 

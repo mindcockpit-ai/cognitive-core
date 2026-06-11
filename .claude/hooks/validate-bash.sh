@@ -64,7 +64,7 @@ CMD_STRIPPED=$(echo "$CMD_LOWER" | sed \
     -e "s/'[^']*'//g")
 
 # Detect interpreter wrapping: bash -c "...", sh -c '...', eval "..."
-# When the payload is inside quotes, CMD_STRIPPED loses it — fall back to CMD_LOWER.
+# When the payload is inside quotes, CMD_STRIPPED loses it - fall back to CMD_LOWER.
 _CMD_CHECK="$CMD_STRIPPED"
 if echo "$_CMD_CHECK" | grep -qE '(^|[;&|])[[:space:]]*(bash|sh|zsh|dash|python[23]?|perl|ruby)[[:space:]]+-c[[:space:]]*$|(^|[;&|])[[:space:]]*eval[[:space:]]*$'; then
     _CMD_CHECK="$CMD_LOWER"
@@ -148,13 +148,13 @@ if [ "$_SECURITY_LEVEL" != "minimal" ]; then
 
     # Pipe-to-shell (supply chain attack vector)
     if [ -z "$REASON" ] && echo "$_CMD_CHECK" | grep -qE 'curl[[:space:]]+.*\|.*(ba)?sh'; then
-        REASON="Blocked: pipe-to-shell (curl | sh) — supply chain risk"
+        REASON="Blocked: pipe-to-shell (curl | sh) - supply chain risk"
     fi
     if [ -z "$REASON" ] && echo "$_CMD_CHECK" | grep -qE 'wget[[:space:]]+.*\|.*(ba)?sh'; then
-        REASON="Blocked: pipe-to-shell (wget | sh) — supply chain risk"
+        REASON="Blocked: pipe-to-shell (wget | sh) - supply chain risk"
     fi
     if [ -z "$REASON" ] && echo "$_CMD_CHECK" | grep -qE 'wget[[:space:]]+.*-O-[[:space:]]*\|'; then
-        REASON="Blocked: pipe-to-shell (wget -O- |) — supply chain risk"
+        REASON="Blocked: pipe-to-shell (wget -O- |) - supply chain risk"
     fi
 fi
 
@@ -202,8 +202,8 @@ if [ -z "$REASON" ] && [ "$_CLOSURE_GUARD" = "true" ]; then
 
     # gh api state-change bypass: REST (state=closed) or GraphQL (CloseIssue mutation)
     # Uses CMD_LOWER (not _CMD_CHECK) because payloads are typically inside quotes
-    # that CMD_STRIPPED removes — same rationale as gh issue close above.
-    # gh api state-change: always block (no exemptions — use gh issue close path with "Approved by @" or "Canceled:")
+    # that CMD_STRIPPED removes - same rationale as gh issue close above.
+    # gh api state-change: always block (no exemptions - use gh issue close path with "Approved by @" or "Canceled:")
     if echo "$CMD_LOWER" | grep -qE 'gh[[:space:]]+api[[:space:]]' && \
        echo "$CMD_LOWER" | grep -qE 'state[^a-z]*closed|closeissue'; then
         _API_CLOSURE_EXEMPT="false"

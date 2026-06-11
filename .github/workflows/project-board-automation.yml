@@ -1,13 +1,13 @@
 # =============================================================================
-# Project Board Automation — cognitive-core
+# Project Board Automation - cognitive-core
 # =============================================================================
 # Automates board status transitions based on GitHub events:
-#   - PR opened → linked issues move to In Progress (from Todo only)
-#   - PR merged → linked issues move to Done
-#   - Issue assigned → moves to Todo (from Backlog/Roadmap)
-#   - Issue opened → added to board in Backlog
-#   - Issue reopened → moves to In Progress
-#   - Issue closed → moves to Done
+#   - PR opened -> linked issues move to In Progress (from Todo only)
+#   - PR merged -> linked issues move to Done
+#   - Issue assigned -> moves to Todo (from Backlog/Roadmap)
+#   - Issue opened -> added to board in Backlog
+#   - Issue reopened -> moves to In Progress
+#   - Issue closed -> moves to Done
 #
 # Prerequisites:
 #   - Repository secret PROJECT_PAT (classic PAT with repo + project scopes)
@@ -40,7 +40,7 @@ env:
   CANCELED_ID: "95eda9a6"
 
 jobs:
-  # ── PR opened → linked issues move to In Progress ──
+  # ── PR opened -> linked issues move to In Progress ──
   pr-opened:
     if: >
       github.event_name == 'pull_request' &&
@@ -53,7 +53,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$GH_TOKEN" ]; then
-            echo "::warning::PROJECT_PAT not configured — skipping board automation"
+            echo "::warning::PROJECT_PAT not configured - skipping board automation"
             exit 0
           fi
           PR_BODY=$(cat <<'PREOF'
@@ -71,7 +71,7 @@ jobs:
           fi
 
           ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
-            echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
+            echo "::warning::Cannot access project board (gh exit non-zero - ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
           if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
@@ -103,13 +103,13 @@ jobs:
                 echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes or project permissions)"
                 continue
               }
-              echo "Moved #$ISSUE_NUM: Todo → In Progress"
+              echo "Moved #$ISSUE_NUM: Todo -> In Progress"
             else
-              echo "Issue #$ISSUE_NUM in '$CURRENT', not moving (only Todo → In Progress)"
+              echo "Issue #$ISSUE_NUM in '$CURRENT', not moving (only Todo -> In Progress)"
             fi
           done
 
-  # ── PR merged → linked issues move to Done ──
+  # ── PR merged -> linked issues move to Done ──
   pr-merged:
     if: >
       github.event_name == 'pull_request' &&
@@ -121,7 +121,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
           # When "true": a merged PR parks linked issues at To Be Tested for
-          # human /project-board approve. When "false": PR merge → Done (autonomous).
+          # human /project-board approve. When "false": PR merge -> Done (autonomous).
           REQUIRE_HUMAN_APPROVAL: "true"
         run: |
           set -euo pipefail
@@ -142,7 +142,7 @@ jobs:
 
           # Select target column based on the approval gate (#312). With the gate
           # on, a merged PR must park the issue at To Be Tested for human approval,
-          # NOT slam it to Done — that bypassed the gate. This also removes the only
+          # NOT slam it to Done - that bypassed the gate. This also removes the only
           # "Done" writer in the merge path, so the issue-reopened job (which only
           # acts on Done/Canceled) no longer races on a stale Done and bounces the
           # card to In Progress after GitHub auto-closes the issue via "Closes #N".
@@ -155,7 +155,7 @@ jobs:
           fi
 
           ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
-            echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
+            echo "::warning::Cannot access project board (gh exit non-zero - ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
           if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
@@ -184,10 +184,10 @@ jobs:
               echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes or project permissions)"
               continue
             }
-            echo "Moved #$ISSUE_NUM → $TARGET_NAME (PR merged)"
+            echo "Moved #$ISSUE_NUM -> $TARGET_NAME (PR merged)"
           done
 
-  # ── Issue assigned (from Backlog/Roadmap) → Todo ──
+  # ── Issue assigned (from Backlog/Roadmap) -> Todo ──
   issue-assigned:
     if: >
       github.event_name == 'issues' &&
@@ -202,7 +202,7 @@ jobs:
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
           ISSUE_NUM=${{ github.event.issue.number }}
           ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
-            echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
+            echo "::warning::Cannot access project board (gh exit non-zero - ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
           if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
@@ -233,12 +233,12 @@ jobs:
               echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes or project permissions)"
               exit 0
             }
-            echo "Moved #$ISSUE_NUM: $CURRENT → Todo (assigned)"
+            echo "Moved #$ISSUE_NUM: $CURRENT -> Todo (assigned)"
           else
             echo "Issue #$ISSUE_NUM in '$CURRENT', not moving"
           fi
 
-  # ── New issue → add to board in Backlog ──
+  # ── New issue -> add to board in Backlog ──
   issue-opened:
     if: >
       github.event_name == 'issues' &&
@@ -251,7 +251,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$GH_TOKEN" ]; then
-            echo "::warning::PROJECT_PAT not configured — new issue not added to board"
+            echo "::warning::PROJECT_PAT not configured - new issue not added to board"
             exit 0
           fi
           ISSUE_NUM=${{ github.event.issue.number }}
@@ -263,7 +263,7 @@ jobs:
               contentId: "'"$ISSUE_NODE_ID"'"
             }) { item { id } }
           }' --jq '.data.addProjectV2ItemById.item.id') || {
-            echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes — org-owned projects need read:org)"
+            echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes - org-owned projects need read:org)"
             exit 0
           }
 
@@ -279,10 +279,10 @@ jobs:
               echo "::warning::Issue #$ISSUE_NUM added to board but could not set Backlog status"
               exit 0
             }
-            echo "Added #$ISSUE_NUM to board → Backlog"
+            echo "Added #$ISSUE_NUM to board -> Backlog"
           fi
 
-  # ── Issue reopened → move back to In Progress ──
+  # ── Issue reopened -> move back to In Progress ──
   issue-reopened:
     if: >
       github.event_name == 'issues' &&
@@ -297,7 +297,7 @@ jobs:
           if [ -z "$GH_TOKEN" ]; then exit 0; fi
           ISSUE_NUM=${{ github.event.issue.number }}
           ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
-            echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
+            echo "::warning::Cannot access project board (gh exit non-zero - ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
           if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
@@ -328,10 +328,10 @@ jobs:
               echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes or project permissions)"
               exit 0
             }
-            echo "Moved #$ISSUE_NUM: $CURRENT → In Progress (reopened)"
+            echo "Moved #$ISSUE_NUM: $CURRENT -> In Progress (reopened)"
           fi
 
-  # ── Issue closed → verify acceptance criteria, then move to Done ──
+  # ── Issue closed -> verify acceptance criteria, then move to Done ──
   issue-closed:
     if: >
       github.event_name == 'issues' &&
@@ -362,17 +362,17 @@ jobs:
           fi
 
           if [ "$APPROVED" -eq 0 ] && [ "$HAS_CRITERIA" = "true" ]; then
-            echo "Issue #$ISSUE_NUM has acceptance criteria but no 'approved' label — routing to To Be Tested"
+            echo "Issue #$ISSUE_NUM has acceptance criteria but no 'approved' label - routing to To Be Tested"
             # Move to "To Be Tested" on the board BEFORE reopening. The issue-reopened
-            # job only routes Done/Canceled → In Progress, so it will leave TBT alone.
+            # job only routes Done/Canceled -> In Progress, so it will leave TBT alone.
             # Without this, pr-merged can miss the link (cross-repo `owner/repo#N` form)
             # and the issue ends up in In Progress instead of parked for review (#262).
             GUARD_ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
-              echo "::warning::Cannot access project board — skipping TBT routing for #$ISSUE_NUM (gh exit non-zero)"
+              echo "::warning::Cannot access project board - skipping TBT routing for #$ISSUE_NUM (gh exit non-zero)"
               GUARD_ITEMS=""
             }
             if [ -n "$GUARD_ITEMS" ] && ! printf '%s' "$GUARD_ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
-              echo "::warning::gh returned non-JSON or unexpected shape — skipping TBT routing for #$ISSUE_NUM"
+              echo "::warning::gh returned non-JSON or unexpected shape - skipping TBT routing for #$ISSUE_NUM"
               echo "First 80 chars: $(printf '%s' "$GUARD_ITEMS" | tr -c '[:print:]' '?' | head -c 80)"
               GUARD_ITEMS=""
             fi
@@ -388,7 +388,7 @@ jobs:
                     value: { singleSelectOptionId: "'"$TESTING_ID"'" }
                   }) { projectV2Item { id } }
                 }' || {
-                  echo "::warning::Board mutation failed for #$ISSUE_NUM — continuing with reopen"
+                  echo "::warning::Board mutation failed for #$ISSUE_NUM - continuing with reopen"
                 }
               fi
             fi
@@ -404,7 +404,7 @@ jobs:
           # --- Move to Done on board ---
           # Strip control chars (U+0000-U+001F) to prevent jq parse failures
           ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
-            echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
+            echo "::warning::Cannot access project board (gh exit non-zero - ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
           if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
@@ -432,9 +432,9 @@ jobs:
             echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes or project permissions)"
             exit 0
           }
-          echo "Moved #$ISSUE_NUM → Done (closed, criteria verified)"
+          echo "Moved #$ISSUE_NUM -> Done (closed, criteria verified)"
 
-  # ── Weekly reconciliation — catch any closed issues with stale board status ──
+  # ── Weekly reconciliation - catch any closed issues with stale board status ──
   board-reconcile:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
@@ -449,7 +449,7 @@ jobs:
 
           # Get all board items, strip control chars
           ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
-            echo "::warning::Cannot access project board (gh exit non-zero — ensure PROJECT_PAT has repo, project, and read:org scopes)"
+            echo "::warning::Cannot access project board (gh exit non-zero - ensure PROJECT_PAT has repo, project, and read:org scopes)"
             exit 0
           }
           if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
@@ -466,7 +466,7 @@ jobs:
             .content.number
           ' | sort -n -u)
 
-          # Bulk-fetch issue states via aliased GraphQL — a per-issue REST
+          # Bulk-fetch issue states via aliased GraphQL - a per-issue REST
           # loop hits GitHub's secondary rate limit on 80+ sequential calls
           # and exceeds the 15-min step boundary. Batches of 100 alias
           # entries per query stay under GitHub's GraphQL node/cost limits
@@ -486,7 +486,7 @@ jobs:
             BATCH_CLOSED=$(gh api graphql -f query="$QUERY" \
               --jq '.data.repository | to_entries[] | select(.value != null and .value.state == "CLOSED") | (.key | sub("^i"; ""))' \
               2>/dev/null) || {
-              echo "::warning::Bulk state lookup failed for batch starting at index $i — skipping batch"
+              echo "::warning::Bulk state lookup failed for batch starting at index $i - skipping batch"
               continue
             }
             CLOSED_NUMS="$CLOSED_NUMS $BATCH_CLOSED"
@@ -508,7 +508,7 @@ jobs:
                 echo "::warning::Board mutation failed for #$NUM (check PROJECT_PAT scopes or project permissions)"
                 continue
               }
-              echo "Reconciled #$NUM → Done (was closed but board status stale)"
+              echo "Reconciled #$NUM -> Done (was closed but board status stale)"
               FIXED=$((FIXED + 1))
             fi
           done

@@ -16,7 +16,7 @@ if [ ! -f "$PROJECT_DIR/config/checkstyle/checkstyle.xml" ]; then
     "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
     "https://checkstyle.org/dtds/configuration_1_3.dtd">
 <!-- cognitive-core: Checkstyle for legacy Struts/JSP projects -->
-<!-- Relaxed rules appropriate for legacy code — focus on safety, not style -->
+<!-- Relaxed rules appropriate for legacy code - focus on safety, not style -->
 <module name="Checker">
     <property name="charset" value="UTF-8"/>
     <property name="severity" value="warning"/>

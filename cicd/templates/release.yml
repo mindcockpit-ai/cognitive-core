@@ -1,5 +1,5 @@
 # =============================================================================
-# GitHub Release Notes Configuration — cognitive-core framework
+# GitHub Release Notes Configuration - cognitive-core framework
 # =============================================================================
 # Categorizes PRs by label on the GitHub Release page.
 # Place in .github/release.yml in your project repository.

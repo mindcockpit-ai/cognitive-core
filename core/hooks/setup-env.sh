@@ -33,7 +33,7 @@ if [ -n "$_TOFU_CONF" ] && ! grep -qE '^CC_FRAMEWORK_ROOT=' "$_TOFU_CONF" 2>/dev
             if [ -n "${_TOFU_SOURCE:-}" ] && [ -d "$_TOFU_SOURCE" ]; then
                 # Pre-TOFU sanity checks on the untrusted source before pinning
                 # it as the anchor (#256). Since CC_FRAMEWORK_ROOT is unset at
-                # this point, we cannot call _cc_validate_framework_source —
+                # this point, we cannot call _cc_validate_framework_source -
                 # apply a subset of its invariants inline: absolute path, no
                 # control chars, no `..`, canonicalizable, update.sh is a
                 # regular executable owned by the current user.
@@ -98,7 +98,7 @@ if [ -f "$_VERSION_FILE" ]; then
     _SOURCE_DIR=$(echo "$_VERSION_FILE" | xargs cat 2>/dev/null | _cc_json_get ".source")
     # Validate _SOURCE_DIR before walking it (#256). When CC_FRAMEWORK_ROOT is
     # unset (pre-#260 install pre-TOFU), allow the legacy behavior but log a
-    # security warning — do not silently skip the integrity compare.
+    # security warning - do not silently skip the integrity compare.
     if [ -n "$_SOURCE_DIR" ]; then
         if [ -z "${CC_FRAMEWORK_ROOT:-}" ]; then
             _cc_security_log "WARN" "source-validation" "CC_FRAMEWORK_ROOT unset; integrity check using unvalidated source=${_SOURCE_DIR}"

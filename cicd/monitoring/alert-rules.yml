@@ -1,8 +1,8 @@
 # =============================================================================
-# Alert Rules — cognitive-core framework
+# Alert Rules - cognitive-core framework
 # =============================================================================
 # Generic alert rules for CI/CD, fitness, containers, hosts, and runners.
-# No project-specific prefixes — all rules use generic names.
+# No project-specific prefixes - all rules use generic names.
 # =============================================================================
 
 groups:

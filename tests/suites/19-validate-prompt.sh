@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test suite 19 — Validate Prompt (deterministic prompt linter)
+# Test suite 19 - Validate Prompt (deterministic prompt linter)
 # Tests core/skills/project-board/validate-prompt.sh
 set -euo pipefail
 
@@ -8,7 +8,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
-suite_start "19 — Validate Prompt"
+suite_start "19 - Validate Prompt"
 
 VP_SCRIPT="${ROOT_DIR}/core/skills/project-board/validate-prompt.sh"
 
@@ -29,7 +29,7 @@ assert_contains "has set -euo pipefail" "$(head -15 "$VP_SCRIPT")" "set -euo pip
 if bash -n "$VP_SCRIPT" 2>/dev/null; then _pass "syntax check: bash -n"; else _fail "syntax check: bash -n"; fi
 
 # =============================================================================
-# Section 2: Clean prompt — zero pattern warnings
+# Section 2: Clean prompt - zero pattern warnings
 # =============================================================================
 
 CLEAN_PROMPT='<scope>
@@ -60,7 +60,7 @@ assert_eq "clean prompt: empty stderr" "" "$stderr"
 if echo "$CLEAN_PROMPT" | bash "$VP_SCRIPT" > /dev/null 2>&1; then _pass "clean prompt: exit 0"; else _fail "clean prompt: exit 0"; fi
 
 # =============================================================================
-# Section 3: Pattern detection — every sub-pattern tested individually
+# Section 3: Pattern detection - every sub-pattern tested individually
 # =============================================================================
 
 # Helper: test a single trigger phrase against expected category
@@ -116,7 +116,7 @@ _test_pattern "pattern: various" "refactor various modules in" "ambiguous quanti
 _test_pattern "pattern: a number of" "address a number of bugs in" "ambiguous quantifier"
 
 # =============================================================================
-# Section 4: False-positive prevention — clean corpus
+# Section 4: False-positive prevention - clean corpus
 # =============================================================================
 
 # Imperative verbs should NOT trigger
@@ -126,7 +126,7 @@ Implement the fix at core/auth/handler.sh immediately
 <constraints>Do NOT skip tests</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
 assert_contains "false-pos: imperative verb clean" "$output" "0 warning"
 
-# "reconsider" triggers "consider" — accepted mid-word match (documented)
+# "reconsider" triggers "consider" - accepted mid-word match (documented)
 output=$(echo "<scope>
 reconsider the approach for core/auth/handler.sh
 </scope>
@@ -170,7 +170,7 @@ Implement the authentication fix
 <constraints>Do NOT skip tests</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
 assert_contains "structural: missing file paths" "$output" "no file paths"
 
-# File paths present — no warning
+# File paths present - no warning
 output=$(echo "<scope>
 Implement fix in core/auth/handler.sh
 </scope>
@@ -187,11 +187,11 @@ LONG_SCOPE="${LONG_SCOPE}
 output=$(echo "$LONG_SCOPE" | bash "$VP_SCRIPT" 2>/dev/null) || true
 assert_contains "structural: word count >400" "$output" "exceeds 400"
 
-# Short prompt — no word count warning
+# Short prompt - no word count warning
 output=$(echo "$CLEAN_PROMPT" | bash "$VP_SCRIPT" 2>/dev/null) || true
 assert_not_contains "structural: short prompt no word warning" "$output" "exceeds 400"
 
-# S3: Missing "Do NOT" boundaries — triggers only when >200 instruction words
+# S3: Missing "Do NOT" boundaries - triggers only when >200 instruction words
 LONG_NO_DONOT="<scope>"
 for i in $(seq 1 45); do LONG_NO_DONOT="${LONG_NO_DONOT}
 Implement step ${i} of the core/auth/handler.sh refactor plan now safely"; done
@@ -201,7 +201,7 @@ LONG_NO_DONOT="${LONG_NO_DONOT}
 output=$(echo "$LONG_NO_DONOT" | bash "$VP_SCRIPT" 2>/dev/null) || true
 assert_contains "structural: missing Do NOT (>200 words)" "$output" "Do NOT"
 
-# S3 negative: "Do NOT" present — no warning
+# S3 negative: "Do NOT" present - no warning
 LONG_WITH_DONOT="<scope>"
 for i in $(seq 1 45); do LONG_WITH_DONOT="${LONG_WITH_DONOT}
 Implement step ${i} of the core/auth/handler.sh refactor plan now safely"; done
@@ -211,7 +211,7 @@ LONG_WITH_DONOT="${LONG_WITH_DONOT}
 output=$(echo "$LONG_WITH_DONOT" | bash "$VP_SCRIPT" 2>/dev/null) || true
 assert_not_contains "structural: Do NOT present = no warning" "$output" "Do NOT.*boundaries"
 
-# S3 edge: short prompt (<200 words) without "Do NOT" — no warning (below threshold)
+# S3 edge: short prompt (<200 words) without "Do NOT" - no warning (below threshold)
 output=$(echo "<scope>
 Implement fix at core/auth/handler.sh
 </scope>
@@ -225,7 +225,7 @@ Update the following
 <constraints>Do NOT skip tests for core/auth/handler.sh</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
 assert_contains "structural: dangling 'the following'" "$output" "dangling"
 
-# S5 negative: "the following" with content on next line — no warning
+# S5 negative: "the following" with content on next line - no warning
 output=$(echo "<scope>
 Update the following
 - core/auth/handler.sh
@@ -237,20 +237,20 @@ assert_not_contains "structural: 'the following' with list = no warning" "$outpu
 # Section 6: Security mitigations
 # =============================================================================
 
-# Binary input — exit 0, no crash
+# Binary input - exit 0, no crash
 if printf '\x89PNG\r\n\x1a\x00' | bash "$VP_SCRIPT" > /dev/null 2>&1; then _pass "security: binary input exit 0"; else _fail "security: binary input exit 0"; fi
 
-# Empty stdin — exit 0
+# Empty stdin - exit 0
 if echo -n "" | bash "$VP_SCRIPT" > /dev/null 2>&1; then _pass "security: empty input exit 0"; else _fail "security: empty input exit 0"; fi
 
 output=$(echo -n "" | bash "$VP_SCRIPT" 2>/dev/null) || true
 assert_contains "security: empty input 0 warnings" "$output" "0 warning"
 
-# Null bytes in text — no crash
+# Null bytes in text - no crash
 output=$(printf 'consider\x00 using core/auth/handler.sh' | bash "$VP_SCRIPT" 2>/dev/null) || true
 assert_contains "security: null bytes handled" "$output" "Disclaimer"
 
-# UTF-8 with table-drawing characters — must NOT be rejected as binary
+# UTF-8 with table-drawing characters - must NOT be rejected as binary
 output=$(echo "<scope>
 | Column | Count |
 |────────|───────|
@@ -260,7 +260,7 @@ Implement fix at core/auth/handler.sh
 assert_contains "security: UTF-8 table chars pass binary guard" "$output" "Disclaimer"
 assert_contains "security: UTF-8 produces warning count" "$output" "warning(s)"
 
-# UTF-8 with Cyrillic/accented chars — must pass binary guard
+# UTF-8 with Cyrillic/accented chars - must pass binary guard
 output=$(echo "<scope>
 Refactor módulo autentificación at core/auth/handler.sh
 </scope>
@@ -311,7 +311,7 @@ assert_contains "accumulation: has disclaimer" "$output" "Disclaimer"
 assert_contains "accumulation: has summary line" "$output" "warning(s)"
 
 # =============================================================================
-# Section 9: Layer 2 — Codebase grounding
+# Section 9: Layer 2 - Codebase grounding
 # =============================================================================
 
 # Create synthetic codebase fixture
@@ -324,11 +324,11 @@ touch "${L2_FIXTURE}/core/hooks/validate-bash.sh"
 touch "${L2_FIXTURE}/core/agents/code-standards-reviewer.md"
 touch "${L2_FIXTURE}/core/agents/security-analyst.md"
 
-# L2-1: CC_PROJECT_DIR unset → grounding skipped
+# L2-1: CC_PROJECT_DIR unset -> grounding skipped
 output=$(echo "<scope>Fix core/auth/handler.sh</scope><constraints>Do NOT skip</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
 assert_contains "L2: skipped when CC_PROJECT_DIR unset" "$output" "Grounding: skipped"
 
-# L2-2: CC_PROJECT_DIR set → grounding runs
+# L2-2: CC_PROJECT_DIR set -> grounding runs
 output=$(echo "<scope>Fix core/auth/handler.sh</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="$L2_FIXTURE" bash "$VP_SCRIPT" 2>/dev/null) || true
 assert_contains "L2: runs when CC_PROJECT_DIR set" "$output" "Grounding:"
 assert_not_contains "L2: not skipped when set" "$output" "skipped"
@@ -397,7 +397,7 @@ if echo "<scope>Fix core/auth/handler.sh</scope><constraints>Do NOT skip</constr
 output=$(echo "<scope>Fix core/auth/handler.sh</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="$L2_FIXTURE" bash "$VP_SCRIPT" 2>/dev/null) || true
 assert_not_contains "L2: no fixture path in output" "$output" "$L2_FIXTURE"
 
-# L2-14: Non-absolute CC_PROJECT_DIR → skipped
+# L2-14: Non-absolute CC_PROJECT_DIR -> skipped
 output=$(echo "<scope>Fix core/auth/handler.sh</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="relative/path" bash "$VP_SCRIPT" 2>/dev/null) || true
 assert_contains "L2: non-absolute root skipped" "$output" "Grounding: skipped"
 

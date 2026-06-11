@@ -187,7 +187,7 @@ jobs:
             fi
           done < <(find core/ -name "*.sh" -type f)
           if [ "$UNSAFE" -gt 0 ]; then
-            echo "::warning::Found $UNSAFE files with potentially unsafe patterns — review required"
+            echo "::warning::Found $UNSAFE files with potentially unsafe patterns - review required"
           fi
           echo "Shell security scan complete." >> $GITHUB_STEP_SUMMARY
 

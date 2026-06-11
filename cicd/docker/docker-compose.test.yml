@@ -1,5 +1,5 @@
 # =============================================================================
-# Isolated Test Environment — cognitive-core framework
+# Isolated Test Environment - cognitive-core framework
 # =============================================================================
 # Spins up the application test container with optional database services.
 # Network-isolated to prevent interference with other environments.
@@ -46,7 +46,7 @@ volumes:
 
 services:
   # ---------------------------------------------------------------------------
-  # Test Application — built from Dockerfile.test.tmpl
+  # Test Application - built from Dockerfile.test.tmpl
   # ---------------------------------------------------------------------------
   test-app:
     build:
@@ -85,7 +85,7 @@ services:
         required: false
 
   # ---------------------------------------------------------------------------
-  # PostgreSQL — test database (activate with --profile postgres)
+  # PostgreSQL - test database (activate with --profile postgres)
   # ---------------------------------------------------------------------------
   test-db-postgres:
     image: postgres:16-alpine
@@ -109,7 +109,7 @@ services:
       - test-net
 
   # ---------------------------------------------------------------------------
-  # MySQL — test database (activate with --profile mysql)
+  # MySQL - test database (activate with --profile mysql)
   # ---------------------------------------------------------------------------
   test-db-mysql:
     image: mysql:8.0

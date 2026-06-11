@@ -2,7 +2,7 @@
 # cognitive-core hook: PreToolUse (Write, Edit)
 # Spring Boot version-aware pattern enforcement
 # Detects Spring Boot version from pom.xml or build.gradle and warns about deprecated patterns
-# Uses "ask" (not "deny") — graduated response per framework philosophy
+# Uses "ask" (not "deny") - graduated response per framework philosophy
 # All patterns use POSIX ERE (no \s, \b, \w) for macOS + Linux compatibility
 set -euo pipefail
 
@@ -43,7 +43,7 @@ case "$FILE_PATH" in
     *) exit 0 ;;
 esac
 
-# Detect test files — skip security patterns but allow migration checks (#172)
+# Detect test files - skip security patterns but allow migration checks (#172)
 _IS_TEST="false"
 case "$FILE_PATH" in
     *Test.java|*Tests.java|*IT.java) _IS_TEST="true" ;;
@@ -81,10 +81,10 @@ fi
 DENY_REASONS=()
 ASK_REASONS=()
 
-# --- v3+ patterns (javax to jakarta, Security 6) — DENY: removed APIs ---
+# --- v3+ patterns (javax to jakarta, Security 6) - DENY: removed APIs ---
 if [ "$SB_VERSION" -ge 3 ]; then
     if echo "$CONTENT" | grep -qE 'import[[:space:]]+javax\.(persistence|validation|servlet|annotation|mail|transaction|inject|enterprise)'; then
-        DENY_REASONS+=("Use jakarta.* imports instead of javax.* — required since Spring Boot 3.0.")
+        DENY_REASONS+=("Use jakarta.* imports instead of javax.* - required since Spring Boot 3.0.")
     fi
     if echo "$CONTENT" | grep -qE 'WebSecurityConfigurerAdapter'; then
         DENY_REASONS+=("WebSecurityConfigurerAdapter removed in Security 6. Use @Bean SecurityFilterChain.")
@@ -97,7 +97,7 @@ if [ "$SB_VERSION" -ge 3 ]; then
     fi
 fi
 
-# --- v3.2+ patterns (RestClient, virtual threads) — ASK: deprecated ---
+# --- v3.2+ patterns (RestClient, virtual threads) - ASK: deprecated ---
 if [ "$SB_VERSION" -ge 3 ]; then
     if echo "$CONTENT" | grep -qE 'new[[:space:]]+RestTemplate[[:space:]]*\(|RestTemplate[[:space:]]+restTemplate'; then
         ASK_REASONS+=("Consider RestClient instead of RestTemplate (maintenance mode since v3.2).")
@@ -125,7 +125,7 @@ if [ "$SB_VERSION" -ge 4 ]; then
     fi
 fi
 
-# --- Security patterns (all versions, skip test files) — DENY: security-critical ---
+# --- Security patterns (all versions, skip test files) - DENY: security-critical ---
 if [ "$_IS_CONFIG" = "false" ] && [ "$_IS_TEST" = "false" ]; then
     if echo "$CONTENT" | grep -qE '@Autowired[[:space:]]+(private|protected)[[:space:]]'; then
         ASK_REASONS+=("@Autowired field injection detected. Use constructor injection (immutable, testable).")

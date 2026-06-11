@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test suite: _cc_validate_framework_source — $SOURCE validation guard (#256)
+# Test suite: _cc_validate_framework_source - $SOURCE validation guard (#256)
 #
 # Purpose: lock in the attack-vector coverage for the framework-source
 # validation helper added to core/hooks/_lib.sh. Every consumer in the
@@ -11,7 +11,7 @@
 #
 # TOCTOU note: this helper validates at call time. An attacker who mutates
 # the path between validation and use can still bypass the check. That class
-# of race is out of scope for this helper — documented via _skip below.
+# of race is out of scope for this helper - documented via _skip below.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -20,7 +20,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "23 — Source Validation"
+suite_start "23 - Source Validation"
 
 LIB="${ROOT_DIR}/core/hooks/_lib.sh"
 
@@ -93,7 +93,7 @@ VALID_ROOT=$(_make_valid_root)
 PROJECT_DIR=$(mktemp -d "${TMPDIR:-/tmp}/cc-vsrc-proj-XXXXXX")
 
 # ----------------------------------------------------------------------
-# Happy path — valid path accepted, CC_VALIDATED_SOURCE set
+# Happy path - valid path accepted, CC_VALIDATED_SOURCE set
 # ----------------------------------------------------------------------
 out=$(_run_validate "$VALID_ROOT" "$VALID_ROOT" "$PROJECT_DIR")
 assert_eq "happy: valid root accepted (exit 0)" "0" "$(_exit_code "$out")"
@@ -119,7 +119,7 @@ NL_PATH=$(printf '%s\n%s' "$VALID_ROOT" "extra")
 out=$(_run_validate "$VALID_ROOT" "$NL_PATH" "$PROJECT_DIR")
 assert_eq "path form: control char (newline) rejected" "1" "$(_exit_code "$out")"
 
-# Path with spaces — accepted as long as it resolves under the root
+# Path with spaces - accepted as long as it resolves under the root
 SPACE_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/cc vsrc space XXXXXX")
 printf '#!/bin/bash\nexit 0\n' > "${SPACE_ROOT}/update.sh"
 chmod 0755 "${SPACE_ROOT}/update.sh"
@@ -172,9 +172,9 @@ LINK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/cc-linkXXXXXX")
 rmdir "$LINK_DIR"
 ln -s "$SYMLINK_OUTSIDE" "$LINK_DIR"
 out=$(_run_validate "$VALID_ROOT" "$LINK_DIR" "$PROJECT_DIR")
-assert_eq "symlink: SOURCE → outside-root rejected (after resolution)" "1" "$(_exit_code "$out")"
+assert_eq "symlink: SOURCE -> outside-root rejected (after resolution)" "1" "$(_exit_code "$out")"
 
-# Nested symlink chain: L1 → L2 → outside
+# Nested symlink chain: L1 -> L2 -> outside
 CHAIN_TARGET=$(mktemp -d "${TMPDIR:-/tmp}/cc-chXXXXXX")
 printf '#!/bin/bash\nexit 0\n' > "${CHAIN_TARGET}/update.sh"
 chmod 0755 "${CHAIN_TARGET}/update.sh"
@@ -185,7 +185,7 @@ CHAIN_HEAD=$(mktemp -d "${TMPDIR:-/tmp}/cc-chh-dirXXXXXX")
 rmdir "$CHAIN_HEAD"
 ln -s "$CHAIN_MID" "$CHAIN_HEAD"
 out=$(_run_validate "$VALID_ROOT" "$CHAIN_HEAD" "$PROJECT_DIR")
-assert_eq "symlink: nested chain → outside-root rejected" "1" "$(_exit_code "$out")"
+assert_eq "symlink: nested chain -> outside-root rejected" "1" "$(_exit_code "$out")"
 
 # update.sh is a symlink escaping the root
 ESCAPE_SRC=$(mktemp -d "${TMPDIR:-/tmp}/cc-esXXXXXX")
@@ -210,7 +210,7 @@ chmod 0644 "${NOEX_ROOT}/update.sh"
 out=$(_run_validate "$NOEX_ROOT" "$NOEX_ROOT" "$PROJECT_DIR")
 assert_eq "file: non-executable update.sh rejected" "1" "$(_exit_code "$out")"
 
-# SUID update.sh — may fail on some filesystems that strip suid bits
+# SUID update.sh - may fail on some filesystems that strip suid bits
 SUID_ROOT=$(_make_valid_root)
 if chmod 4755 "${SUID_ROOT}/update.sh" 2>/dev/null; then
     perms=$(stat -f %p "${SUID_ROOT}/update.sh" 2>/dev/null || stat -c %a "${SUID_ROOT}/update.sh")
@@ -264,7 +264,7 @@ out=$(_run_validate "$DIR_UP" "$DIR_UP" "$PROJECT_DIR")
 assert_eq "file: update.sh as directory rejected" "1" "$(_exit_code "$out")"
 
 # ----------------------------------------------------------------------
-# Ownership check — only meaningful when we can chown to a different uid
+# Ownership check - only meaningful when we can chown to a different uid
 # ----------------------------------------------------------------------
 if [ "$(id -u)" = "0" ]; then
     OWN_ROOT=$(_make_valid_root)
@@ -276,7 +276,7 @@ else
 fi
 
 # ----------------------------------------------------------------------
-# Logging — DENY paths write to security.log
+# Logging - DENY paths write to security.log
 # ----------------------------------------------------------------------
 LOG_PROJECT=$(mktemp -d "${TMPDIR:-/tmp}/cc-vsrc-logXXXXXX")
 _run_validate "$VALID_ROOT" "relative/path" "$LOG_PROJECT" >/dev/null
@@ -334,7 +334,7 @@ else
 fi
 
 # ----------------------------------------------------------------------
-# TOCTOU — known limitation, documented, not deterministically testable
+# TOCTOU - known limitation, documented, not deterministically testable
 # ----------------------------------------------------------------------
 _skip "TOCTOU: validation is single-call; attacker replacing path between validate and exec is out of scope (documented)"
 

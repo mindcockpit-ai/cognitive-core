@@ -8,7 +8,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "02 — Skill Frontmatter Validation"
+suite_start "02 - Skill Frontmatter Validation"
 
 # Required: YAML frontmatter with description field
 # Skills use frontmatter (---) with at minimum: name, description
@@ -17,7 +17,7 @@ while IFS= read -r skill_md; do
     rel="${skill_md#${ROOT_DIR}/}"
     skill_name="$(basename "$(dirname "$skill_md")")"
 
-    # Check YAML frontmatter delimiters exist (avoid sed|grep pipe — SIGPIPE under pipefail)
+    # Check YAML frontmatter delimiters exist (avoid sed|grep pipe - SIGPIPE under pipefail)
     has_frontmatter=false
     if [ "$(grep -c '^---' "$skill_md")" -ge 2 ]; then
         has_frontmatter=true
@@ -37,7 +37,7 @@ while IFS= read -r skill_md; do
     if [ -z "$missing" ]; then
         _pass "frontmatter: ${skill_name}/SKILL.md"
     else
-        _fail "frontmatter: ${skill_name}/SKILL.md — missing:${missing}"
+        _fail "frontmatter: ${skill_name}/SKILL.md - missing:${missing}"
     fi
 done < <(find "${ROOT_DIR}/core/skills" -name "SKILL.md" -type f 2>/dev/null | sort)
 
@@ -65,7 +65,7 @@ while IFS= read -r skill_md; do
     if [ -z "$missing" ]; then
         _pass "frontmatter: ${rel}"
     else
-        _fail "frontmatter: ${rel} — missing:${missing}"
+        _fail "frontmatter: ${rel} - missing:${missing}"
     fi
 done < <(find "${ROOT_DIR}/language-packs" "${ROOT_DIR}/database-packs" -name "SKILL.md" -type f 2>/dev/null | sort)
 
@@ -78,7 +78,7 @@ while IFS= read -r skill_md; do
         if echo "$_sl_value" | grep -qE '^\[([a-zA-Z0-9_-]+(,[[:space:]]*[a-zA-Z0-9_-]+)*)?\]$'; then
             _pass "supported-languages format: ${skill_name}/SKILL.md"
         else
-            _fail "supported-languages format: ${skill_name}/SKILL.md — invalid: ${_sl_value}"
+            _fail "supported-languages format: ${skill_name}/SKILL.md - invalid: ${_sl_value}"
         fi
     fi
 done < <(find "${ROOT_DIR}/core/skills" "${ROOT_DIR}/language-packs" "${ROOT_DIR}/database-packs" -name "SKILL.md" -type f 2>/dev/null | sort)
@@ -92,7 +92,7 @@ while IFS= read -r skill_md; do
         if [ "$_ctx_value" = "fork" ]; then
             _pass "context field: ${skill_name}/SKILL.md"
         else
-            _fail "context field: ${skill_name}/SKILL.md — invalid value: ${_ctx_value} (must be fork)"
+            _fail "context field: ${skill_name}/SKILL.md - invalid value: ${_ctx_value} (must be fork)"
         fi
     fi
 done < <(find "${ROOT_DIR}/core/skills" "${ROOT_DIR}/language-packs" "${ROOT_DIR}/database-packs" -name "SKILL.md" -type f 2>/dev/null | sort)
@@ -106,7 +106,7 @@ while IFS= read -r skill_md; do
         if [ -n "$_ah_value" ]; then
             _pass "argument-hint field: ${skill_name}/SKILL.md"
         else
-            _fail "argument-hint field: ${skill_name}/SKILL.md — value must be non-empty"
+            _fail "argument-hint field: ${skill_name}/SKILL.md - value must be non-empty"
         fi
     fi
 done < <(find "${ROOT_DIR}/core/skills" "${ROOT_DIR}/language-packs" "${ROOT_DIR}/database-packs" -name "SKILL.md" -type f 2>/dev/null | sort)

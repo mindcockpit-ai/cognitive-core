@@ -3,15 +3,15 @@
 # Translates cognitive-core components into VS Code-compatible configuration.
 #
 # Three integration layers:
-#   Layer 1: Convention file (.github/copilot-instructions.md) — works with any LLM extension
-#   Layer 2: MCP server (cc-mcp-server) — GitHub Copilot 1.99+, Continue.dev, Cline
-#   Layer 3: Language Server (future) — VS Code native extension
+#   Layer 1: Convention file (.github/copilot-instructions.md) - works with any LLM extension
+#   Layer 2: MCP server (cc-mcp-server) - GitHub Copilot 1.99+, Continue.dev, Cline
+#   Layer 3: Language Server (future) - VS Code native extension
 #
-# - Hooks → copilot-instructions.md rules (convention-based safety)
-# - Agents → .cognitive-core/agents/ (read-only context)
-# - Skills → .cognitive-core/skills/ (read-only context)
-# - Settings → .vscode/mcp.json (MCP server registration)
-# - Project readme → .github/copilot-instructions.md (context file)
+# - Hooks -> copilot-instructions.md rules (convention-based safety)
+# - Agents -> .cognitive-core/agents/ (read-only context)
+# - Skills -> .cognitive-core/skills/ (read-only context)
+# - Settings -> .vscode/mcp.json (MCP server registration)
+# - Project readme -> .github/copilot-instructions.md (context file)
 #
 # _adapter-lib.sh is sourced BEFORE this file by install.sh
 
@@ -83,7 +83,7 @@ _adapter_generate_project_readme() {
     else
         # Fallback: generate basic copilot-instructions.md
         cat > "$conventions_file" << CONVEOF
-# Project Conventions — ${CC_PROJECT_NAME:-project}
+# Project Conventions - ${CC_PROJECT_NAME:-project}
 
 ## Project Identity
 - **Project**: ${CC_PROJECT_NAME:-project}
@@ -115,7 +115,7 @@ Test root: \`${CC_TEST_ROOT:-tests}\`
 
 ## Agent Context
 Agent documentation is available in \`.cognitive-core/agents/\` for reference.
-These describe specialist roles — use their guidance when working in their domains.
+These describe specialist roles - use their guidance when working in their domains.
 
 ## MCP Server
 If your IDE extension supports MCP (Model Context Protocol), you can enable the

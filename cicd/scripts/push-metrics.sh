@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Push Metrics to Pushgateway — cognitive-core framework
+# Push Metrics to Pushgateway - cognitive-core framework
 # =============================================================================
 # Pushes CI/CD metrics to Prometheus Pushgateway.
 #
@@ -88,7 +88,7 @@ push_to_gateway() {
 
 # ---------------------------------------------------------------------------
 # Command: push_fitness
-# Finding #17: fitness_score is a GAUGE — set to absolute value, not delta.
+# Finding #17: fitness_score is a GAUGE - set to absolute value, not delta.
 # ---------------------------------------------------------------------------
 push_fitness() {
     local score="${SCORE:?--score is required}"
@@ -219,7 +219,7 @@ METRICS
 # ---------------------------------------------------------------------------
 show_help() {
     cat <<'HELP'
-Push Metrics to Pushgateway — cognitive-core framework
+Push Metrics to Pushgateway - cognitive-core framework
 
 Commands:
   push_fitness       Push fitness score gauge

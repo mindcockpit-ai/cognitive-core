@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # =============================================================================
-# GitHub Actions Self-Hosted Runner Setup — cognitive-core framework
+# GitHub Actions Self-Hosted Runner Setup - cognitive-core framework
 # =============================================================================
 # Installs and configures a self-hosted GitHub Actions runner.
-# Fully parameterized — no hardcoded org/repo values.
+# Fully parameterized - no hardcoded org/repo values.
 #
 # Features:
 #   - Multi-node support with --node-id
@@ -221,7 +221,7 @@ if [ "$INSTALL_SERVICE" = "true" ]; then
         echo "  sudo ./svc.sh start     # Start runner"
         echo "  sudo ./svc.sh uninstall # Remove service"
     else
-        echo "Warning: svc.sh not found — creating manual service file"
+        echo "Warning: svc.sh not found - creating manual service file"
 
         cat <<UNIT | sudo tee "/etc/systemd/system/${SERVICE_NAME}.service" > /dev/null
 [Unit]

@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# project-board setup — Creates GitHub Project with standard board structure
+# project-board setup - Creates GitHub Project with standard board structure
 #
 # Configures: Status columns, Area grouping, Sprint iterations, Labels
 # Requires: gh CLI with project scope authenticated
@@ -114,7 +114,7 @@ info "Status columns configured"
 echo "$STATUS_RESULT" | python3 -c "
 import json, sys
 for opt in json.load(sys.stdin):
-    print(f\"  {opt['name']:20s} → {opt['id']}\")
+    print(f\"  {opt['name']:20s} -> {opt['id']}\")
 " 2>/dev/null || echo "$STATUS_RESULT"
 
 # ---- Step 3: Create Area Field ----
@@ -149,7 +149,7 @@ info "Area field: ${AREA_FIELD_ID}"
 echo "$AREA_RESULT" | python3 -c "
 import json, sys
 for opt in json.load(sys.stdin)['data']['createProjectV2Field']['projectV2Field']['options']:
-    print(f\"  {opt['name']:20s} → {opt['id']}\")
+    print(f\"  {opt['name']:20s} -> {opt['id']}\")
 " 2>/dev/null || true
 
 # ---- Step 4: Create Sprint Field ----

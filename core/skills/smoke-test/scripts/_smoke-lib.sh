@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# _smoke-lib.sh — Shared library for smoke-test ability scripts
+# _smoke-lib.sh - Shared library for smoke-test ability scripts
 #
 # Provides: config loading, validation, output helpers.
 # Sourced by each ability script. Never executed directly.

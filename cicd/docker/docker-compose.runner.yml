@@ -1,10 +1,10 @@
 # =============================================================================
-# Self-Hosted GitHub Actions Runner — cognitive-core framework
+# Self-Hosted GitHub Actions Runner - cognitive-core framework
 # =============================================================================
 # Multi-node support with parameterized ORG/REPO.
 #
 # Findings resolved:
-#   #6  — DOCKER_GID group binding for Docker-in-Docker access
+#   #6  - DOCKER_GID group binding for Docker-in-Docker access
 #
 # Usage:
 #   # Single node:
@@ -34,7 +34,7 @@ services:
       - RUNNER_TOKEN=${RUNNER_TOKEN:?Set RUNNER_TOKEN in environment}
       - RUNNER_WORKDIR=/tmp/github-runner
       - RUNNER_SCOPE=${RUNNER_SCOPE:-repo}
-      # Parameterized org/repo — no hardcoded values
+      # Parameterized org/repo - no hardcoded values
       - ORG_NAME=${GITHUB_ORG:?Set GITHUB_ORG in environment}
       - REPO_URL=https://github.com/${GITHUB_ORG}/${GITHUB_REPO:?Set GITHUB_REPO}
       - RUNNER_GROUP=${RUNNER_GROUP:-default}
@@ -55,7 +55,7 @@ services:
       - runner-net
 
   # ---------------------------------------------------------------------------
-  # Runner Node 2 (optional — start explicitly or via --scale)
+  # Runner Node 2 (optional - start explicitly or via --scale)
   # ---------------------------------------------------------------------------
   runner-node-2:
     image: myoung34/github-runner:latest

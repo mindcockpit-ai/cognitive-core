@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Fitness Check — cognitive-core framework
+# Fitness Check - cognitive-core framework
 # =============================================================================
 # Pluggable quality scoring with weighted checks and progressive gates.
-# Language-agnostic core — language-specific checks loaded from packs.
+# Language-agnostic core - language-specific checks loaded from packs.
 #
 # Usage:
 #   bash fitness-check.sh                  # Full report
@@ -231,7 +231,7 @@ run_pack_checks() {
 
     # If no packs found, give partial credit for having the framework
     if [ "$packs_found" -eq 0 ]; then
-        record_check "Language packs" "$pack_weight" 50 "(no packs installed — using defaults)"
+        record_check "Language packs" "$pack_weight" 50 "(no packs installed - using defaults)"
     fi
 }
 

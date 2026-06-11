@@ -8,7 +8,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "17 — Agent Health Monitoring"
+suite_start "17 - Agent Health Monitoring"
 
 HYGIENE_SH="${ROOT_DIR}/core/hooks/_session-hygiene.sh"
 CONF="${ROOT_DIR}/cognitive-core.conf"
@@ -155,7 +155,7 @@ fi
 assert_eq "hygiene: no set -euo (sourced lib)" "$_has_set_e" "false"
 
 # ============================================================
-# Section 7: Live agent simulation (spawn → detect → log → kill)
+# Section 7: Live agent simulation (spawn -> detect -> log -> kill)
 # ============================================================
 # Spawns 3 fake "stuck" agents as background processes whose command
 # lines match the grep pattern: claude.*(agent|subagent|background).
@@ -168,7 +168,7 @@ _sim_log="$_sim_dir/.claude/cognitive-core/agent-health.log"
 _sim_pids=""
 
 # Spawn 3 fake stuck agents using temp scripts whose filenames contain
-# "claude" + "agent/subagent" + "background" — matching the health check
+# "claude" + "agent/subagent" + "background" - matching the health check
 # grep pattern in ps output. The "exit 0" after sleep prevents bash exec
 # optimization, keeping the script name visible in ps.
 for _agent_name in \
@@ -273,7 +273,7 @@ done
 assert_eq "sim: all test agents killed" "0" "$_post_alive"
 
 # ---- High timeout test: agents should NOT be detected ----
-# Spawn a fresh agent, check with timeout=9999 — must NOT be detected
+# Spawn a fresh agent, check with timeout=9999 - must NOT be detected
 _fresh_script="$_sim_dir/claude-test-agent-fresh-background.sh"
 printf '#!/bin/bash\nsleep 300\nexit 0\n' > "$_fresh_script"
 chmod +x "$_fresh_script"
@@ -292,7 +292,7 @@ sleep 1
 rm -rf "$_sim_dir"
 
 # ============================================================
-# Section 8: Orphaned subprocess detection (spawn → detect → kill)
+# Section 8: Orphaned subprocess detection (spawn -> detect -> kill)
 # ============================================================
 # Simulates orphaned tool processes (PPID=1, no TTY) by spawning
 # subshell-exit processes whose commands match the tool pattern list
@@ -342,7 +342,7 @@ assert_contains "orphan log: killed field" "$_hygiene_content" 'killed=${_killed
 # ---- Live simulation: spawn orphan-like processes ----
 # Create scripts named after tool patterns with ".claude" in path to match filters.
 # Use subshell-exit pattern: ( nohup CMD </dev/null >/dev/null 2>&1 & )
-# Child reparents to PID 1 and loses TTY — simulates real orphan.
+# Child reparents to PID 1 and loses TTY - simulates real orphan.
 #
 # IMPORTANT: We patch _ORPHAN_MIN_MINUTES to 0 inside the function by
 # wrapping it. This avoids needing to wait 10+ minutes in tests.
@@ -489,7 +489,7 @@ else
     fi
 
     # ---- High min-elapsed test: should NOT detect ----
-    # Use the real function (10 min threshold) — freshly spawned processes < 10 min old
+    # Use the real function (10 min threshold) - freshly spawned processes < 10 min old
     _high_orphan_result=$(CC_ORPHAN_AUTO_KILL=false _cc_check_orphaned_subprocesses "$_orphan_dir" 2>/dev/null)
     assert_eq "orphan sim: high min-elapsed = no detection" "$_high_orphan_result" ""
 

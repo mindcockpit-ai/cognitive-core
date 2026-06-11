@@ -1,7 +1,7 @@
 {
   "name": "cognitive-core",
   "version": "1.0.0",
-  "description": "AI-augmented development framework — security hooks, specialist agents, skills, and language packs for Claude Code",
+  "description": "AI-augmented development framework - security hooks, specialist agents, skills, and language packs for Claude Code",
   "author": {
     "name": "mindcockpit-ai",
     "url": "https://github.com/mindcockpit-ai"

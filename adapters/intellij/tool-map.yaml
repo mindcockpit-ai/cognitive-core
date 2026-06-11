@@ -32,7 +32,7 @@ capabilities:
   web_search:
     tool: null
     native: false
-    description: "Not natively supported — user must provide web content"
+    description: "Not natively supported - user must provide web content"
 
   web_fetch:
     tool: null
@@ -68,7 +68,7 @@ hooks:
       (Layer 1). The MCP server provides programmatic validation via
       cc_security_validate tool (Layer 2).
     limitations:
-      - "Layer 1 convention-based only — LLM may not always follow"
+      - "Layer 1 convention-based only - LLM may not always follow"
       - "Layer 2 MCP requires plugin that supports tool use before execution"
 
   post_tool_use:
@@ -83,7 +83,7 @@ hooks:
     mechanism: "DEVOXXGENIE.md as context file"
     translation: >
       DevoxxGenie loads DEVOXXGENIE.md as project context on every chat.
-      No separate launcher script needed — IDE plugin handles session lifecycle.
+      No separate launcher script needed - IDE plugin handles session lifecycle.
 
   notification:
     native: false

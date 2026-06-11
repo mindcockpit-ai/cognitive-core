@@ -1,5 +1,5 @@
 # =============================================================================
-# Grafana Stack — cognitive-core framework
+# Grafana Stack - cognitive-core framework
 # =============================================================================
 # Grafana deployment with Prometheus datasource provisioning and persistent
 # dashboard storage.
@@ -16,7 +16,7 @@
 # =============================================================================
 
 # ---------------------------------------------------------------------------
-# ConfigMap — Grafana datasource provisioning
+# ConfigMap - Grafana datasource provisioning
 # Automatically configures Prometheus as the default datasource.
 # ---------------------------------------------------------------------------
 apiVersion: v1
@@ -43,7 +43,7 @@ data:
 
 ---
 # ---------------------------------------------------------------------------
-# ConfigMap — Grafana dashboard provisioning configuration
+# ConfigMap - Grafana dashboard provisioning configuration
 # Tells Grafana where to find dashboard JSON files.
 # ---------------------------------------------------------------------------
 apiVersion: v1
@@ -70,7 +70,7 @@ data:
 
 ---
 # ---------------------------------------------------------------------------
-# PersistentVolumeClaim — Grafana data (dashboards, plugins, settings)
+# PersistentVolumeClaim - Grafana data (dashboards, plugins, settings)
 # ---------------------------------------------------------------------------
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -90,7 +90,7 @@ spec:
 
 ---
 # ---------------------------------------------------------------------------
-# Deployment — Grafana server
+# Deployment - Grafana server
 # ---------------------------------------------------------------------------
 apiVersion: apps/v1
 kind: Deployment
@@ -189,7 +189,7 @@ spec:
 
 ---
 # ---------------------------------------------------------------------------
-# Service — expose Grafana within the cluster
+# Service - expose Grafana within the cluster
 # ---------------------------------------------------------------------------
 apiVersion: v1
 kind: Service
