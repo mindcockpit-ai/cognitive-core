@@ -8,7 +8,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "01 — ShellCheck"
+suite_start "01 - ShellCheck"
 
 if ! command -v shellcheck &>/dev/null; then
     _skip "shellcheck not installed"

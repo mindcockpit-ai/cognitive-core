@@ -1,5 +1,5 @@
 # =============================================================================
-# Application Service — cognitive-core framework
+# Application Service - cognitive-core framework
 # =============================================================================
 # ClusterIP service exposing the application within the cluster.
 # External access is handled by the Ingress resource.

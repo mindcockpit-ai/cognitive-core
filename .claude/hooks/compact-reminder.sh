@@ -76,7 +76,7 @@ fi
 
 # ---- Compose context message ----
 
-REMINDER="CONTEXT COMPACTION DETECTED — Critical rules re-injected for ${PROJECT} (${LANG}/${ARCH}).
+REMINDER="CONTEXT COMPACTION DETECTED - Critical rules re-injected for ${PROJECT} (${LANG}/${ARCH}).
 
 Branch: ${BRANCH}
 Uncommitted: ${DIRTY_FILES:-None}

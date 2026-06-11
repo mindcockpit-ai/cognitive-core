@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test suite: Gitignore policy — base template, language packs, merge logic
+# Test suite: Gitignore policy - base template, language packs, merge logic
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -8,7 +8,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "15 — Gitignore Policy"
+suite_start "15 - Gitignore Policy"
 
 # ============================================================================
 # PART 1: Template file existence and content
@@ -32,7 +32,7 @@ assert_contains "base: common build/" "$base_content" "build/"
 assert_contains "base: common out/" "$base_content" "out/"
 assert_contains "base: common dist/" "$base_content" "dist/"
 
-# IDE coverage — all major IDEs
+# IDE coverage - all major IDEs
 assert_contains "base: VS Code .vscode/" "$base_content" ".vscode/"
 assert_contains "base: VS Code whitelist settings.json" "$base_content" "!.vscode/settings.json"
 assert_contains "base: JetBrains .idea/" "$base_content" ".idea/"
@@ -168,7 +168,7 @@ assert_not_contains "csharp: no .vs/ dupe (covered by base)" "$csharp_gi" ".vs/"
 assert_not_contains "csharp: no .idea/ dupe (covered by base)" "$csharp_gi" ".idea/"
 
 # ============================================================================
-# PART 3: Merge function — integration test via install
+# PART 3: Merge function - integration test via install
 # ============================================================================
 
 # Create a temp project directory
@@ -253,21 +253,21 @@ assert_contains "merged: python section header" "$gi_content" "# ---- python (co
 assert_contains "merged: version.json" "$gi_content" ".claude/cognitive-core/version.json"
 
 # ============================================================================
-# PART 4: Deduplication — run install again, verify no duplicates
+# PART 4: Deduplication - run install again, verify no duplicates
 # ============================================================================
 
 # Run install again (simulating update)
 bash "${ROOT_DIR}/install.sh" "$test_dir" >/dev/null 2>&1 || true
 
-# Count occurrences of .DS_Store — should be exactly 1
+# Count occurrences of .DS_Store - should be exactly 1
 ds_count=$(grep -cxF ".DS_Store" "${test_dir}/.gitignore" || echo 0)
 assert_eq "dedup: .DS_Store appears exactly once" "1" "$ds_count"
 
-# Count occurrences of __pycache__/ — should be exactly 1
+# Count occurrences of __pycache__/ - should be exactly 1
 pycache_count=$(grep -cxF "__pycache__/" "${test_dir}/.gitignore" || echo 0)
 assert_eq "dedup: __pycache__/ appears exactly once" "1" "$pycache_count"
 
-# Count section headers — should be exactly 1 each
+# Count section headers - should be exactly 1 each
 base_header_count=$(grep -cF "# ---- base (cognitive-core) ----" "${test_dir}/.gitignore" || echo 0)
 assert_eq "dedup: base section header appears once" "1" "$base_header_count"
 
@@ -308,7 +308,7 @@ assert_contains "preserve: base rules also added" "$gi_content3" ".DS_Store"
 assert_contains "preserve: python rules also added" "$gi_content3" "__pycache__/"
 
 # ============================================================================
-# PART 6: Different language pack — verify correct pack applied
+# PART 6: Different language pack - verify correct pack applied
 # ============================================================================
 
 test_dir3=$(create_test_dir)

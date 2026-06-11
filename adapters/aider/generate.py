@@ -3,11 +3,11 @@
 cognitive-core Aider configuration generator.
 
 Translates cognitive-core configuration into Aider-compatible files:
-  --mode settings     → .aider.conf.yml
-  --mode conventions  → CONVENTIONS.md
-  --mode ignore       → .aiderignore
-  --mode launcher     → cc-aider-start.sh
-  --mode all          → all of the above
+  --mode settings     -> .aider.conf.yml
+  --mode conventions  -> CONVENTIONS.md
+  --mode ignore       -> .aiderignore
+  --mode launcher     -> cc-aider-start.sh
+  --mode all          -> all of the above
 
 Usage:
   python3 generate.py --mode all --project-dir /path/to/project \\
@@ -20,7 +20,7 @@ import stat
 import sys
 from pathlib import Path
 
-# Shared utilities — single source of truth (#139 P3)
+# Shared utilities - single source of truth (#139 P3)
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from _shared.generate_utils import load_config, extract_safety_rules, build_agent_refs
 
@@ -132,7 +132,7 @@ def generate_conventions(project_dir: str, install_dir: str, config: dict) -> No
         safety_rules = extract_safety_rules(install_dir)
         agent_refs = build_agent_refs(install_dir)
 
-        content = f"""# Project Conventions — {project_name}
+        content = f"""# Project Conventions - {project_name}
 
 ## Project Identity
 - **Project**: {project_name}
@@ -152,7 +152,7 @@ def generate_conventions(project_dir: str, install_dir: str, config: dict) -> No
 - Scopes: {commit_scopes}
 - NO AI/tool references in commit messages
 
-## Safety Rules (CRITICAL — MUST FOLLOW)
+## Safety Rules (CRITICAL - MUST FOLLOW)
 {safety_rules}
 
 ## Architecture
@@ -225,7 +225,7 @@ def generate_launcher(project_dir: str, install_dir: str, config: dict) -> None:
     env_vars = config.get("CC_ENV_VARS", "")
 
     content = f"""#!/bin/bash
-# cognitive-core Aider launcher — {project_name}
+# cognitive-core Aider launcher - {project_name}
 # Sets up environment and launches Aider with correct configuration
 set -euo pipefail
 

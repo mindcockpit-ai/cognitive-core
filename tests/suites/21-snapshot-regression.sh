@@ -14,14 +14,14 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "21 — Snapshot Regression"
+suite_start "21 - Snapshot Regression"
 
 BASELINE_DIR="${ROOT_DIR}/tests/baselines"
 CAPTURE_MODE=false
 [ "${1:-}" = "--capture" ] && CAPTURE_MODE=true
 
 # ---- Platform configs ----
-# Minimal config per platform — enough for a full install
+# Minimal config per platform - enough for a full install
 
 _generate_config() {
     local platform="$1" install_dir="$2"
@@ -164,7 +164,7 @@ for platform in $PLATFORMS; do
         # Compare against baseline
         baseline="${BASELINE_DIR}/${platform}.snapshot"
         if [ ! -f "$baseline" ]; then
-            _skip "snapshot ${platform}: no baseline — run with --capture first"
+            _skip "snapshot ${platform}: no baseline - run with --capture first"
             continue
         fi
 
@@ -201,7 +201,7 @@ if ! $CAPTURE_MODE; then
         hash=$(grep -E 'CONVENTIONS\.md|DEVOXXGENIE\.md|copilot-instructions\.md' "$sf" 2>/dev/null | awk '{print $1}' | head -1) || hash="none"
         _SAFETY_HASHES="${_SAFETY_HASHES}${hash} "
     done
-    # Hashes differ by design (different file formats) — check they all exist
+    # Hashes differ by design (different file formats) - check they all exist
     non_empty=$(echo "$_SAFETY_HASHES" | tr ' ' '\n' | grep -cv '^$' || true)
     if [ "$non_empty" -ge 3 ]; then
         _pass "cross-platform: all 3 non-Claude platforms have convention files with safety rules"

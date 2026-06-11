@@ -1,5 +1,5 @@
 # =============================================================================
-# WireGuard VPN — cognitive-core framework
+# WireGuard VPN - cognitive-core framework
 # =============================================================================
 # Secure VPN tunnel for runner-to-monitoring communication.
 # Uses linuxserver/wireguard for easy peer management.

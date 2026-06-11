@@ -2,7 +2,7 @@
 # cognitive-core hook: PreToolUse (Write, Edit)
 # Angular version-aware pattern enforcement
 # Detects Angular version from package.json and warns about deprecated patterns
-# Uses "ask" (not "deny") — graduated response per framework philosophy
+# Uses "ask" (not "deny") - graduated response per framework philosophy
 # All patterns use POSIX ERE (no \s, \b, \w) for macOS + Linux compatibility
 set -euo pipefail
 
@@ -131,7 +131,7 @@ if [ "$NG_VERSION" -ge 20 ] && [ -z "$REASON" ]; then
 
     # Deprecated animation providers (v20.2, removed v23)
     if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE 'provideAnimations(Async)?[[:space:]]*\('; then
-        REASON="Angular v${NG_VERSION}: provideAnimations()/provideAnimationsAsync() deprecated (v20.2, removed v23). Remove the provider — Angular Material 21+ bootstraps animations internally. Use animate.enter/animate.leave for custom animations."
+        REASON="Angular v${NG_VERSION}: provideAnimations()/provideAnimationsAsync() deprecated (v20.2, removed v23). Remove the provider - Angular Material 21+ bootstraps animations internally. Use animate.enter/animate.leave for custom animations."
     fi
 fi
 
@@ -153,7 +153,7 @@ fi
 
 # --- Tailwind + Angular host conflict (all versions with Tailwind) ---
 if [ -z "$REASON" ] && echo "$CONTENT" | grep -qE "host:[[:space:]]*\{[^}]*class:[[:space:]]*['\"].*\b(block|flex|grid|inline|hidden|inline-flex|inline-block|inline-grid)\b"; then
-    REASON="Tailwind layout class in Angular host:{} — Tailwind v4 !important overrides :host styles. Use :host {} in SCSS for layout."
+    REASON="Tailwind layout class in Angular host:{} - Tailwind v4 !important overrides :host styles. Use :host {} in SCSS for layout."
 fi
 
 # Output ask JSON if pattern found, otherwise silent exit 0

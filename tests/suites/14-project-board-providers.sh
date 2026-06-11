@@ -10,7 +10,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "14 — Project Board Providers"
+suite_start "14 - Project Board Providers"
 
 PB_DIR="${ROOT_DIR}/core/skills/project-board"
 PROVIDERS_DIR="${PB_DIR}/providers"
@@ -24,7 +24,7 @@ MOCK_PROVIDERS_DIR="${MOCK_PB_DIR}/providers"
 mkdir -p "$MOCK_PROVIDERS_DIR"
 
 cat > "${MOCK_PB_DIR}/_provider-lib.sh" << 'MOCKEOF'
-# Mock _provider-lib.sh — provides stubs for testing provider functions
+# Mock _provider-lib.sh - provides stubs for testing provider functions
 PB_STATUS_DISPLAY_NAMES=(
     "roadmap:Roadmap" "backlog:Backlog" "todo:Todo"
     "progress:In Progress" "testing:To Be Tested"
@@ -147,7 +147,7 @@ for pair in "roadmap:Roadmap" "backlog:Backlog" "todo:Todo" \
         source '${PB_DIR}/_provider-lib.sh'
         _pb_status_display_name '$key'
     " 2>&1)
-    assert_eq "status-display: ${key} → ${expected}" "$expected" "$actual"
+    assert_eq "status-display: ${key} -> ${expected}" "$expected" "$actual"
 done
 
 # =============================================================================
@@ -310,7 +310,7 @@ for pair in "roadmap:Roadmap" "backlog:Backlog" "todo:To Do" \
         source '${MOCK_PROVIDERS_DIR}/jira.sh'
         _jira_status_name '$key'
     " 2>&1) || true
-    assert_eq "jira status-map: ${key} → ${expected}" "$expected" "$actual"
+    assert_eq "jira status-map: ${key} -> ${expected}" "$expected" "$actual"
 done
 
 # =============================================================================
@@ -330,7 +330,7 @@ for pair in "roadmap:No State" "backlog:Open" "todo:To Do" \
         source '${MOCK_PROVIDERS_DIR}/youtrack.sh'
         _yt_status_name '$key'
     " 2>&1) || true
-    assert_eq "youtrack status-map: ${key} → ${expected}" "$expected" "$actual"
+    assert_eq "youtrack status-map: ${key} -> ${expected}" "$expected" "$actual"
 done
 
 # =============================================================================
@@ -348,7 +348,7 @@ for pair in "p0-critical:Highest" "p1-high:High" "p2-medium:Medium" "p3-low:Low"
         source '${MOCK_PROVIDERS_DIR}/jira.sh'
         _jira_priority_name '$key'
     " 2>&1) || true
-    assert_eq "jira priority-map: ${key} → ${expected}" "$expected" "$actual"
+    assert_eq "jira priority-map: ${key} -> ${expected}" "$expected" "$actual"
 done
 
 # =============================================================================
@@ -364,7 +364,7 @@ custom_jira=$(bash -c "
     source '${MOCK_PROVIDERS_DIR}/jira.sh'
     _jira_status_name 'progress'
 " 2>&1) || true
-assert_eq "jira custom status-map: progress → Doing" "Doing" "$custom_jira"
+assert_eq "jira custom status-map: progress -> Doing" "Doing" "$custom_jira"
 
 custom_yt=$(bash -c "
     set -euo pipefail
@@ -375,7 +375,7 @@ custom_yt=$(bash -c "
     source '${MOCK_PROVIDERS_DIR}/youtrack.sh'
     _yt_status_name 'progress'
 " 2>&1) || true
-assert_eq "youtrack custom status-map: progress → Working" "Working" "$custom_yt"
+assert_eq "youtrack custom status-map: progress -> Working" "Working" "$custom_yt"
 
 # =============================================================================
 # Section 13: SKILL.md documents all three providers
@@ -576,7 +576,7 @@ jira_url_test=$(bash -c "
 if echo "$jira_url_test" | grep -qE 'https://.*browse/[A-Za-z]+-[0-9]+'; then
     _pass "jira: URL matches pattern https://.*browse/KEY-123"
 else
-    _fail "jira: URL format mismatch — got: $jira_url_test"
+    _fail "jira: URL format mismatch - got: $jira_url_test"
 fi
 
 yt_url_test=$(bash -c "
@@ -591,11 +591,11 @@ yt_url_test=$(bash -c "
 if echo "$yt_url_test" | grep -qE 'https://.*issue/[A-Za-z]+-[0-9]+'; then
     _pass "youtrack: URL matches pattern https://.*issue/KEY-123"
 else
-    _fail "youtrack: URL format mismatch — got: $yt_url_test"
+    _fail "youtrack: URL format mismatch - got: $yt_url_test"
 fi
 
 # Also fix jira regex to support lowercase keys
-# (already tested above with uppercase — test lowercase explicitly)
+# (already tested above with uppercase - test lowercase explicitly)
 jira_lc_url_test=$(bash -c "
     set -euo pipefail
     export CC_JIRA_URL='https://test.atlassian.net'
@@ -608,7 +608,7 @@ jira_lc_url_test=$(bash -c "
 if echo "$jira_lc_url_test" | grep -qE 'https://.*browse/[A-Za-z]+-[0-9]+'; then
     _pass "jira: URL supports lowercase project keys"
 else
-    _fail "jira: URL rejects lowercase project keys — got: $jira_lc_url_test"
+    _fail "jira: URL rejects lowercase project keys - got: $jira_lc_url_test"
 fi
 
 yt_lc_url_test=$(bash -c "
@@ -623,7 +623,7 @@ yt_lc_url_test=$(bash -c "
 if echo "$yt_lc_url_test" | grep -qE 'https://.*issue/[A-Za-z]+-[0-9]+'; then
     _pass "youtrack: URL supports lowercase project keys"
 else
-    _fail "youtrack: URL rejects lowercase project keys — got: $yt_lc_url_test"
+    _fail "youtrack: URL rejects lowercase project keys - got: $yt_lc_url_test"
 fi
 
 # =============================================================================
@@ -645,13 +645,13 @@ jira_view_test=$(bash -c "
 if echo "$jira_view_test" | grep -q '"url"'; then
     _pass "jira: pb_issue_view output contains url field"
 else
-    _fail "jira: pb_issue_view output missing url field — got: $jira_view_test"
+    _fail "jira: pb_issue_view output missing url field - got: $jira_view_test"
 fi
 
 if echo "$jira_view_test" | grep -qE 'https://test.atlassian.net/browse/TEST-42'; then
     _pass "jira: pb_issue_view url has correct value"
 else
-    _fail "jira: pb_issue_view url value mismatch — got: $jira_view_test"
+    _fail "jira: pb_issue_view url value mismatch - got: $jira_view_test"
 fi
 
 # YouTrack pb_issue_view url via mock _yt_api
@@ -669,13 +669,13 @@ yt_view_test=$(bash -c "
 if echo "$yt_view_test" | grep -q '"url"'; then
     _pass "youtrack: pb_issue_view output contains url field"
 else
-    _fail "youtrack: pb_issue_view output missing url field — got: $yt_view_test"
+    _fail "youtrack: pb_issue_view output missing url field - got: $yt_view_test"
 fi
 
 if echo "$yt_view_test" | grep -qE 'https://test.youtrack.cloud/issue/TEST-42'; then
     _pass "youtrack: pb_issue_view url has correct value"
 else
-    _fail "youtrack: pb_issue_view url value mismatch — got: $yt_view_test"
+    _fail "youtrack: pb_issue_view url value mismatch - got: $yt_view_test"
 fi
 
 # =============================================================================
@@ -697,13 +697,13 @@ jira_create_test=$(bash -c "
 if echo "$jira_create_test" | grep -q '"url"'; then
     _pass "jira: pb_issue_create output contains url field"
 else
-    _fail "jira: pb_issue_create output missing url field — got: $jira_create_test"
+    _fail "jira: pb_issue_create output missing url field - got: $jira_create_test"
 fi
 
 if echo "$jira_create_test" | grep -qE 'https://test.atlassian.net/browse/TEST-99'; then
     _pass "jira: pb_issue_create url has correct value"
 else
-    _fail "jira: pb_issue_create url value mismatch — got: $jira_create_test"
+    _fail "jira: pb_issue_create url value mismatch - got: $jira_create_test"
 fi
 
 # YouTrack pb_issue_create url via mock
@@ -721,13 +721,13 @@ yt_create_test=$(bash -c "
 if echo "$yt_create_test" | grep -q '"url"'; then
     _pass "youtrack: pb_issue_create output contains url field"
 else
-    _fail "youtrack: pb_issue_create output missing url field — got: $yt_create_test"
+    _fail "youtrack: pb_issue_create output missing url field - got: $yt_create_test"
 fi
 
 if echo "$yt_create_test" | grep -qE 'https://test.youtrack.cloud/issue/TEST-99'; then
     _pass "youtrack: pb_issue_create url has correct value"
 else
-    _fail "youtrack: pb_issue_create url value mismatch — got: $yt_create_test"
+    _fail "youtrack: pb_issue_create url value mismatch - got: $yt_create_test"
 fi
 
 # =============================================================================
@@ -750,13 +750,13 @@ gh_status_test=$(bash -c "
 if echo "$gh_status_test" | grep -q '"url"'; then
     _pass "github: pb_board_status runtime output contains url field"
 else
-    _fail "github: pb_board_status runtime output missing url field — got: $gh_status_test"
+    _fail "github: pb_board_status runtime output missing url field - got: $gh_status_test"
 fi
 
 if echo "$gh_status_test" | grep -qE 'https://github.com/test-owner/test-repo/issues/42'; then
     _pass "github: pb_board_status url has correct value"
 else
-    _fail "github: pb_board_status url value mismatch — got: $gh_status_test"
+    _fail "github: pb_board_status url value mismatch - got: $gh_status_test"
 fi
 
 # =============================================================================
@@ -776,7 +776,7 @@ jira_empty_url=$(bash -c "
 if echo "$jira_empty_url" | grep -qE 'Missing|error'; then
     _pass "jira: empty CC_JIRA_URL rejected at config validation"
 else
-    _fail "jira: empty CC_JIRA_URL was not rejected — got: $jira_empty_url"
+    _fail "jira: empty CC_JIRA_URL was not rejected - got: $jira_empty_url"
 fi
 
 yt_empty_url=$(bash -c "
@@ -791,7 +791,7 @@ yt_empty_url=$(bash -c "
 if echo "$yt_empty_url" | grep -qE 'Missing|error'; then
     _pass "youtrack: empty CC_YOUTRACK_URL rejected at config validation"
 else
-    _fail "youtrack: empty CC_YOUTRACK_URL was not rejected — got: $yt_empty_url"
+    _fail "youtrack: empty CC_YOUTRACK_URL was not rejected - got: $yt_empty_url"
 fi
 
 # =============================================================================
@@ -817,7 +817,7 @@ else
 fi
 
 # =============================================================================
-# Section 31: Security — no direct shell-to-Python interpolation
+# Section 31: Security - no direct shell-to-Python interpolation
 # =============================================================================
 
 # Check that providers use os.environ instead of '$variable' in Python
@@ -834,7 +834,7 @@ for provider in jira youtrack github; do
 done
 
 # =============================================================================
-# Section 32: Closure guard — _pb_closure_guard exists and router invokes it
+# Section 32: Closure guard - _pb_closure_guard exists and router invokes it
 # =============================================================================
 
 if grep -qE '^_pb_closure_guard\(\)' "${PB_DIR}/_provider-lib.sh"; then
@@ -856,15 +856,15 @@ for provider in jira youtrack github; do
     if grep -E '_pb_closure_guard|CC_REQUIRE_HUMAN_APPROVAL' "${PROVIDERS_DIR}/${provider}.sh" 2>/dev/null | grep -v '^\s*#' | grep -qv 'marker'; then
         _fail "${provider}: contains guard logic (should be in _provider-lib.sh only)"
     else
-        _pass "${provider}: no closure guard logic in provider (correct — lives in _provider-lib.sh)"
+        _pass "${provider}: no closure guard logic in provider (correct - lives in _provider-lib.sh)"
     fi
 done
 
 # =============================================================================
-# Section 33: Closure guard — status precondition (runtime mock)
+# Section 33: Closure guard - status precondition (runtime mock)
 # =============================================================================
 
-# Mock: close from Done → blocked
+# Mock: close from Done -> blocked
 guard_done_test=$(bash -c "
     set -euo pipefail
     export CC_GITHUB_OWNER='test-owner'
@@ -882,10 +882,10 @@ guard_done_test=$(bash -c "
 if echo "$guard_done_test" | grep -qi 'already Done'; then
     _pass "closure guard: blocks close from Done status"
 else
-    _fail "closure guard: did not block close from Done — got: $guard_done_test"
+    _fail "closure guard: did not block close from Done - got: $guard_done_test"
 fi
 
-# Mock: close from To Be Tested with approval=true → blocked
+# Mock: close from To Be Tested with approval=true -> blocked
 guard_testing_test=$(bash -c "
     set -euo pipefail
     export CC_GITHUB_OWNER='test-owner'
@@ -903,10 +903,10 @@ guard_testing_test=$(bash -c "
 if echo "$guard_testing_test" | grep -qi 'approve'; then
     _pass "closure guard: blocks close from To Be Tested when approval required"
 else
-    _fail "closure guard: did not block To Be Tested close — got: $guard_testing_test"
+    _fail "closure guard: did not block To Be Tested close - got: $guard_testing_test"
 fi
 
-# Mock: close from In Progress with approval=false → allowed
+# Mock: close from In Progress with approval=false -> allowed
 guard_progress_test=$(bash -c "
     set -euo pipefail
     export CC_GITHUB_OWNER='test-owner'
@@ -925,14 +925,14 @@ guard_progress_exit=$?
 if [[ $guard_progress_exit -eq 0 ]]; then
     _pass "closure guard: allows close from In Progress when approval not required"
 else
-    _fail "closure guard: blocked close from In Progress — got: $guard_progress_test"
+    _fail "closure guard: blocked close from In Progress - got: $guard_progress_test"
 fi
 
 # =============================================================================
-# Section 34: Closure guard — cancel exemption
+# Section 34: Closure guard - cancel exemption
 # =============================================================================
 
-# Cancel with "Canceled:" prefix → allowed even from To Be Tested
+# Cancel with "Canceled:" prefix -> allowed even from To Be Tested
 guard_cancel_test=$(bash -c "
     set -euo pipefail
     export CC_GITHUB_OWNER='test-owner'
@@ -951,10 +951,10 @@ guard_cancel_exit=$?
 if [[ $guard_cancel_exit -eq 0 ]]; then
     _pass "closure guard: cancel path bypasses approval gate"
 else
-    _fail "closure guard: cancel path was blocked — got: $guard_cancel_test"
+    _fail "closure guard: cancel path was blocked - got: $guard_cancel_test"
 fi
 
-# "Was canceled" (no prefix) → blocked
+# "Was canceled" (no prefix) -> blocked
 guard_nocancelprefix_test=$(bash -c "
     set -euo pipefail
     export CC_GITHUB_OWNER='test-owner'
@@ -972,10 +972,10 @@ guard_nocancelprefix_test=$(bash -c "
 if echo "$guard_nocancelprefix_test" | grep -qi 'approve'; then
     _pass "closure guard: 'Was canceled' without prefix is blocked"
 else
-    _fail "closure guard: 'Was canceled' was not blocked — got: $guard_nocancelprefix_test"
+    _fail "closure guard: 'Was canceled' was not blocked - got: $guard_nocancelprefix_test"
 fi
 
-# Cancel from Done → still blocked (terminal)
+# Cancel from Done -> still blocked (terminal)
 guard_cancel_done_test=$(bash -c "
     set -euo pipefail
     export CC_GITHUB_OWNER='test-owner'
@@ -993,10 +993,10 @@ guard_cancel_done_test=$(bash -c "
 if echo "$guard_cancel_done_test" | grep -qi 'already Done'; then
     _pass "closure guard: cancel from Done is still blocked"
 else
-    _fail "closure guard: cancel from Done was not blocked — got: $guard_cancel_done_test"
+    _fail "closure guard: cancel from Done was not blocked - got: $guard_cancel_done_test"
 fi
 
-# --force flag → bypass
+# --force flag -> bypass
 guard_force_test=$(bash -c "
     set -euo pipefail
     export CC_GITHUB_OWNER='test-owner'
@@ -1015,14 +1015,14 @@ guard_force_exit=$?
 if [[ $guard_force_exit -eq 0 ]]; then
     _pass "closure guard: --force bypasses all guards"
 else
-    _fail "closure guard: --force did not bypass — got: $guard_force_test"
+    _fail "closure guard: --force did not bypass - got: $guard_force_test"
 fi
 
 # =============================================================================
-# Section 35: Closure guard — acceptance criteria check
+# Section 35: Closure guard - acceptance criteria check
 # =============================================================================
 
-# Issue with unchecked criteria → blocked
+# Issue with unchecked criteria -> blocked
 guard_unchecked_test=$(bash -c "
     set -euo pipefail
     export CC_GITHUB_OWNER='test-owner'
@@ -1040,10 +1040,10 @@ guard_unchecked_test=$(bash -c "
 if echo "$guard_unchecked_test" | grep -qi '2 of 3'; then
     _pass "closure guard: blocks close with unchecked acceptance criteria"
 else
-    _fail "closure guard: did not block unchecked criteria — got: $guard_unchecked_test"
+    _fail "closure guard: did not block unchecked criteria - got: $guard_unchecked_test"
 fi
 
-# Issue with all checked → allowed
+# Issue with all checked -> allowed
 guard_allchecked_test=$(bash -c "
     set -euo pipefail
     export CC_GITHUB_OWNER='test-owner'
@@ -1062,10 +1062,10 @@ guard_allchecked_exit=$?
 if [[ $guard_allchecked_exit -eq 0 ]]; then
     _pass "closure guard: allows close with all criteria checked"
 else
-    _fail "closure guard: blocked close with all checked — got: $guard_allchecked_test"
+    _fail "closure guard: blocked close with all checked - got: $guard_allchecked_test"
 fi
 
-# Issue with no checkboxes → allowed
+# Issue with no checkboxes -> allowed
 guard_noboxes_test=$(bash -c "
     set -euo pipefail
     export CC_GITHUB_OWNER='test-owner'
@@ -1084,14 +1084,14 @@ guard_noboxes_exit=$?
 if [[ $guard_noboxes_exit -eq 0 ]]; then
     _pass "closure guard: allows close with no acceptance criteria"
 else
-    _fail "closure guard: blocked close with no criteria — got: $guard_noboxes_test"
+    _fail "closure guard: blocked close with no criteria - got: $guard_noboxes_test"
 fi
 
 # =============================================================================
-# Section 36: Additional guard coverage — gaps from peer review
+# Section 36: Additional guard coverage - gaps from peer review
 # =============================================================================
 
-# T1: Board status Canceled → blocked
+# T1: Board status Canceled -> blocked
 guard_canceled_status_test=$(bash -c "
     set -euo pipefail
     export CC_GITHUB_OWNER='test-owner'
@@ -1109,10 +1109,10 @@ guard_canceled_status_test=$(bash -c "
 if echo "$guard_canceled_status_test" | grep -qi 'already Canceled'; then
     _pass "closure guard: blocks close from Canceled status"
 else
-    _fail "closure guard: did not block Canceled status — got: $guard_canceled_status_test"
+    _fail "closure guard: did not block Canceled status - got: $guard_canceled_status_test"
 fi
 
-# T2: Jira ADF dict body — isinstance(body, dict) branch
+# T2: Jira ADF dict body - isinstance(body, dict) branch
 guard_adf_test=$(bash -c "
     set -euo pipefail
     export CC_JIRA_URL='https://test.atlassian.net'
@@ -1126,11 +1126,11 @@ guard_adf_test=$(bash -c "
 " 2>&1)
 guard_adf_exit=$?
 
-# ADF body becomes a dict → json.dumps → no checkbox regex match → allowed (no criteria found)
+# ADF body becomes a dict -> json.dumps -> no checkbox regex match -> allowed (no criteria found)
 if [[ $guard_adf_exit -eq 0 ]]; then
     _pass "closure guard: Jira ADF dict body handled (isinstance branch)"
 else
-    _fail "closure guard: Jira ADF body crashed (exit $guard_adf_exit) — got: $guard_adf_test"
+    _fail "closure guard: Jira ADF body crashed (exit $guard_adf_exit) - got: $guard_adf_test"
 fi
 
 # T3: YouTrack description field fallback
@@ -1149,10 +1149,10 @@ guard_yt_desc_test=$(bash -c "
 if echo "$guard_yt_desc_test" | grep -qi '1 of 2'; then
     _pass "closure guard: YouTrack description field fallback works"
 else
-    _fail "closure guard: YouTrack description not parsed — got: $guard_yt_desc_test"
+    _fail "closure guard: YouTrack description not parsed - got: $guard_yt_desc_test"
 fi
 
-# T4: To Be Tested + approval=false → allowed
+# T4: To Be Tested + approval=false -> allowed
 guard_testing_noapproval_test=$(bash -c "
     set -euo pipefail
     export CC_GITHUB_OWNER='test-owner'
@@ -1171,7 +1171,7 @@ guard_testing_noapproval_exit=$?
 if [[ $guard_testing_noapproval_exit -eq 0 ]]; then
     _pass "closure guard: allows close from To Be Tested when approval not required"
 else
-    _fail "closure guard: blocked To Be Tested with approval=false — got: $guard_testing_noapproval_test"
+    _fail "closure guard: blocked To Be Tested with approval=false - got: $guard_testing_noapproval_test"
 fi
 
 # D1 fix verification: uppercase [X] counted as checked
@@ -1192,11 +1192,11 @@ guard_uppercaseX_test=$(bash -c "
 if echo "$guard_uppercaseX_test" | grep -qi '1 of 3'; then
     _pass "closure guard: uppercase [X] counted as checked (1 of 3 unchecked)"
 else
-    _fail "closure guard: uppercase [X] miscount — got: $guard_uppercaseX_test"
+    _fail "closure guard: uppercase [X] miscount - got: $guard_uppercaseX_test"
 fi
 
 # =============================================================================
-# Section 37: validate-bash hook — exemption markers
+# Section 37: validate-bash hook - exemption markers
 # =============================================================================
 
 # "Closed via /project-board" alone should NOT be exempt anymore
@@ -1228,7 +1228,7 @@ else
 fi
 
 # =============================================================================
-# Section 38: Jira ADF converter — wiki markup support (#198)
+# Section 38: Jira ADF converter - wiki markup support (#198)
 # =============================================================================
 
 # Helper: extract _jira_md_to_adf function and run it in isolation
@@ -1249,7 +1249,7 @@ adf_out=$(_test_adf "h2. My Heading")
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); c=d['content'][0]; assert c['type']=='heading' and c['attrs']['level']==2, f'got {c}'"; then
     _pass "ADF: wiki heading h2. produces level 2 heading"
 else
-    _fail "ADF: wiki heading h2. failed — got: $adf_out"
+    _fail "ADF: wiki heading h2. failed - got: $adf_out"
 fi
 
 # T2: Wiki heading h5. produces level 5
@@ -1257,7 +1257,7 @@ adf_out=$(_test_adf "h5. Deep Heading")
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['content'][0]['attrs']['level']==5"; then
     _pass "ADF: wiki heading h5. produces level 5"
 else
-    _fail "ADF: wiki heading h5. failed — got: $adf_out"
+    _fail "ADF: wiki heading h5. failed - got: $adf_out"
 fi
 
 # T3: Wiki bold *text* produces strong mark
@@ -1265,7 +1265,7 @@ adf_out=$(_test_adf "*bold text*")
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); marks=[m['type'] for n in d['content'][0]['content'] for m in n.get('marks',[])]; assert 'strong' in marks, f'got {marks}'"; then
     _pass "ADF: wiki bold *text* produces strong mark"
 else
-    _fail "ADF: wiki bold failed — got: $adf_out"
+    _fail "ADF: wiki bold failed - got: $adf_out"
 fi
 
 # T4: Wiki italic _text_ produces em mark
@@ -1273,7 +1273,7 @@ adf_out=$(_test_adf "_italic text_")
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); marks=[m['type'] for n in d['content'][0]['content'] for m in n.get('marks',[])]; assert 'em' in marks, f'got {marks}'"; then
     _pass "ADF: wiki italic _text_ produces em mark"
 else
-    _fail "ADF: wiki italic failed — got: $adf_out"
+    _fail "ADF: wiki italic failed - got: $adf_out"
 fi
 
 # T5: Wiki monospace {{text}} produces code mark
@@ -1281,7 +1281,7 @@ adf_out=$(_test_adf "{{monospace}}")
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); marks=[m['type'] for n in d['content'][0]['content'] for m in n.get('marks',[])]; assert 'code' in marks, f'got {marks}'"; then
     _pass "ADF: wiki monospace {{text}} produces code mark"
 else
-    _fail "ADF: wiki monospace failed — got: $adf_out"
+    _fail "ADF: wiki monospace failed - got: $adf_out"
 fi
 
 # T6: Hyphenated words NOT mangled (spring-cloud-starter-config)
@@ -1289,7 +1289,7 @@ adf_out=$(_test_adf "spring-cloud-starter-config is a dependency")
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); txt=json.dumps(d); assert 'spring-cloud-starter-config' in txt, f'mangled'; assert 'strong' not in txt and 'em' not in txt, f'got marks'"; then
     _pass "ADF: hyphenated words pass through unmangled"
 else
-    _fail "ADF: hyphenated words mangled — got: $adf_out"
+    _fail "ADF: hyphenated words mangled - got: $adf_out"
 fi
 
 # T7: Date with hyphens NOT mangled (2026-03-28)
@@ -1297,7 +1297,7 @@ adf_out=$(_test_adf "Released on 2026-03-28 successfully")
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); txt=json.dumps(d); assert '2026-03-28' in txt and 'strong' not in txt and 'em' not in txt"; then
     _pass "ADF: date hyphens pass through unmangled"
 else
-    _fail "ADF: date hyphens mangled — got: $adf_out"
+    _fail "ADF: date hyphens mangled - got: $adf_out"
 fi
 
 # T8: Horizontal rule (----) produces rule node
@@ -1305,7 +1305,7 @@ adf_out=$(_test_adf "----")
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['content'][0]['type']=='rule'"; then
     _pass "ADF: horizontal rule (----) produces rule node"
 else
-    _fail "ADF: horizontal rule failed — got: $adf_out"
+    _fail "ADF: horizontal rule failed - got: $adf_out"
 fi
 
 # T9: Wiki link [text|url] with query params
@@ -1313,7 +1313,7 @@ adf_out=$(_test_adf "[Click Here|https://example.com?a=1&b=2]")
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); n=d['content'][0]['content'][0]; assert n['marks'][0]['type']=='link' and 'a=1&b=2' in n['marks'][0]['attrs']['href'] and n['text']=='Click Here'"; then
     _pass "ADF: wiki link [text|url] with query params preserved"
 else
-    _fail "ADF: wiki link failed — got: $adf_out"
+    _fail "ADF: wiki link failed - got: $adf_out"
 fi
 
 # T10: Wiki link [url] bare
@@ -1321,7 +1321,7 @@ adf_out=$(_test_adf "[https://example.com]")
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); n=d['content'][0]['content'][0]; assert n['marks'][0]['type']=='link' and n['text']=='https://example.com'"; then
     _pass "ADF: wiki link [url] bare produces link"
 else
-    _fail "ADF: wiki link bare failed — got: $adf_out"
+    _fail "ADF: wiki link bare failed - got: $adf_out"
 fi
 
 # T11: Code block {code:xml}...{code} produces codeBlock with language
@@ -1333,7 +1333,7 @@ adf_out=$(_test_adf '{code:xml}
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); cb=d['content'][0]; assert cb['type']=='codeBlock' and cb['attrs']['language']=='xml' and '<root>' in cb['content'][0]['text']"; then
     _pass "ADF: code block {code:xml} produces codeBlock with language"
 else
-    _fail "ADF: code block failed — got: $adf_out"
+    _fail "ADF: code block failed - got: $adf_out"
 fi
 
 # T12: Code block content NOT processed for inline marks
@@ -1343,7 +1343,7 @@ String *name* = _value_;
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); cb=d['content'][0]; assert 'strong' not in json.dumps(cb) and '*name*' in cb['content'][0]['text']"; then
     _pass "ADF: code block content protected from inline processing"
 else
-    _fail "ADF: code block content was processed — got: $adf_out"
+    _fail "ADF: code block content was processed - got: $adf_out"
 fi
 
 # T13: Wiki table ||Header||/|Cell| produces table nodes
@@ -1353,7 +1353,7 @@ adf_out=$(_test_adf '||Name||Age||
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); t=d['content'][0]; assert t['type']=='table' and len(t['content'])==3 and t['content'][0]['content'][0]['type']=='tableHeader' and t['content'][1]['content'][0]['type']=='tableCell'"; then
     _pass "ADF: wiki table produces table/tableHeader/tableCell nodes"
 else
-    _fail "ADF: wiki table failed — got: $adf_out"
+    _fail "ADF: wiki table failed - got: $adf_out"
 fi
 
 # T14: Empty input produces valid ADF document
@@ -1361,7 +1361,7 @@ adf_out=$(_test_adf "")
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['type']=='doc' and d['version']==1 and len(d['content'])>=1"; then
     _pass "ADF: empty input produces valid ADF document"
 else
-    _fail "ADF: empty input failed — got: $adf_out"
+    _fail "ADF: empty input failed - got: $adf_out"
 fi
 
 # T15: Existing markdown conversion backward compatible
@@ -1372,7 +1372,7 @@ adf_out=$(_test_adf '## MD Heading
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); types=[c['type'] for c in d['content']]; assert 'heading' in types and 'taskList' in types and 'bulletList' in types and 'paragraph' in types, f'got {types}'"; then
     _pass "ADF: markdown backward compatibility (headings, tasks, bullets, bold)"
 else
-    _fail "ADF: markdown backward compat failed — got: $adf_out"
+    _fail "ADF: markdown backward compat failed - got: $adf_out"
 fi
 
 # T16: Mixed wiki + markdown renders correctly
@@ -1389,10 +1389,10 @@ assert 'strong' in json.dumps(d), 'missing strong'
 "; then
     _pass "ADF: mixed wiki + markdown renders correctly"
 else
-    _fail "ADF: mixed input failed — got: $adf_out"
+    _fail "ADF: mixed input failed - got: $adf_out"
 fi
 
-# T17: ReDoS safety — 10KB input without timeout
+# T17: ReDoS safety - 10KB input without timeout
 big_input=$(python3 -c "print('spring-cloud-starter-config ' * 500)")
 adf_out=$(_portable_timeout 5 bash -c "
     set -euo pipefail
@@ -1403,30 +1403,30 @@ adf_out=$(_portable_timeout 5 bash -c "
     _jira_md_to_adf \"\$1\"
 " -- "$big_input" 2>&1) && redos_exit=0 || redos_exit=$?
 if [[ $redos_exit -eq 0 ]]; then
-    _pass "ADF: ReDoS safety — 10KB input processed without timeout"
+    _pass "ADF: ReDoS safety - 10KB input processed without timeout"
 else
-    _fail "ADF: ReDoS — 10KB input timed out or failed (exit $redos_exit)"
+    _fail "ADF: ReDoS - 10KB input timed out or failed (exit $redos_exit)"
 fi
 
-# T18: Strikethrough NOT implemented — no -text- pattern matching
+# T18: Strikethrough NOT implemented - no -text- pattern matching
 adf_out=$(_test_adf "Use spring-cloud-starter for -testing- and check-in")
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); txt=json.dumps(d); assert 'strike' not in txt, f'strikethrough found'"; then
     _pass "ADF: strikethrough not implemented (no strike marks)"
 else
-    _fail "ADF: strikethrough detected — got: $adf_out"
+    _fail "ADF: strikethrough detected - got: $adf_out"
 fi
 
-# T19: {code} without language — no attrs key in output
+# T19: {code} without language - no attrs key in output
 adf_out=$(_test_adf '{code}
 plain preformatted
 {code}')
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); cb=d['content'][0]; assert cb['type']=='codeBlock' and 'attrs' not in cb and 'plain preformatted' in cb['content'][0]['text']"; then
     _pass "ADF: {code} without language produces codeBlock without attrs"
 else
-    _fail "ADF: {code} without language failed — got: $adf_out"
+    _fail "ADF: {code} without language failed - got: $adf_out"
 fi
 
-# T20: Multiple code blocks — correct content and language ordering
+# T20: Multiple code blocks - correct content and language ordering
 adf_out=$(_test_adf '{code:python}
 first()
 {code}
@@ -1445,7 +1445,7 @@ assert blocks[1]['attrs']['language']=='bash' and 'second' in blocks[1]['content
 "; then
     _pass "ADF: multiple code blocks preserve correct order and language"
 else
-    _fail "ADF: multiple code blocks failed — got: $adf_out"
+    _fail "ADF: multiple code blocks failed - got: $adf_out"
 fi
 
 # T21: Empty table cell handled gracefully
@@ -1460,7 +1460,7 @@ assert len(row['content'])==2, f'expected 2 cells, got {len(row[\"content\"])}'
 "; then
     _pass "ADF: empty table cell handled gracefully"
 else
-    _fail "ADF: empty table cell failed — got: $adf_out"
+    _fail "ADF: empty table cell failed - got: $adf_out"
 fi
 
 # T22: Markdown fenced code block (triple-backtick)
@@ -1470,7 +1470,7 @@ x = 1
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); cb=d['content'][0]; assert cb['type']=='codeBlock' and cb['attrs']['language']=='python' and 'x = 1' in cb['content'][0]['text']"; then
     _pass "ADF: markdown fenced code block with language"
 else
-    _fail "ADF: markdown fenced code block failed — got: $adf_out"
+    _fail "ADF: markdown fenced code block failed - got: $adf_out"
 fi
 
 # T23: javascript: URI neutralized in wiki links (XSS defense-in-depth)
@@ -1478,7 +1478,7 @@ adf_out=$(_test_adf "[Click|javascript:alert(1)]")
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); href=d['content'][0]['content'][0]['marks'][0]['attrs']['href']; assert href=='#', f'expected # got {href}'"; then
     _pass "ADF: javascript: URI neutralized to # (XSS defense)"
 else
-    _fail "ADF: javascript: URI not neutralized — got: $adf_out"
+    _fail "ADF: javascript: URI not neutralized - got: $adf_out"
 fi
 
 # T24: data: URI neutralized in wiki links
@@ -1486,7 +1486,7 @@ adf_out=$(_test_adf "[Click|data:text/html,<script>alert(1)</script>]")
 if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); href=d['content'][0]['content'][0]['marks'][0]['attrs']['href']; assert href=='#', f'expected # got {href}'"; then
     _pass "ADF: data: URI neutralized to # (XSS defense)"
 else
-    _fail "ADF: data: URI not neutralized — got: $adf_out"
+    _fail "ADF: data: URI not neutralized - got: $adf_out"
 fi
 
 # T25: https:// and relative URLs pass through scheme whitelist
@@ -1500,7 +1500,7 @@ assert 'https://example.com' in hrefs and '#section' in hrefs and '/path/to' in 
 "; then
     _pass "ADF: https/anchor/relative URLs pass scheme whitelist"
 else
-    _fail "ADF: safe URLs blocked — got: $adf_out"
+    _fail "ADF: safe URLs blocked - got: $adf_out"
 fi
 
 # =============================================================================

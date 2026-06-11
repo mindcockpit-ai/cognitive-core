@@ -37,7 +37,7 @@ _cc_rg() {
     [ "$use_no_ignore" = true ] && rg_args+=("--no-ignore")
 
     if [ "$_CC_HAS_RG" -eq 1 ]; then
-        # Translate BRE escapes to ERE/Rust regex: \| → |, \( → (, \) → )
+        # Translate BRE escapes to ERE/Rust regex: \| -> |, \( -> (, \) -> )
         local translated=()
         for arg in "${rg_args[@]}"; do
             arg="${arg//\\|/|}"

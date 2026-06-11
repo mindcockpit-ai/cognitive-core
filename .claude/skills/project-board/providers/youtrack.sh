@@ -1,7 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2034
 # =============================================================================
-# youtrack.sh — YouTrack provider for project-board skill
+# youtrack.sh - YouTrack provider for project-board skill
 #
 # Implements the project-board provider interface using YouTrack REST API.
 # Supports YouTrack Cloud and YouTrack Standalone (on-prem).
@@ -340,7 +340,7 @@ for cf in data.get('customFields', []):
     local testing_status
     testing_status=$(_yt_status_name "testing")
     if [[ "$current_status" != "$testing_status" ]]; then
-        _pb_die "Cannot approve $issue_id — current status is '$current_status', expected '$testing_status'"
+        _pb_die "Cannot approve $issue_id - current status is '$current_status', expected '$testing_status'"
     fi
 
     # Add approval comment and transition to Done

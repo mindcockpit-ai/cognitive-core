@@ -2,7 +2,7 @@
 # cognitive-core language pack: Spring Boot fitness checks
 # Called by the fitness-check framework. Outputs: SCORE DESCRIPTION
 # Checks Spring Boot-specific quality patterns and anti-patterns.
-# Note: set -e omitted intentionally — grep exits non-zero on no-match, which would abort the script
+# Note: set -e omitted intentionally - grep exits non-zero on no-match, which would abort the script
 set -u
 
 # Source shared utilities for _cc_rg (ripgrep with grep fallback)

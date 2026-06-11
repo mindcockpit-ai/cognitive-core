@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# _provider-lib.sh — Shared library for project-board providers
+# _provider-lib.sh - Shared library for project-board providers
 #
 # Provides: config loading, JSON output helpers, status key mapping,
 #           provider validation, and common utilities.
@@ -81,7 +81,7 @@ _pb_status_display_name() {
 
 # Reverse-map a provider-native status name to a canonical key.
 # Checks the active provider's CC_*_STATUS_MAP; falls back to display name match.
-# Usage: _pb_canonical_status "Zu erledigen" → "todo"
+# Usage: _pb_canonical_status "Zu erledigen" -> "todo"
 _pb_canonical_status() {
     local native="$1"
     local native_lower
@@ -176,20 +176,20 @@ except Exception:
     canonical_status=$(_pb_canonical_status "$current_status")
 
     if [[ "$canonical_status" == "done" ]]; then
-        _pb_die "Cannot close #$number — already Done ($current_status)"
+        _pb_die "Cannot close #$number - already Done ($current_status)"
     fi
     if [[ "$canonical_status" == "canceled" ]]; then
-        _pb_die "Cannot close #$number — already Canceled ($current_status)"
+        _pb_die "Cannot close #$number - already Canceled ($current_status)"
     fi
 
-    # Guard 2: Approval gate — only enforced for "testing" (To Be Tested) status.
+    # Guard 2: Approval gate - only enforced for "testing" (To Be Tested) status.
     # Issues in other statuses (todo, progress, backlog) can be closed without approval.
     # This is intentional: only code-complete items need human verification.
     # Skip for cancel path.
     if [[ "$is_cancel" == "false" ]]; then
         local approval_required="${CC_REQUIRE_HUMAN_APPROVAL:-true}"
         if [[ "$approval_required" == "true" && "$canonical_status" == "testing" ]]; then
-            _pb_die "Cannot close #$number — status is '$current_status' and CC_REQUIRE_HUMAN_APPROVAL=true. Use /project-board approve $number instead"
+            _pb_die "Cannot close #$number - status is '$current_status' and CC_REQUIRE_HUMAN_APPROVAL=true. Use /project-board approve $number instead"
         fi
     fi
 
@@ -211,7 +211,7 @@ if total > 0 and unchecked > 0:
     print(f'{unchecked} of {total} acceptance criteria unchecked')
 " 2>/dev/null || echo "")
             if [[ -n "$unchecked" ]]; then
-                _pb_die "Cannot close #$number — $unchecked"
+                _pb_die "Cannot close #$number - $unchecked"
             fi
         fi
     fi
@@ -228,12 +228,12 @@ if total > 0 and unchecked > 0:
 #   pb_issue_close NUMBER [--comment C]
 #   pb_issue_reopen NUMBER
 #   pb_issue_view NUMBER [--json FIELDS]
-#       → JSON output MUST include a "url" field with the browse URL for the issue
+#       -> JSON output MUST include a "url" field with the browse URL for the issue
 #   pb_issue_comment NUMBER BODY
 #   pb_issue_assign NUMBER USER
 #   pb_board_summary
 #   pb_board_status NUMBER
-#       → JSON output MUST include a "url" field with the browse URL for the issue
+#       -> JSON output MUST include a "url" field with the browse URL for the issue
 #   pb_board_move NUMBER STATUS_KEY
 #   pb_board_add NUMBER [--area A]
 #   pb_board_approve NUMBER [--comment C]

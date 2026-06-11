@@ -1,5 +1,5 @@
 # =============================================================================
-# Kustomize Base — cognitive-core framework
+# Kustomize Base - cognitive-core framework
 # =============================================================================
 # Base configuration for all environments. Overlays patch this for
 # environment-specific values (dev, staging, production).

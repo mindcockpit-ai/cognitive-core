@@ -99,13 +99,13 @@ if [ "$_SECURITY_LEVEL" != "minimal" ]; then
 
     # Pipe-to-shell (supply chain attack vector)
     if [ -z "$REASON" ] && echo "$CMD_LOWER" | grep -qE 'curl[[:space:]]+.*\|.*(ba)?sh'; then
-        REASON="Blocked: pipe-to-shell (curl | sh) — supply chain risk"
+        REASON="Blocked: pipe-to-shell (curl | sh) - supply chain risk"
     fi
     if [ -z "$REASON" ] && echo "$CMD_LOWER" | grep -qE 'wget[[:space:]]+.*\|.*(ba)?sh'; then
-        REASON="Blocked: pipe-to-shell (wget | sh) — supply chain risk"
+        REASON="Blocked: pipe-to-shell (wget | sh) - supply chain risk"
     fi
     if [ -z "$REASON" ] && echo "$CMD_LOWER" | grep -qE 'wget[[:space:]]+.*-O-[[:space:]]*\|'; then
-        REASON="Blocked: pipe-to-shell (wget -O- |) — supply chain risk"
+        REASON="Blocked: pipe-to-shell (wget -O- |) - supply chain risk"
     fi
 fi
 

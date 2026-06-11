@@ -2,7 +2,7 @@
 # cognitive-core hook: PreToolUse (Write, Edit)
 # Angular version-aware pattern enforcement
 # Detects Angular version from package.json and warns about deprecated patterns
-# Uses "ask" (not "deny") — graduated response per framework philosophy
+# Uses "ask" (not "deny") - graduated response per framework philosophy
 # All patterns use POSIX ERE (no \s, \b, \w) for macOS + Linux compatibility
 set -euo pipefail
 
@@ -65,7 +65,7 @@ fi
 DENY_REASONS=()
 ASK_REASONS=()
 
-# --- v18+ patterns — ASK: deprecated but functional ---
+# --- v18+ patterns - ASK: deprecated but functional ---
 if [ "$NG_VERSION" -ge 18 ]; then
     if echo "$CONTENT" | grep -qE '@NgModule'; then
         case "$FILE_PATH" in
@@ -84,7 +84,7 @@ if [ "$NG_VERSION" -ge 18 ]; then
     fi
 fi
 
-# --- v19+ patterns — ASK ---
+# --- v19+ patterns - ASK ---
 if [ "$NG_VERSION" -ge 19 ]; then
     if echo "$CONTENT" | grep -qE '@Input\(\)|@Output\(\)'; then
         ASK_REASONS+=("Use input()/output() signal APIs instead of @Input()/@Output() decorators.")
@@ -94,7 +94,7 @@ if [ "$NG_VERSION" -ge 19 ]; then
     fi
 fi
 
-# --- v20+ patterns — ASK ---
+# --- v20+ patterns - ASK ---
 if [ "$NG_VERSION" -ge 20 ]; then
     if echo "$CONTENT" | grep -qE "import[[:space:]]+'zone\.js'|import[[:space:]]+\"zone\.js\""; then
         ASK_REASONS+=("Zone.js no longer needed. Use provideZonelessChangeDetection().")
@@ -112,11 +112,11 @@ if [ "$NG_VERSION" -ge 20 ]; then
     fi
     # Deprecated animation providers (v20.2, removed v23)
     if echo "$CONTENT" | grep -qE 'provideAnimations(Async)?[[:space:]]*\('; then
-        ASK_REASONS+=("provideAnimations()/provideAnimationsAsync() deprecated (v20.2, removed v23). Remove the provider — Angular Material 21+ bootstraps animations internally. Use animate.enter/animate.leave for custom animations.")
+        ASK_REASONS+=("provideAnimations()/provideAnimationsAsync() deprecated (v20.2, removed v23). Remove the provider - Angular Material 21+ bootstraps animations internally. Use animate.enter/animate.leave for custom animations.")
     fi
 fi
 
-# --- v21+ patterns — ASK ---
+# --- v21+ patterns - ASK ---
 if [ "$NG_VERSION" -ge 21 ]; then
     if echo "$CONTENT" | grep -qE 'karma\.conf|karma-'; then
         ASK_REASONS+=("Karma removed in v21. Vitest is the default test runner.")
@@ -128,24 +128,24 @@ if [ "$NG_VERSION" -ge 21 ]; then
     fi
 fi
 
-# --- Tailwind + Angular host conflict (all versions with Tailwind) — ASK ---
+# --- Tailwind + Angular host conflict (all versions with Tailwind) - ASK ---
 if echo "$CONTENT" | grep -qE "host:[[:space:]]*\{[^}]*class:[[:space:]]*['\"].*\b(block|flex|grid|inline|hidden|inline-flex|inline-block|inline-grid)\b"; then
-    ASK_REASONS+=("Tailwind layout class in Angular host:{} — Tailwind v4 !important overrides :host styles. Use :host {} in SCSS for layout.")
+    ASK_REASONS+=("Tailwind layout class in Angular host:{} - Tailwind v4 !important overrides :host styles. Use :host {} in SCSS for layout.")
 fi
 
-# --- Security patterns (all versions) — DENY: XSS, injection, secrets ---
+# --- Security patterns (all versions) - DENY: XSS, injection, secrets ---
 if echo "$CONTENT" | grep -qE 'bypassSecurityTrust(Html|Url|Script|Style|ResourceUrl)'; then
-    DENY_REASONS+=("bypassSecurityTrust detected — XSS bypass. Use a sanitization pipe with tests.")
+    DENY_REASONS+=("bypassSecurityTrust detected - XSS bypass. Use a sanitization pipe with tests.")
 fi
 if echo "$CONTENT" | grep -qE '\[innerHTML\]'; then
-    DENY_REASONS+=("[innerHTML] binding — XSS risk if user-controlled. Prefer Angular template syntax.")
+    DENY_REASONS+=("[innerHTML] binding - XSS risk if user-controlled. Prefer Angular template syntax.")
 fi
 if echo "$CONTENT" | grep -qE '(^|[[:space:];])eval[[:space:]]*\(|document\.write[[:space:]]*\(|new[[:space:]]+Function[[:space:]]*\('; then
-    DENY_REASONS+=("eval()/document.write()/new Function() — code injection. Use Angular APIs instead.")
+    DENY_REASONS+=("eval()/document.write()/new Function() - code injection. Use Angular APIs instead.")
 fi
 if echo "$FILE_PATH" | grep -qE 'environment[^/]*\.ts$'; then
     if echo "$CONTENT" | grep -qiE '(api[_-]?key|secret|password|token)[[:space:]]*[:=]'; then
-        DENY_REASONS+=("Secret in environment file — compiled into browser bundle. Use InjectionToken + runtime config.")
+        DENY_REASONS+=("Secret in environment file - compiled into browser bundle. Use InjectionToken + runtime config.")
     fi
 fi
 

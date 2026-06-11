@@ -1,5 +1,5 @@
 # =============================================================================
-# Release Please — cognitive-core framework
+# Release Please - cognitive-core framework
 # =============================================================================
 # Automated versioning and release management using Google's release-please.
 # Creates Release PRs from conventional commits and publishes GitHub Releases.

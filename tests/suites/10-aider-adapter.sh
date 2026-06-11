@@ -9,7 +9,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 source "${SCRIPT_DIR}/../lib/adapter-test-helpers.sh"
 
-suite_start "10 — Aider Adapter"
+suite_start "10 - Aider Adapter"
 
 # ---- Adapter contract (#139 P5: shared helpers) ----
 assert_adapter_validates "aider"
@@ -145,7 +145,7 @@ fi
 if [ -f "${test_dir}/CLAUDE.md" ]; then
     _fail "aider install: should NOT create CLAUDE.md"
 else
-    _pass "aider install: no CLAUDE.md (correct — has CONVENTIONS.md instead)"
+    _pass "aider install: no CLAUDE.md (correct - has CONVENTIONS.md instead)"
 fi
 
 rm -rf "$test_dir"

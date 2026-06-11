@@ -36,7 +36,7 @@
       }
     ]
   },
-  "description": "CI/CD Pipeline Overview — fitness scores, test results, job durations",
+  "description": "CI/CD Pipeline Overview - fitness scores, test results, job durations",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,

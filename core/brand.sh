@@ -1,5 +1,5 @@
 #!/bin/bash
-# cognitive-core branding — shared ASCII banner, color constants, and status helpers
+# cognitive-core branding - shared ASCII banner, color constants, and status helpers
 # Source this file in scripts, agents, and skills for consistent branding.
 #
 # Usage:
@@ -7,8 +7,8 @@
 #   source "${CC_FRAMEWORK_DIR}/core/brand.sh"   # from hooks/skills via framework path
 #
 # Functions:
-#   _cc_banner                    # full banner — nested squares logo + version + tagline
-#   _cc_banner_compact            # one-liner   — ◻ ◻ ◻ • cognitive-core v1.0.0
+#   _cc_banner                    # full banner - nested squares logo + version + tagline
+#   _cc_banner_compact            # one-liner   - ◻ ◻ ◻ • cognitive-core v1.0.0
 #   _cc_divider [label]           # section divider with optional label
 #   _cc_info   "message"          # [+] green success message
 #   _cc_warn   "message"          # [!] yellow warning message
@@ -39,7 +39,7 @@ else
 fi
 
 # ---- Full ASCII Banner ----
-# Nested squares with center dot and cardinal lines — matches the SVG logo.
+# Nested squares with center dot and cardinal lines - matches the SVG logo.
 # Prints: logo art (cyan), name (bold cyan, spaced), version (dim purple), tagline (dim).
 _cc_banner() {
     local version="${CC_VERSION:-}"

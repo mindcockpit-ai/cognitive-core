@@ -34,7 +34,7 @@ capabilities:
   web_search:
     tool: null
     native: false
-    description: "Not natively supported — user must provide web content"
+    description: "Not natively supported - user must provide web content"
 
   web_fetch:
     tool: "/web"
@@ -69,7 +69,7 @@ hooks:
       Safety patterns from validate-bash.sh are converted to CONVENTIONS.md rules.
       The LLM reads these as instructions, not enforced hooks.
     limitations:
-      - "Convention-based only — LLM may not always follow"
+      - "Convention-based only - LLM may not always follow"
       - "No programmatic deny/allow decisions"
 
   post_tool_use:

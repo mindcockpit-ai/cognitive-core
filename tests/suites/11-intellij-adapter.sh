@@ -9,7 +9,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 source "${SCRIPT_DIR}/../lib/adapter-test-helpers.sh"
 
-suite_start "11 — IntelliJ Adapter"
+suite_start "11 - IntelliJ Adapter"
 
 # ---- Adapter contract (#139 P5: shared helpers) ----
 assert_adapter_validates "intellij"
@@ -158,7 +158,7 @@ fi
 if [ -f "${test_dir}/CLAUDE.md" ]; then
     _fail "intellij install: should NOT create CLAUDE.md"
 else
-    _pass "intellij install: no CLAUDE.md (correct — has DEVOXXGENIE.md instead)"
+    _pass "intellij install: no CLAUDE.md (correct - has DEVOXXGENIE.md instead)"
 fi
 
 suite_end

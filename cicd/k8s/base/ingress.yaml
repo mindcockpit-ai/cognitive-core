@@ -1,5 +1,5 @@
 # =============================================================================
-# Application Ingress — cognitive-core framework
+# Application Ingress - cognitive-core framework
 # =============================================================================
 # Ingress resource for external HTTPS access via nginx ingress controller.
 # Requires:

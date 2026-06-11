@@ -1,5 +1,5 @@
 #!/bin/bash
-# preflight.sh — [D] Verify server is reachable and config is valid
+# preflight.sh - [D] Verify server is reachable and config is valid
 # Usage: ./preflight.sh
 # Exit 0 = ready, Exit 1 = not ready
 set -euo pipefail

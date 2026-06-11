@@ -91,7 +91,11 @@ fi
 
 CODE_EXT="$DEFAULT_CODE_EXT"
 DOC_EXT="$DEFAULT_DOC_EXT"
-EXCLUDE=""
+# Default: skip installed cognitive-core framework files. They legitimately
+# contain box-drawing diagrams and other non-ASCII in comments, so enforcing the
+# ASCII/AI-tell rules on them blocks routine framework-sync commits in consumer
+# repos. Override in forbidden-chars.conf (e.g. `EXCLUDE =` to clear, or add more).
+EXCLUDE=".claude/"
 declare -a EFFECTIVE
 EFFECTIVE=("${DEFAULT_FORBIDDEN[@]}")
 

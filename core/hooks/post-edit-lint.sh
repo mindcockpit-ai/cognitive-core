@@ -70,7 +70,7 @@ if [ "${CC_LINT_DEBT_AUTO_ISSUE:-true}" = "true" ] && [ -n "${CC_LINT_SUPPRESS_P
             | grep -E "$SUPPRESS_PAT" \
             || true)
     else
-        # Not in git — check entire file (new file scenario)
+        # Not in git - check entire file (new file scenario)
         NEW_SUPPRESSIONS=$(grep -E "$SUPPRESS_PAT" "$FILE_PATH" 2>/dev/null || true)
     fi
 

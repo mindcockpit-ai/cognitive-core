@@ -1,5 +1,5 @@
 # =============================================================================
-# Prometheus Scrape Configuration — cognitive-core framework
+# Prometheus Scrape Configuration - cognitive-core framework
 # =============================================================================
 # Parameterized targets using job labels.
 # All scrape targets use generic names (no project-specific prefixes).
@@ -37,21 +37,21 @@ scrape_configs:
         labels:
           component: 'prometheus'
 
-  # Node Exporter — host metrics (CPU, memory, disk, network)
+  # Node Exporter - host metrics (CPU, memory, disk, network)
   - job_name: 'node-exporter'
     static_configs:
       - targets: ['node-exporter:9100']
         labels:
           component: 'host'
 
-  # cAdvisor — container metrics (CPU, memory, network per container)
+  # cAdvisor - container metrics (CPU, memory, network per container)
   - job_name: 'cadvisor'
     static_configs:
       - targets: ['cadvisor:8080']
         labels:
           component: 'containers'
 
-  # Pushgateway — CI/CD job metrics pushed from pipelines
+  # Pushgateway - CI/CD job metrics pushed from pipelines
   - job_name: 'pushgateway'
     honor_labels: true  # Preserve labels pushed by CI jobs
     static_configs:

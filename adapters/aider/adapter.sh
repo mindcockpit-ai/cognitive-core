@@ -2,11 +2,11 @@
 # cognitive-core adapter: Aider + Ollama
 # Translates cognitive-core components into Aider-compatible configuration.
 #
-# - Hooks → CONVENTIONS.md rules (convention-based safety)
-# - Agents → .cognitive-core/agents/ (read-only context)
-# - Skills → .cognitive-core/skills/ (read-only context)
-# - Settings → .aider.conf.yml
-# - Project readme → CONVENTIONS.md
+# - Hooks -> CONVENTIONS.md rules (convention-based safety)
+# - Agents -> .cognitive-core/agents/ (read-only context)
+# - Skills -> .cognitive-core/skills/ (read-only context)
+# - Settings -> .aider.conf.yml
+# - Project readme -> CONVENTIONS.md
 #
 # _adapter-lib.sh is sourced BEFORE this file by install.sh
 
@@ -86,7 +86,7 @@ _adapter_generate_project_readme() {
     else
         # Fallback: generate basic CONVENTIONS.md
         cat > "$conventions_file" << CONVEOF
-# Project Conventions — ${CC_PROJECT_NAME:-project}
+# Project Conventions - ${CC_PROJECT_NAME:-project}
 
 ## Project Identity
 - **Project**: ${CC_PROJECT_NAME:-project}
@@ -118,7 +118,7 @@ Test root: \`${CC_TEST_ROOT:-tests}\`
 
 ## Agent Context
 Agent documentation is available in \`.cognitive-core/agents/\` for reference.
-These describe specialist roles — use their guidance when working in their domains.
+These describe specialist roles - use their guidance when working in their domains.
 CONVEOF
         info "Generated CONVENTIONS.md (fallback mode)."
     fi

@@ -1,11 +1,11 @@
 #!/bin/bash
-# validate-prompt.sh — Deterministic prompt vulnerability checker
+# validate-prompt.sh - Deterministic prompt vulnerability checker
 # Part of cognitive-core project-board skill (Layer 1: regex linter)
 # Reads prompt text from stdin, outputs advisory warnings to stdout.
-# Advisory only — exit 0 always. Never blocks prompt generation.
+# Advisory only - exit 0 always. Never blocks prompt generation.
 #
 # Mid-word matches: POSIX ERE prohibits \b word boundaries.
-# Patterns like "consider" will match "reconsider" — accepted by design.
+# Patterns like "consider" will match "reconsider" - accepted by design.
 # See issue #163 for the full pattern table and rationale.
 #
 # Security: matched text is NEVER echoed in output or interpolated
@@ -28,7 +28,7 @@ _grep_count() {
 INPUT_RAW=$(head -c 65536)
 
 # Binary guard: reject non-text input cleanly
-# Check for binary control characters (0x00-0x08, 0x0E-0x1F) — NOT multibyte UTF-8.
+# Check for binary control characters (0x00-0x08, 0x0E-0x1F) - NOT multibyte UTF-8.
 # [:print:] only covers ASCII 0x20-0x7E; UTF-8 bytes 0x80-0xFF are legitimate text.
 if [ -n "$INPUT_RAW" ]; then
     # shellcheck disable=SC1003
@@ -42,7 +42,7 @@ fi
 if [ -z "$INPUT_RAW" ]; then
     echo "Stochastic vulnerability check: 0 warning(s)"
     echo ""
-    echo "Disclaimer: syntactic patterns only — semantic ambiguity requires human review"
+    echo "Disclaimer: syntactic patterns only - semantic ambiguity requires human review"
     exit 0
 fi
 
@@ -60,7 +60,7 @@ INPUT_CLEAN=$(printf '%s' "$INPUT_CLEAN" | LC_ALL=C sed \
     -e 's/\xE2\x80\x8F//g' \
     -e 's/\xEF\xBB\xBF//g' 2>/dev/null) || true
 
-# Homoglyph normalisation (Cyrillic/Greek confusables → ASCII)
+# Homoglyph normalisation (Cyrillic/Greek confusables -> ASCII)
 # macOS iconv exits non-zero when any char is transliterated/ignored even with
 # valid output, so the previous `|| printf` fallback appended the original input
 # and doubled the buffer on em-dash-bearing prompts. Capture into a temp var and
@@ -95,7 +95,7 @@ WARN_COUNT=0
 WARNINGS=""
 
 # Pattern arrays (7 categories, 12 total patterns)
-# POSIX ERE only — no \s, \b, \w
+# POSIX ERE only - no \s, \b, \w
 PATTERNS=(
     'please[[:space:]]|could you|would you|it would be nice|feel free to'
     'consider[[:space:]]|might[[:space:]]|possibly[[:space:]]|perhaps[[:space:]]|maybe[[:space:]]'
@@ -107,13 +107,13 @@ PATTERNS=(
 )
 
 MESSAGES=(
-    'politeness — use imperative mood'
-    'hedging — be direct'
-    'vague term — be specific'
-    'escape clause — remove qualifier'
-    'open-ended — enumerate explicitly'
-    'temporal vague — specify timeline or remove'
-    'ambiguous quantifier — use exact count'
+    'politeness - use imperative mood'
+    'hedging - be direct'
+    'vague term - be specific'
+    'escape clause - remove qualifier'
+    'open-ended - enumerate explicitly'
+    'temporal vague - specify timeline or remove'
+    'ambiguous quantifier - use exact count'
 )
 
 LINENUM=0
@@ -155,7 +155,7 @@ if [ "${INSTRUCTION_WC:-0}" -gt 200 ] 2>/dev/null; then
     _has_donot=$(printf '%s' "$FULL_TEXT" | _grep_count 'do not' '-iE')
     if [ "$_has_donot" -eq 0 ]; then
         WARN_COUNT=$((WARN_COUNT + 1))
-        WARNINGS="${WARNINGS}  WARN  structure: no \"Do NOT\" boundaries in >200-word prompt — add scope guards
+        WARNINGS="${WARNINGS}  WARN  structure: no \"Do NOT\" boundaries in >200-word prompt - add scope guards
 "
     fi
 fi
@@ -164,7 +164,7 @@ fi
 _has_paths=$(printf '%s' "$INSTRUCTION_TEXT" | _grep_count '[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+' '-E')
 if [ "$_has_paths" -eq 0 ]; then
     WARN_COUNT=$((WARN_COUNT + 1))
-    WARNINGS="${WARNINGS}  WARN  structure: no file paths found — specify affected files
+    WARNINGS="${WARNINGS}  WARN  structure: no file paths found - specify affected files
 "
 fi
 
@@ -172,18 +172,18 @@ fi
 FOLLOWING_LINE=$(printf '%s\n' "$FULL_TEXT" | { grep -n 'the following' 2>/dev/null || true; } | head -1 | cut -d: -f1)
 if [ -n "$FOLLOWING_LINE" ]; then
     NEXT_LINE=$((FOLLOWING_LINE + 1))
-    # Strip whitespace and XML tags — a line with only "</scope>" is not real content
+    # Strip whitespace and XML tags - a line with only "</scope>" is not real content
     NEXT_CONTENT=$(printf '%s\n' "$FULL_TEXT" | sed -n "${NEXT_LINE}p" 2>/dev/null | sed 's/<[^>]*>//g' | tr -d '[:space:]')
     if [ -z "$NEXT_CONTENT" ]; then
         WARN_COUNT=$((WARN_COUNT + 1))
-        WARNINGS="${WARNINGS}  WARN  line ${FOLLOWING_LINE}: dangling reference — \"the following\" without subsequent list
+        WARNINGS="${WARNINGS}  WARN  line ${FOLLOWING_LINE}: dangling reference - \"the following\" without subsequent list
 "
     fi
 fi
 
 # ---- Section 5: Codebase Grounding (Layer 2) ----
 # Conditional on CC_PROJECT_DIR. Resolves path-like references against the filesystem.
-# Issue #169 — 8 security constraints (A-H).
+# Issue #169 - 8 security constraints (A-H).
 
 _GROUNDING_MSG=""
 
@@ -287,6 +287,6 @@ if [ -n "$_GROUNDING_MSG" ]; then
     echo "$_GROUNDING_MSG"
 fi
 echo ""
-echo "Disclaimer: syntactic patterns only — semantic ambiguity requires human review"
+echo "Disclaimer: syntactic patterns only - semantic ambiguity requires human review"
 
 exit 0

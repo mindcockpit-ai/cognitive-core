@@ -1,5 +1,5 @@
 #!/bin/bash
-# create-issue.sh — [D/S] Create GitHub issue for a smoke test failure
+# create-issue.sh - [D/S] Create GitHub issue for a smoke test failure
 # The title and body are pre-composed (by LLM or template). This script
 # handles dedup checking and the gh issue create mechanics.
 #
@@ -37,7 +37,7 @@ SEARCH_TERM=$(echo "$TITLE" | sed 's/\[smoke-test\] //')
 EXISTING=$(gh issue list --repo "$REPO" --label "bug,$LABEL" --state open --search "$SEARCH_TERM" --json number --jq '.[0].number // empty' 2>/dev/null || echo "")
 
 if [[ -n "$EXISTING" ]]; then
-    _st_info "Issue already exists: #${EXISTING} — skipping"
+    _st_info "Issue already exists: #${EXISTING} - skipping"
     echo "{\"action\":\"skipped\",\"reason\":\"duplicate\",\"existing_issue\":${EXISTING}}"
     exit 0
 fi

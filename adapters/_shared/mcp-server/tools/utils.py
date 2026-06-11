@@ -13,7 +13,7 @@ from generate_utils import load_config as _load_config
 def load_config(project_dir: str) -> dict:
     """Load CC_ variables from cognitive-core.conf.
 
-    Delegates to generate_utils.load_config() — single source of truth.
+    Delegates to generate_utils.load_config() - single source of truth.
 
     Args:
         project_dir: Project root directory.

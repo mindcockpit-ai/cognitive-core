@@ -1,5 +1,5 @@
 #!/bin/bash
-# cognitive-core hook: SessionStart — inter-session coordination guard
+# cognitive-core hook: SessionStart - inter-session coordination guard
 # Detects concurrent sessions on the same repo, warns about conflicts.
 # Advisory only: warns, never denies.
 #
@@ -15,7 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/_lib.sh"
 _cc_load_config
 
-# jq is required for session coordination — skip guard entirely if absent
+# jq is required for session coordination - skip guard entirely if absent
 if ! command -v jq &>/dev/null; then
     exit 0
 fi
@@ -101,7 +101,7 @@ if [ -f "$_REGISTRY" ] && command -v jq &>/dev/null; then
                     _pid_alive="true"
                 fi
             else
-                _pid_alive="true"  # No start time to compare — fallback to PID-only
+                _pid_alive="true"  # No start time to compare - fallback to PID-only
             fi
         fi
 
@@ -181,7 +181,7 @@ if mkdir "$_LOCKDIR" 2>/dev/null; then
     echo "$_CURRENT_PID" > "$_LOCKDIR/pid"
     echo "$_SESSION_ID" > "$_LOCKDIR/.session-id"
     date -Iseconds > "$_LOCKDIR/started" 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S' > "$_LOCKDIR/started"
-    # NOTE: no EXIT trap here — the lock dir persists for the session lifetime.
+    # NOTE: no EXIT trap here - the lock dir persists for the session lifetime.
     # session-cleanup.sh (Stop hook) removes it. If the process crashes,
     # the next session-guard.sh detects the stale lock via PID check.
 fi

@@ -1,5 +1,5 @@
 # =============================================================================
-# Grafana Datasource Provisioning — cognitive-core framework
+# Grafana Datasource Provisioning - cognitive-core framework
 # =============================================================================
 # Auto-provisions Prometheus as the default datasource on Grafana startup.
 # =============================================================================

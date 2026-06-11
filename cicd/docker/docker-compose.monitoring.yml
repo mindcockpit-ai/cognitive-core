@@ -1,12 +1,12 @@
 # =============================================================================
-# Monitoring Stack — cognitive-core framework
+# Monitoring Stack - cognitive-core framework
 # =============================================================================
 # Full observability stack: Prometheus, Grafana, Alertmanager, exporters.
 #
 # Findings resolved:
-#   #1  — cAdvisor pulled from ghcr.io (Google Container Registry deprecated)
-#   #15 — Grafana admin password from ${GRAFANA_ADMIN_PASSWORD} env var
-#   #16 — Pushgateway bound to 127.0.0.1 only (not exposed externally)
+#   #1  - cAdvisor pulled from ghcr.io (Google Container Registry deprecated)
+#   #15 - Grafana admin password from ${GRAFANA_ADMIN_PASSWORD} env var
+#   #16 - Pushgateway bound to 127.0.0.1 only (not exposed externally)
 #
 # All credentials externalized to .env file.
 # Usage:
@@ -28,7 +28,7 @@ volumes:
 
 services:
   # ---------------------------------------------------------------------------
-  # Prometheus — metrics collection and storage
+  # Prometheus - metrics collection and storage
   # ---------------------------------------------------------------------------
   prometheus:
     image: prom/prometheus:v2.51.0
@@ -50,7 +50,7 @@ services:
       - monitoring
 
   # ---------------------------------------------------------------------------
-  # Grafana — dashboards and visualization
+  # Grafana - dashboards and visualization
   # Finding #15: Password from environment variable, not hardcoded
   # ---------------------------------------------------------------------------
   grafana:
@@ -78,7 +78,7 @@ services:
       - monitoring
 
   # ---------------------------------------------------------------------------
-  # Alertmanager — alert routing and notification
+  # Alertmanager - alert routing and notification
   # ---------------------------------------------------------------------------
   alertmanager:
     image: prom/alertmanager:v0.27.0
@@ -96,7 +96,7 @@ services:
       - monitoring
 
   # ---------------------------------------------------------------------------
-  # Node Exporter — host-level metrics
+  # Node Exporter - host-level metrics
   # ---------------------------------------------------------------------------
   node-exporter:
     image: prom/node-exporter:v1.7.0
@@ -117,7 +117,7 @@ services:
       - monitoring
 
   # ---------------------------------------------------------------------------
-  # cAdvisor — container-level metrics
+  # cAdvisor - container-level metrics
   # Finding #1 fix: Use ghcr.io image (gcr.io/cadvisor is deprecated)
   # ---------------------------------------------------------------------------
   cadvisor:
@@ -139,7 +139,7 @@ services:
       - monitoring
 
   # ---------------------------------------------------------------------------
-  # Pushgateway — for batch/CI job metrics
+  # Pushgateway - for batch/CI job metrics
   # Finding #16 fix: Bound to 127.0.0.1 only (not externally accessible)
   # ---------------------------------------------------------------------------
   pushgateway:
@@ -148,14 +148,14 @@ services:
     restart: unless-stopped
     # Finding #16: Pushgateway must NOT be exposed externally.
     # Anyone with access can push arbitrary metrics.
-    # Bind to localhost only — CI runners on same host can reach it.
+    # Bind to localhost only - CI runners on same host can reach it.
     ports:
       - "127.0.0.1:9091:9091"
     networks:
       - monitoring
 
   # ---------------------------------------------------------------------------
-  # Nginx — reverse proxy for external access
+  # Nginx - reverse proxy for external access
   # ---------------------------------------------------------------------------
   nginx:
     image: nginx:1.25-alpine

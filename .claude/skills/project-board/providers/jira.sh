@@ -1,7 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2034
 # =============================================================================
-# jira.sh — Jira Cloud/Data Center provider for project-board skill
+# jira.sh - Jira Cloud/Data Center provider for project-board skill
 #
 # Implements the project-board provider interface using Jira REST API v3.
 # Supports both Jira Cloud (Atlassian) and Jira Data Center (on-prem).
@@ -95,7 +95,7 @@ _jira_agile_api() {
 # NOT supported: # ordered lists (ambiguous with markdown headings), -strikethrough-.
 # Wiki patterns take precedence over Markdown where they conflict.
 # Plain text without markup is wrapped in a single paragraph (backward compatible).
-# No strikethrough (-text-) — false-positive rate on hyphenated words is unacceptable.
+# No strikethrough (-text-) - false-positive rate on hyphenated words is unacceptable.
 
 _jira_md_to_adf() {
     local text="$1"
@@ -132,7 +132,7 @@ def parse_inline(text):
     '''Parse inline wiki markup and markdown into ADF marks.
     Order: wiki monospace {{}} > wiki bold * > markdown bold ** > wiki italic _ >
            markdown italic * > markdown code \` > wiki links [text|url]
-    No strikethrough — hyphenated words must pass through unmangled.'''
+    No strikethrough - hyphenated words must pass through unmangled.'''
     nodes = []
     # Combined pattern for all inline marks (no nested quantifiers)
     pattern = r'(\{\{[^}]+\}\}|\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_|\`[^\`]+\`|\[[^\]]+\])'
@@ -183,7 +183,7 @@ i = 0
 while i < len(lines):
     line = lines[i]
 
-    # Code block placeholder — restore as codeBlock node
+    # Code block placeholder - restore as codeBlock node
     m = re.match(r'^\\x00CODEBLOCK(\d+)\\x00$', line.strip())
     if m:
         idx = int(m.group(1))
@@ -232,7 +232,7 @@ while i < len(lines):
             row_line = lines[i]
             is_header = row_line.startswith('||')
             if is_header:
-                # Split ||H1||H2|| — use || as delimiter, drop empty first/last
+                # Split ||H1||H2|| - use || as delimiter, drop empty first/last
                 cells_raw = row_line.split('||')
                 cells_raw = [c for c in cells_raw if c is not None]
                 # Remove leading/trailing empty strings from split
@@ -242,7 +242,7 @@ while i < len(lines):
                     cells_raw = cells_raw[:-1]
                 cell_type = 'tableHeader'
             else:
-                # Split |C1|C2| — use | as delimiter, drop empty first/last
+                # Split |C1|C2| - use | as delimiter, drop empty first/last
                 cells_raw = row_line.split('|')
                 if cells_raw and cells_raw[0] == '':
                     cells_raw = cells_raw[1:]
@@ -301,7 +301,7 @@ while i < len(lines):
         content.append({'type': 'bulletList', 'content': items})
         continue
 
-    # Empty line — skip
+    # Empty line - skip
     if not line.strip():
         i += 1
         continue
@@ -669,7 +669,7 @@ print(data['fields']['status']['name'])
     local testing_status
     testing_status=$(_jira_status_name "testing")
     if [[ "$current_status" != "$testing_status" ]]; then
-        _pb_die "Cannot approve $issue_key — current status is '$current_status', expected '$testing_status'"
+        _pb_die "Cannot approve $issue_key - current status is '$current_status', expected '$testing_status'"
     fi
 
     # Verify evidence exists (at least one comment)
@@ -681,7 +681,7 @@ print(len(data['fields'].get('comment', {}).get('comments', [])))
 " 2>/dev/null)
 
     if [[ "$comment_count" -eq 0 ]]; then
-        _pb_die "Cannot approve $issue_key — no verification evidence found (0 comments)"
+        _pb_die "Cannot approve $issue_key - no verification evidence found (0 comments)"
     fi
 
     # Add approval comment and transition to Done

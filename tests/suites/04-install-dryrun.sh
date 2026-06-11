@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test suite: Install to temp directory → verify structure
+# Test suite: Install to temp directory -> verify structure
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -8,7 +8,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "04 — Install Dry Run"
+suite_start "04 - Install Dry Run"
 
 # Create a temp project directory
 test_dir=$(create_test_dir)

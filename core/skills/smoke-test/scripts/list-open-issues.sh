@@ -1,5 +1,5 @@
 #!/bin/bash
-# list-open-issues.sh — [D] List open smoke-test issues as JSON
+# list-open-issues.sh - [D] List open smoke-test issues as JSON
 # Usage: ./list-open-issues.sh
 # Outputs: JSON array of {number, title, url}
 set -euo pipefail

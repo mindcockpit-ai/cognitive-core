@@ -228,7 +228,7 @@ if [ -d "$HOOKS_DIR" ]; then
 
     echo -e "  Total: $HOOK_COUNT hook(s)"
     if [ "$HOOK_MISMATCHES" -gt 0 ]; then
-        echo -e "  ${YELLOW}$HOOK_MISMATCHES hook(s) differ from framework${NC} — run update.sh to refresh or verify changes"
+        echo -e "  ${YELLOW}$HOOK_MISMATCHES hook(s) differ from framework${NC} - run update.sh to refresh or verify changes"
     fi
 else
     echo -e "  ${BLUE}[SKIP]${NC} No .claude/hooks/ directory"
@@ -281,14 +281,14 @@ echo ""
 # ---------------------------------------------------------------------------
 echo -e "${BOLD}========================================${NC}"
 if [ "$WARNINGS" -gt 0 ]; then
-    echo -e "  ${YELLOW}$WARNINGS warning(s)${NC} — components over budget or issues found"
+    echo -e "  ${YELLOW}$WARNINGS warning(s)${NC} - components over budget or issues found"
     echo -e "  Tips:"
     echo -e "    - Split large skills into SKILL.md + references/"
     echo -e "    - Use disable-model-invocation for manual-only skills"
     echo -e "    - Add disallowedTools to agents for least-privilege"
     echo -e "    - Run update.sh if hooks differ from framework"
 else
-    echo -e "  ${GREEN}All checks passed${NC} — context and security within budget"
+    echo -e "  ${GREEN}All checks passed${NC} - context and security within budget"
 fi
 echo -e "${BOLD}========================================${NC}"
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# board-reconcile.sh — Reconcile closed issues with stale board status
+# board-reconcile.sh - Reconcile closed issues with stale board status
 # =============================================================================
 # Scans the project board for closed issues that are NOT in Done/Canceled
 # and moves them to Done. Designed to run as a daily cron job from VPS.
@@ -9,13 +9,13 @@
 #   GH_TOKEN=<pat> ./board-reconcile.sh [--dry-run]
 #
 # Environment:
-#   GH_TOKEN          — GitHub PAT with repo + project scopes (required)
-#   CC_PROJECT_ID     — GraphQL Project ID (reads from cognitive-core.conf if unset)
-#   CC_STATUS_FIELD_ID — Status field ID (reads from cognitive-core.conf if unset)
-#   CC_STATUS_DONE_ID — Done option ID (reads from cognitive-core.conf if unset)
-#   CC_PROJECT_NUMBER — Project number (reads from cognitive-core.conf if unset)
-#   CC_GITHUB_OWNER   — GitHub org/user (reads from cognitive-core.conf if unset)
-#   CC_GITHUB_REPO    — GitHub repo (reads from cognitive-core.conf if unset)
+#   GH_TOKEN          - GitHub PAT with repo + project scopes (required)
+#   CC_PROJECT_ID     - GraphQL Project ID (reads from cognitive-core.conf if unset)
+#   CC_STATUS_FIELD_ID - Status field ID (reads from cognitive-core.conf if unset)
+#   CC_STATUS_DONE_ID - Done option ID (reads from cognitive-core.conf if unset)
+#   CC_PROJECT_NUMBER - Project number (reads from cognitive-core.conf if unset)
+#   CC_GITHUB_OWNER   - GitHub org/user (reads from cognitive-core.conf if unset)
+#   CC_GITHUB_REPO    - GitHub repo (reads from cognitive-core.conf if unset)
 #
 # Cron setup (VPS):
 #   0 5 * * * GH_TOKEN=$(cat /etc/secrets/github-project-pat) /path/to/board-reconcile.sh >> /var/log/board-reconcile.log 2>&1
@@ -45,7 +45,7 @@ if [ -n "$CONF" ]; then
 fi
 
 # Validate required vars
-: "${GH_TOKEN:?GH_TOKEN required — set via environment or secrets file}"
+: "${GH_TOKEN:?GH_TOKEN required - set via environment or secrets file}"
 : "${CC_PROJECT_ID:?CC_PROJECT_ID required}"
 : "${CC_STATUS_FIELD_ID:?CC_STATUS_FIELD_ID required}"
 : "${CC_STATUS_DONE_ID:?CC_STATUS_DONE_ID required}"
@@ -88,7 +88,7 @@ while IFS='|' read -r NUM BSTATUS; do
 
         if [ -n "$ITEM_ID" ] && [ "$ITEM_ID" != "null" ]; then
             if [ "$DRY_RUN" = true ]; then
-                echo "  [DRY-RUN] #$NUM: $BSTATUS → Done (closed but board stale)"
+                echo "  [DRY-RUN] #$NUM: $BSTATUS -> Done (closed but board stale)"
             else
                 gh api graphql -f query='mutation {
                     updateProjectV2ItemFieldValue(input: {
@@ -98,7 +98,7 @@ while IFS='|' read -r NUM BSTATUS; do
                         value: { singleSelectOptionId: "'"$CC_STATUS_DONE_ID"'" }
                     }) { projectV2Item { id } }
                 }' --silent 2>/dev/null
-                echo "  FIXED #$NUM: $BSTATUS → Done"
+                echo "  FIXED #$NUM: $BSTATUS -> Done"
             fi
             FIXED=$((FIXED + 1))
         fi

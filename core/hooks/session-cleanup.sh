@@ -1,5 +1,5 @@
 #!/bin/bash
-# cognitive-core hook: Stop — session cleanup
+# cognitive-core hook: Stop - session cleanup
 # Removes this session from the registry and cleans up the lock dir.
 #
 # Paired with session-guard.sh (SessionStart).
@@ -37,5 +37,5 @@ if [ -n "$_SESSION_ID" ] && [ -f "$_REGISTRY" ] && command -v jq &>/dev/null; th
     fi
 fi
 
-# Silent exit — Stop hooks should not produce output
+# Silent exit - Stop hooks should not produce output
 exit 0

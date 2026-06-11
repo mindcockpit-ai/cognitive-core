@@ -298,7 +298,7 @@ _portable_md5() {
     fi
 }
 
-# Portable timeout: gtimeout (Homebrew) → perl fallback → skip
+# Portable timeout: gtimeout (Homebrew) -> perl fallback -> skip
 _portable_timeout() {
     local seconds="$1"; shift
     if command -v gtimeout &>/dev/null; then

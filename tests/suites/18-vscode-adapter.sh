@@ -9,7 +9,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 source "${SCRIPT_DIR}/../lib/adapter-test-helpers.sh"
 
-suite_start "18 — VS Code Adapter"
+suite_start "18 - VS Code Adapter"
 
 # ---- Adapter contract (#139 P5: shared helpers) ----
 assert_adapter_validates "vscode"
@@ -157,19 +157,19 @@ fi
 if [ -f "${test_dir}/CLAUDE.md" ]; then
     _fail "vscode install: should NOT create CLAUDE.md"
 else
-    _pass "vscode install: no CLAUDE.md (correct — has copilot-instructions.md instead)"
+    _pass "vscode install: no CLAUDE.md (correct - has copilot-instructions.md instead)"
 fi
 
 # Verify NO DEVOXXGENIE.md was created
 if [ -f "${test_dir}/DEVOXXGENIE.md" ]; then
     _fail "vscode install: should NOT create DEVOXXGENIE.md"
 else
-    _pass "vscode install: no DEVOXXGENIE.md (correct — has copilot-instructions.md instead)"
+    _pass "vscode install: no DEVOXXGENIE.md (correct - has copilot-instructions.md instead)"
 fi
 
 # ===========================================================================
 # Integration test: install vscode adapter on a real cloned repo
-# Workflow: clone repo → clean AI artifacts → install → validate → sanity
+# Workflow: clone repo -> clean AI artifacts -> install -> validate -> sanity
 # ===========================================================================
 
 # Use cognitive-core itself as the test target (always available)
@@ -286,15 +286,15 @@ assert_contains "repo: version.json platform=vscode" "$repo_version" '"vscode"'
 
 # ---- Phase 5: Conditional checks for pre-existing files ----
 if [ "$pre_existing_claudemd" = "true" ]; then
-    # CLAUDE.md existed before install — adapter should NOT have deleted it
+    # CLAUDE.md existed before install - adapter should NOT have deleted it
     if [ -f "${repo_dir}/CLAUDE.md" ]; then
         _pass "repo: pre-existing CLAUDE.md preserved (correct)"
-        _note "repo: CLAUDE.md was pre-existing — adapter correctly left it alone"
+        _note "repo: CLAUDE.md was pre-existing - adapter correctly left it alone"
     else
         _fail "repo: pre-existing CLAUDE.md was deleted by adapter"
     fi
 else
-    # No pre-existing CLAUDE.md — adapter should NOT have created one
+    # No pre-existing CLAUDE.md - adapter should NOT have created one
     if [ -f "${repo_dir}/CLAUDE.md" ]; then
         _fail "repo: should NOT create CLAUDE.md on vscode platform"
     else
@@ -308,7 +308,7 @@ else
     _pass "repo: no DEVOXXGENIE.md (correct)"
 fi
 
-# ---- Phase 6: Sanity — no broken files ----
+# ---- Phase 6: Sanity - no broken files ----
 # MCP server should be valid Python
 if command -v python3 &>/dev/null; then
     py_ok=$(python3 -c "import py_compile; py_compile.compile('${repo_dir}/.cognitive-core/mcp-server/server.py', doraise=True)" 2>&1) || true

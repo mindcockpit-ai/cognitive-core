@@ -1,5 +1,5 @@
 # =============================================================================
-# Monitoring Namespace — cognitive-core framework
+# Monitoring Namespace - cognitive-core framework
 # =============================================================================
 # Dedicated namespace for the monitoring stack (Prometheus, Grafana, etc.).
 # Isolates monitoring workloads from application workloads.

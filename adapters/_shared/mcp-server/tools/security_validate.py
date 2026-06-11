@@ -49,9 +49,9 @@ STANDARD_PATTERNS = [
     (r'echo\s+.*\|.*base64.*-d', "encoded command execution (echo | base64 -d)"),
     (r'(^|\s)eval\s+.*\$\(', "eval with command substitution"),
     # Pipe-to-shell
-    (r'curl\s+.*\|.*(ba)?sh', "pipe-to-shell (curl | sh) — supply chain risk"),
-    (r'wget\s+.*\|.*(ba)?sh', "pipe-to-shell (wget | sh) — supply chain risk"),
-    (r'wget\s+.*-O-\s*\|', "pipe-to-shell (wget -O- |) — supply chain risk"),
+    (r'curl\s+.*\|.*(ba)?sh', "pipe-to-shell (curl | sh) - supply chain risk"),
+    (r'wget\s+.*\|.*(ba)?sh', "pipe-to-shell (wget | sh) - supply chain risk"),
+    (r'wget\s+.*-O-\s*\|', "pipe-to-shell (wget -O- |) - supply chain risk"),
 ]
 
 

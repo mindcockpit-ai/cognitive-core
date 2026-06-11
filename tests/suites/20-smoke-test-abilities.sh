@@ -10,7 +10,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "20 — Smoke Test Abilities"
+suite_start "20 - Smoke Test Abilities"
 
 ST_DIR="${ROOT_DIR}/core/skills/smoke-test"
 SCRIPTS_DIR="${ST_DIR}/scripts"

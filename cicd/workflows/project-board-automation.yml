@@ -1,13 +1,13 @@
 # =============================================================================
-# Project Board Automation — cognitive-core framework
+# Project Board Automation - cognitive-core framework
 # =============================================================================
 # Automates board status transitions based on GitHub events:
-#   - PR opened → linked issues move to In Progress (from Todo only)
-#   - PR merged → linked issues move to Done
-#   - Issue assigned → moves to Todo (from Backlog/Roadmap)
-#   - Issue opened → added to board in Backlog
-#   - Issue reopened → moves to In Progress
-#   - Issue closed → moves to Done
+#   - PR opened -> linked issues move to In Progress (from Todo only)
+#   - PR merged -> linked issues move to Done
+#   - Issue assigned -> moves to Todo (from Backlog/Roadmap)
+#   - Issue opened -> added to board in Backlog
+#   - Issue reopened -> moves to In Progress
+#   - Issue closed -> moves to Done
 #
 # Prerequisites:
 #   - GitHub App "mindcockpit-reviewer" (or similar) with organization_projects:write
@@ -16,16 +16,16 @@
 #   - GitHub Project V2 with Status field configured via setup.sh
 #
 # Replace these placeholders with your project's actual values:
-#   PROJECT_ID       → GraphQL Project ID (PVT_xxx)
-#   STATUS_FIELD_ID  → Status field ID (PVTSSF_xxx)
-#   PROJECT_NUMBER   → GitHub Project number
-#   PROJECT_OWNER    → GitHub username/org that owns the project
+#   PROJECT_ID       -> GraphQL Project ID (PVT_xxx)
+#   STATUS_FIELD_ID  -> Status field ID (PVTSSF_xxx)
+#   PROJECT_NUMBER   -> GitHub Project number
+#   PROJECT_OWNER    -> GitHub username/org that owns the project
 # =============================================================================
 name: Project Board Automation
 
 on:
   schedule:
-    - cron: '0 6 * * *'  # Daily at 06:00 UTC — board reconciliation
+    - cron: '0 6 * * *'  # Daily at 06:00 UTC - board reconciliation
   pull_request:
     types: [opened, ready_for_review, closed]
   issues:
@@ -40,7 +40,7 @@ env:
   STATUS_FIELD_ID: "PVTSSF_xxx"    # Replace with your Status field ID
   PROJECT_NUMBER: "3"              # Replace with your Project number
   PROJECT_OWNER: "owner"           # Replace with your GitHub username/org
-  # Status option IDs — replace after running setup.sh
+  # Status option IDs - replace after running setup.sh
   ROADMAP_ID: "replace_me"
   BACKLOG_ID: "replace_me"
   TODO_ID: "replace_me"
@@ -50,7 +50,7 @@ env:
   CANCELED_ID: "replace_me"
 
 jobs:
-  # ── PR opened → linked issues move to In Progress ──
+  # ── PR opened -> linked issues move to In Progress ──
   pr-opened:
     if: >
       github.event_name == 'pull_request' &&
@@ -94,7 +94,7 @@ jobs:
               continue
             fi
 
-            # Only move forward: Todo → In Progress
+            # Only move forward: Todo -> In Progress
             if [ "$CURRENT" = "Todo" ]; then
               gh api graphql -f query='mutation {
                 updateProjectV2ItemFieldValue(input: {
@@ -104,13 +104,13 @@ jobs:
                   value: { singleSelectOptionId: "'"$IN_PROGRESS_ID"'" }
                 }) { projectV2Item { id } }
               }'
-              echo "Moved #$ISSUE_NUM: Todo → In Progress"
+              echo "Moved #$ISSUE_NUM: Todo -> In Progress"
             else
-              echo "Issue #$ISSUE_NUM in '$CURRENT', not moving (only Todo → In Progress)"
+              echo "Issue #$ISSUE_NUM in '$CURRENT', not moving (only Todo -> In Progress)"
             fi
           done
 
-  # ── PR merged → linked issues move to To Be Tested (or Done if no approval gate) ──
+  # ── PR merged -> linked issues move to To Be Tested (or Done if no approval gate) ──
   pr-merged:
     if: >
       github.event_name == 'pull_request' &&
@@ -129,8 +129,8 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
           # Set to "true" to require human approval before Done.
-          # When true: PR merge → To Be Tested (human must /project-board approve).
-          # When false: PR merge → Done (fully autonomous).
+          # When true: PR merge -> To Be Tested (human must /project-board approve).
+          # When false: PR merge -> Done (fully autonomous).
           REQUIRE_HUMAN_APPROVAL: "true"
         run: |
           PR_BODY=$(cat <<'PREOF'
@@ -174,10 +174,10 @@ jobs:
                 value: { singleSelectOptionId: "'"$TARGET_ID"'" }
               }) { projectV2Item { id } }
             }'
-            echo "Moved #$ISSUE_NUM → $TARGET_NAME (PR merged)"
+            echo "Moved #$ISSUE_NUM -> $TARGET_NAME (PR merged)"
           done
 
-  # ── Issue assigned (from Backlog/Roadmap) → Todo ──
+  # ── Issue assigned (from Backlog/Roadmap) -> Todo ──
   issue-assigned:
     if: >
       github.event_name == 'issues' &&
@@ -217,12 +217,12 @@ jobs:
                 value: { singleSelectOptionId: "'"$TODO_ID"'" }
               }) { projectV2Item { id } }
             }'
-            echo "Moved #$ISSUE_NUM: $CURRENT → Todo (assigned)"
+            echo "Moved #$ISSUE_NUM: $CURRENT -> Todo (assigned)"
           else
             echo "Issue #$ISSUE_NUM in '$CURRENT', not moving"
           fi
 
-  # ── New issue → add to board in Backlog ──
+  # ── New issue -> add to board in Backlog ──
   issue-opened:
     if: >
       github.event_name == 'issues' &&
@@ -259,10 +259,10 @@ jobs:
                 value: { singleSelectOptionId: "'"$BACKLOG_ID"'" }
               }) { projectV2Item { id } }
             }'
-            echo "Added #$ISSUE_NUM to board → Backlog"
+            echo "Added #$ISSUE_NUM to board -> Backlog"
           fi
 
-  # ── Issue reopened → move back to In Progress ──
+  # ── Issue reopened -> move back to In Progress ──
   issue-reopened:
     if: >
       github.event_name == 'issues' &&
@@ -302,10 +302,10 @@ jobs:
                 value: { singleSelectOptionId: "'"$IN_PROGRESS_ID"'" }
               }) { projectV2Item { id } }
             }'
-            echo "Moved #$ISSUE_NUM: $CURRENT → In Progress (reopened)"
+            echo "Moved #$ISSUE_NUM: $CURRENT -> In Progress (reopened)"
           fi
 
-  # ── Issue closed → move to Done (or To Be Tested if approval gate active) ──
+  # ── Issue closed -> move to Done (or To Be Tested if approval gate active) ──
   issue-closed:
     if: >
       github.event_name == 'issues' &&
@@ -341,7 +341,7 @@ jobs:
           CLOSE_COMMENT=$(gh issue view "$ISSUE_NUM" --repo "${{ github.repository }}" \
             --json comments --jq '[.comments[].body] | last // ""' 2>/dev/null || echo "")
 
-          # Only promote To Be Tested → Done if close has "Approved by @" marker
+          # Only promote To Be Tested -> Done if close has "Approved by @" marker
           if [ "$CURRENT" = "Done" ]; then
             TARGET_ID="$DONE_ID"
             TARGET_NAME="Done"
@@ -353,9 +353,9 @@ jobs:
             # Human must use /project-board approve to reach Done
             TARGET_ID="$TO_BE_TESTED_ID"
             TARGET_NAME="To Be Tested"
-            # Reopen the issue — it shouldn't be closed yet
+            # Reopen the issue - it shouldn't be closed yet
             gh issue reopen "$ISSUE_NUM" --repo "${{ github.repository }}" \
-              --comment "Approval gate active — issue moved to To Be Tested. Use \`/project-board approve $ISSUE_NUM\` to close." 2>/dev/null || true
+              --comment "Approval gate active - issue moved to To Be Tested. Use \`/project-board approve $ISSUE_NUM\` to close." 2>/dev/null || true
           else
             TARGET_ID="$DONE_ID"
             TARGET_NAME="Done"
@@ -369,9 +369,9 @@ jobs:
               value: { singleSelectOptionId: "'"$TARGET_ID"'" }
             }) { projectV2Item { id } }
           }'
-          echo "Moved #$ISSUE_NUM → $TARGET_NAME (closed)"
+          echo "Moved #$ISSUE_NUM -> $TARGET_NAME (closed)"
 
-  # ── Weekly reconciliation — catch any closed issues with stale board status ──
+  # ── Weekly reconciliation - catch any closed issues with stale board status ──
   board-reconcile:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
@@ -412,7 +412,7 @@ jobs:
                     value: { singleSelectOptionId: "'"$DONE_ID"'" }
                   }) { projectV2Item { id } }
                 }' --silent
-                echo "Reconciled #$NUM → Done"
+                echo "Reconciled #$NUM -> Done"
                 FIXED=$((FIXED + 1))
               fi
             fi

@@ -1,6 +1,6 @@
 #!/bin/bash
 # cognitive-core adapter: Claude Code (identity adapter)
-# This is the reference implementation — it passes through all operations
+# This is the reference implementation - it passes through all operations
 # unchanged, producing identical output to pre-adapter install.sh behavior.
 #
 # _adapter-lib.sh is sourced BEFORE this file by install.sh
@@ -16,7 +16,7 @@ _adapter_install_skill() {
     cp -R "${source_dir}/"* "${CC_INSTALL_DIR}/skills/${skill_name}/" 2>/dev/null || true
 
     # Claude Code auto-discovers user-invocable skills from SKILL.md frontmatter.
-    # Do NOT create .claude/commands/ stubs — that causes duplicate entries.
+    # Do NOT create .claude/commands/ stubs - that causes duplicate entries.
     # Clean up any orphaned command stubs from previous installations.
     local orphan="${CC_INSTALL_DIR}/commands/${skill_name}.md"
     if [ -f "$orphan" ]; then

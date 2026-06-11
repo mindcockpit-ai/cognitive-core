@@ -42,7 +42,7 @@ jobs:
             echo "has_token=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_token=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::MULTIVAC_PAT not configured — skipping website update. Set MULTIVAC_PAT secret or OP_SERVICE_ACCOUNT_TOKEN for cross-repo updates."
+            echo "::warning::MULTIVAC_PAT not configured - skipping website update. Set MULTIVAC_PAT secret or OP_SERVICE_ACCOUNT_TOKEN for cross-repo updates."
           fi
 
       - name: Checkout multivac42.ai

@@ -1,5 +1,5 @@
 #!/bin/bash
-# execute-test.sh — [D] Run smoke test command and validate JSON output
+# execute-test.sh - [D] Run smoke test command and validate JSON output
 # Usage: ./execute-test.sh
 # Outputs: validated JSON to stdout
 set -euo pipefail

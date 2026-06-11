@@ -12,7 +12,7 @@ _cc_load_config
 INPUT=$(cat)
 EVENT=$(echo "$INPUT" | _cc_json_get ".hook_event_name")
 
-# [E4] Guard: empty or missing event name — exit silently
+# [E4] Guard: empty or missing event name - exit silently
 if [ -z "$EVENT" ]; then
     exit 0
 fi
@@ -25,7 +25,7 @@ if [ "$_NOTIFY_ENABLED" != "true" ]; then
 fi
 
 # ---- Event whitelist ----
-# Use case statement, NOT [[ =~ ]] — EVENT is untrusted input and would be
+# Use case statement, NOT [[ =~ ]] - EVENT is untrusted input and would be
 # interpreted as regex RHS, allowing bypass via metacharacters (e.g., "Stop|Evil").
 ALLOWED_EVENTS="${CC_NOTIFY_EVENTS:-Stop SubagentStop Notification}"
 _event_allowed=false
@@ -54,7 +54,7 @@ if [ -n "${CC_PROJECT_DIR:-}" ]; then
         if [[ "$SESSION_START" =~ ^[0-9]+$ ]]; then
             NOW=$(date +%s)
             ELAPSED=$((NOW - SESSION_START))
-            # [C4] Negative elapsed (clock skew) — treat as valid session
+            # [C4] Negative elapsed (clock skew) - treat as valid session
             if [ "$ELAPSED" -ge 0 ] && [ "$ELAPSED" -lt "$MIN_DURATION" ]; then
                 _cc_security_log "INFO" "notify-skipped" "${EVENT}: session too short (${ELAPSED}s < ${MIN_DURATION}s)"
                 exit 0
@@ -119,7 +119,7 @@ for channel in $CHANNELS; do
     esac
 done
 
-# [E2] Wait with bounded timeout — kill any stalled dispatches after 5s
+# [E2] Wait with bounded timeout - kill any stalled dispatches after 5s
 _wait_start=$(date +%s)
 while jobs -p 2>/dev/null | grep -q .; do
     _wait_now=$(date +%s)

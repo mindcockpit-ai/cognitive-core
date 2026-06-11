@@ -1,5 +1,5 @@
 #!/bin/bash
-# check-issues.sh — [D] Check which FAIL results have existing GitHub issues
+# check-issues.sh - [D] Check which FAIL results have existing GitHub issues
 # Usage: ./check-issues.sh < results.json
 # Outputs: JSON array with tracked/untracked status per failure
 set -euo pipefail

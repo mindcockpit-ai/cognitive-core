@@ -8,7 +8,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "09 — Adapter Interface"
+suite_start "09 - Adapter Interface"
 
 # ---- Test _adapter-lib.sh is sourceable ----
 lib_output=$(bash -c "source '${ROOT_DIR}/adapters/_adapter-lib.sh'" 2>&1) || true

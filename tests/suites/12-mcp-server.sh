@@ -8,13 +8,13 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "12 — MCP Server"
+suite_start "12 - MCP Server"
 
 MCP_SERVER="${ROOT_DIR}/adapters/_shared/mcp-server/server.py"
 
 # ---- Check Python 3.9+ available ----
 if ! command -v python3 &>/dev/null; then
-    _skip "Python3 not available — skipping all MCP tests"
+    _skip "Python3 not available - skipping all MCP tests"
     suite_end || true
     exit 0
 fi
@@ -23,7 +23,7 @@ py_version=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.versi
 py_major=$(echo "$py_version" | cut -d. -f1)
 py_minor=$(echo "$py_version" | cut -d. -f2)
 if [ "$py_major" -lt 3 ] || { [ "$py_major" -eq 3 ] && [ "$py_minor" -lt 9 ]; }; then
-    _skip "Python ${py_version} < 3.9 — skipping MCP tests"
+    _skip "Python ${py_version} < 3.9 - skipping MCP tests"
     suite_end || true
     exit 0
 fi

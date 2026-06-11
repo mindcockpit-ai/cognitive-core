@@ -3,15 +3,15 @@
 # Translates cognitive-core components into IntelliJ-compatible configuration.
 #
 # Three integration layers:
-#   Layer 1: Convention file (DEVOXXGENIE.md) — works with any LLM plugin
-#   Layer 2: MCP server (cc-mcp-server) — DevoxxGenie, Continue.dev, Cline
-#   Layer 3: ACP agent (future) — JetBrains 2025.3+ native
+#   Layer 1: Convention file (DEVOXXGENIE.md) - works with any LLM plugin
+#   Layer 2: MCP server (cc-mcp-server) - DevoxxGenie, Continue.dev, Cline
+#   Layer 3: ACP agent (future) - JetBrains 2025.3+ native
 #
-# - Hooks → DEVOXXGENIE.md rules (convention-based safety)
-# - Agents → .cognitive-core/agents/ (read-only context)
-# - Skills → .cognitive-core/skills/ (read-only context)
-# - Settings → .devoxxgenie.yaml (plugin config)
-# - Project readme → DEVOXXGENIE.md (context file)
+# - Hooks -> DEVOXXGENIE.md rules (convention-based safety)
+# - Agents -> .cognitive-core/agents/ (read-only context)
+# - Skills -> .cognitive-core/skills/ (read-only context)
+# - Settings -> .devoxxgenie.yaml (plugin config)
+# - Project readme -> DEVOXXGENIE.md (context file)
 #
 # _adapter-lib.sh is sourced BEFORE this file by install.sh
 
@@ -53,7 +53,7 @@ context_files:
 lint_command: ${CC_LINT_COMMAND:-echo no-lint}
 test_command: ${CC_TEST_COMMAND:-echo no-tests}
 
-# MCP server (Layer 2 — enable if your plugin supports MCP)
+# MCP server (Layer 2 - enable if your plugin supports MCP)
 mcp_server:
   enabled: false
   command: python3
@@ -93,7 +93,7 @@ _adapter_generate_project_readme() {
     else
         # Fallback: generate basic DEVOXXGENIE.md
         cat > "$conventions_file" << CONVEOF
-# Project Conventions — ${CC_PROJECT_NAME:-project}
+# Project Conventions - ${CC_PROJECT_NAME:-project}
 
 ## Project Identity
 - **Project**: ${CC_PROJECT_NAME:-project}
@@ -125,7 +125,7 @@ Test root: \`${CC_TEST_ROOT:-tests}\`
 
 ## Agent Context
 Agent documentation is available in \`.cognitive-core/agents/\` for reference.
-These describe specialist roles — use their guidance when working in their domains.
+These describe specialist roles - use their guidance when working in their domains.
 
 ## MCP Server
 If your IDE plugin supports MCP (Model Context Protocol), you can enable the

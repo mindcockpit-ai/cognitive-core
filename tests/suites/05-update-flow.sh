@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test suite: Install → modify → update → verify preservation
+# Test suite: Install -> modify -> update -> verify preservation
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -8,7 +8,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "05 — Update Flow"
+suite_start "05 - Update Flow"
 
 # Need python3 for update.sh JSON parsing
 if ! command -v python3 &>/dev/null; then

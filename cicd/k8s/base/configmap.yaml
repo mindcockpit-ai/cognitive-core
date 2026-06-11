@@ -1,5 +1,5 @@
 # =============================================================================
-# Application ConfigMap — cognitive-core framework
+# Application ConfigMap - cognitive-core framework
 # =============================================================================
 # Non-sensitive configuration values injected as environment variables.
 # For sensitive values (passwords, API keys), use Kubernetes Secrets instead.

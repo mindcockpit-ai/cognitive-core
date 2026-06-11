@@ -30,7 +30,7 @@ ok()    { printf "%b\n" "${GREEN}$1${NC}"; }
 warn()  { printf "%b\n" "${YELLOW}$1${NC}" >&2; }
 fail()  { printf "%b\n" "${RED}$1${NC}" >&2; exit 1; }
 
-# Literal placeholder — Claude Code expands $CLAUDE_PROJECT_DIR at hook runtime,
+# Literal placeholder - Claude Code expands $CLAUDE_PROJECT_DIR at hook runtime,
 # so it must NOT be expanded here. Single quotes are intentional.
 # shellcheck disable=SC2016
 HOOK_CMD='$CLAUDE_PROJECT_DIR/.claude/hooks/post-fetch-cache.sh'
@@ -46,7 +46,7 @@ Run this from a project root, or pass the project path as an argument."
 
 jq empty "$SETTINGS" 2>/dev/null || fail "Invalid JSON: ${SETTINGS} (refusing to patch)"
 
-# Warn (do not fail) if the hook script itself is missing — update.sh installs it
+# Warn (do not fail) if the hook script itself is missing - update.sh installs it
 if [ ! -f "${PROJECT_DIR%/}/.claude/hooks/post-fetch-cache.sh" ]; then
     warn "WARNING: .claude/hooks/post-fetch-cache.sh is missing in this project."
     warn "         Run update.sh there so the hook file is installed, or the"
@@ -62,7 +62,7 @@ ALREADY=$(jq -r '
 ' "$SETTINGS")
 
 if [ "$ALREADY" = "true" ]; then
-    ok "Already registered — no change needed: ${SETTINGS}"
+    ok "Already registered - no change needed: ${SETTINGS}"
     exit 0
 fi
 

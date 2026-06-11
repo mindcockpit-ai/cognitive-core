@@ -18,7 +18,7 @@ import json
 import sys
 from pathlib import Path
 
-# Shared utilities — single source of truth (#139 P3)
+# Shared utilities - single source of truth (#139 P3)
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from _shared.generate_utils import load_config, extract_safety_rules, build_agent_refs
 
@@ -106,7 +106,7 @@ def generate_instructions(project_dir: str, install_dir: str, config: dict) -> N
         safety_rules = extract_safety_rules(install_dir)
         agent_refs = build_agent_refs(install_dir)
 
-        content = f"""# Project Conventions — {project_name}
+        content = f"""# Project Conventions - {project_name}
 
 ## Project Identity
 - **Project**: {project_name}
@@ -126,7 +126,7 @@ def generate_instructions(project_dir: str, install_dir: str, config: dict) -> N
 - Scopes: {commit_scopes}
 - NO AI/tool references in commit messages
 
-## Safety Rules (CRITICAL — MUST FOLLOW)
+## Safety Rules (CRITICAL - MUST FOLLOW)
 {safety_rules}
 
 ## Architecture

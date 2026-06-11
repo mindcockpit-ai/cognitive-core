@@ -1,14 +1,14 @@
 #!/bin/bash
 # Test suite: Recursive epic structure validation
 # Validates that epic issues have proper sub-issue links, dependency declarations,
-# parent references, and effort estimates — required for EU AI Act governance.
+# parent references, and effort estimates - required for EU AI Act governance.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
-suite_start "16 — Recursive Epic Structure"
+suite_start "16 - Recursive Epic Structure"
 
 # --- Test data ---
 TEST_DIR=$(create_test_dir)
@@ -164,7 +164,7 @@ assert_not_contains \
     "$SUB_BAD" \
     "**Parent**:"
 
-# External file validation removed (#248) — tests must not depend on
+# External file validation removed (#248) - tests must not depend on
 # content outside the repo. Synthetic tests above cover structure.
 
 suite_end

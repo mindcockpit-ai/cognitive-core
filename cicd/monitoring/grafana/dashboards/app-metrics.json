@@ -36,7 +36,7 @@
       }
     ]
   },
-  "description": "Application Metrics — request rates, latency, error rates",
+  "description": "Application Metrics - request rates, latency, error rates",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
