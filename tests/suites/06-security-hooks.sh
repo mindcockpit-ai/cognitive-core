@@ -695,4 +695,41 @@ else
     _skip "setup-env.sh not found"
 fi
 
+# ===== validate-git-remote-secret.sh: credentials in git remote URLs =====
+GIT_REMOTE_SECRET="${HOOKS_DIR}/validate-git-remote-secret.sh"
+
+if [ -f "$GIT_REMOTE_SECRET" ]; then
+    assert_hook_denies \
+        "git-remote-secret: token in remote set-url -> deny" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git remote set-url origin https://x-access-token:gho_AAAAAAAAAAAAAAAAAAAAAAAA@github.com/x/y.git")"
+
+    assert_hook_denies \
+        "git-remote-secret: user:pass clone -> deny" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git clone https://user:s3cr3tpass@github.com/x/y.git")"
+
+    assert_hook_denies \
+        "git-remote-secret: ghp token in push url -> deny" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git push https://ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA@github.com/x/y.git main")"
+
+    assert_hook_allows \
+        "git-remote-secret: clean git push -> allow" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git push origin main")"
+
+    assert_hook_allows \
+        "git-remote-secret: clean clone -> allow" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git clone https://github.com/x/y.git")"
+
+    assert_hook_allows \
+        "git-remote-secret: non-git command with token -> allow (scoped to git)" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "echo https://x-access-token:gho_AAAAAAAAAAAAAAAAAAAAAAAA@github.com")"
+else
+    _skip "validate-git-remote-secret.sh not found"
+fi
+
 suite_end
