@@ -235,8 +235,17 @@ if [ -z "$REASON" ] && [ "$_SHARED_GATE" = "true" ]; then
         exit 0
     fi
 
-    # Block git merge when on develop or master
-    if echo "$CMD_LOWER" | grep -qE 'git[[:space:]]+merge'; then
+    # Block git merge when on develop or master.
+    # The trailing class excludes only what cannot be a merge invocation: the
+    # hyphen of the merge-* subcommands, and any alphanumeric that would make it
+    # a different word (merged, merges). Everything else still matches, including
+    # a shell operator glued to the word - "git merge;true" and "git merge&&x"
+    # are real merges and must stay gated.
+    # merge-base/merge-tree/merge-file are excluded because none of them can move
+    # a ref. They are not all read-only: merge-file rewrites its first argument in
+    # place and merge-tree --write-tree writes loose objects, but neither advances
+    # a branch, and merge-base is how containment is proven before deleting one.
+    if echo "$CMD_LOWER" | grep -qE 'git[[:space:]]+merge([^-[:alnum:]]|$)'; then
         _CURRENT_BRANCH=$(_cc_branch_from_cmd "$CMD")
         if [ "$_CURRENT_BRANCH" = "develop" ] || [ "$_CURRENT_BRANCH" = "master" ] || [ "$_CURRENT_BRANCH" = "main" ]; then
             REASON="Blocked: merging into shared branch '${_CURRENT_BRANCH}' requires user approval"
