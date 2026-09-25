@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.7.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.6.1...v1.7.0) (2026-09-25)
+
+
+### Features
+
+* **hooks:** guard against credentials embedded in git remote URLs ([#319](https://github.com/mindcockpit-ai/cognitive-core/issues/319)) ([248f8a2](https://github.com/mindcockpit-ai/cognitive-core/commit/248f8a209a5861451afd966aa4561b61d228ef0d))
+* **install:** local override marker and update.sh prune ([#328](https://github.com/mindcockpit-ai/cognitive-core/issues/328)) ([#333](https://github.com/mindcockpit-ai/cognitive-core/issues/333)) ([0d90d40](https://github.com/mindcockpit-ai/cognitive-core/commit/0d90d40b2ef413e3166fdaba7ce5e55d932a03b3))
+
+
+### Bug Fixes
+
+* **cicd:** bump create-pull-request to v8 (Node 24) ([#339](https://github.com/mindcockpit-ai/cognitive-core/issues/339)) ([5720229](https://github.com/mindcockpit-ai/cognitive-core/commit/5720229bf48ad690bc128c2de929fe55a4bcd7f2))
+* **cicd:** validate the website token and repair the 1Password gate ([#337](https://github.com/mindcockpit-ai/cognitive-core/issues/337)) ([8cae296](https://github.com/mindcockpit-ai/cognitive-core/commit/8cae296235baa78630013643e0ab1e43eb08eed9))
+* **hooks:** harden the git remote credential guard ([#341](https://github.com/mindcockpit-ai/cognitive-core/issues/341)) ([a332b69](https://github.com/mindcockpit-ai/cognitive-core/commit/a332b69d044ba385616b2d3692d59fcabdcd2212))
+
+
+### Tests
+
+* **hooks:** scope suite 17 orphan auto-kill to its own processes ([#343](https://github.com/mindcockpit-ai/cognitive-core/issues/343)) ([e8a2c49](https://github.com/mindcockpit-ai/cognitive-core/commit/e8a2c492754647fc59dbbb22e2ff097a6364aef5))
+* **hooks:** stop suite 17 leaking sleep processes ([#342](https://github.com/mindcockpit-ai/cognitive-core/issues/342)) ([cbeaba0](https://github.com/mindcockpit-ai/cognitive-core/commit/cbeaba0d572c8fc3aa6241b8fd92b5cccc2a02a0))
+
 ## [1.6.1](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.6.0...v1.6.1) (2026-09-25)
 
 
