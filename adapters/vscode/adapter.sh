@@ -141,6 +141,14 @@ _adapter_install_dir_structure() {
     info "Created .cognitive-core/ directory tree (with MCP server, .github/, .vscode/)."
 }
 
+# generate.py references installed agents in .github/copilot-instructions.md;
+# drop the pruned ones.
+_adapter_post_prune() {
+    local project_dir="$1"
+    shift
+    _adapter_prune_list_entries "${project_dir}/.github/copilot-instructions.md" "$@"
+}
+
 _adapter_post_install() {
     local project_dir="$1"
     local generate_py="${SCRIPT_DIR}/adapters/vscode/generate.py"

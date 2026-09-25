@@ -89,6 +89,31 @@ optional_functions:
       - name: project_dir
         description: Absolute path to the target project root
 
+  - name: _adapter_hook_is_wired
+    description: >
+      Used by update.sh --prune. Return 0 when an installed hook is still
+      referenced by the platform settings, so it is kept instead of removed.
+      For Claude Code: the hook path appears in .claude/settings.json.
+      Default: return 1 (platform has no hook wiring).
+    signature: "_adapter_hook_is_wired <project_dir> <hook_file>"
+    args:
+      - name: project_dir
+        description: Absolute path to the target project root
+      - name: hook_file
+        description: Hook file name (e.g., "validate-bash.sh")
+
+  - name: _adapter_post_prune
+    description: >
+      Clean up generated files after update.sh --prune removed components.
+      For Aider: drop pruned agent entries from .aider.conf.yml.
+      For IntelliJ: drop pruned agent entries from .devoxxgenie.yaml.
+    signature: "_adapter_post_prune <project_dir> <removed_path>..."
+    args:
+      - name: project_dir
+        description: Absolute path to the target project root
+      - name: removed_path
+        description: Removed path relative to the install dir (e.g., "agents/test-specialist.md")
+
 # Required variables each adapter.sh must set
 required_variables:
   - name: _ADAPTER_NAME

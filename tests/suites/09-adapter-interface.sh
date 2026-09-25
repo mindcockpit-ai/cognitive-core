@@ -82,6 +82,13 @@ assert_contains "interface: has _adapter_install_skill" "$interface" "_adapter_i
 assert_contains "interface: has _adapter_generate_settings" "$interface" "_adapter_generate_settings"
 assert_contains "interface: has _adapter_generate_project_readme" "$interface" "_adapter_generate_project_readme"
 
+# Optional prune functions (#328): declared in the interface, defaulted in the lib
+adapter_lib=$(cat "${ROOT_DIR}/adapters/_adapter-lib.sh")
+for fn in _adapter_hook_is_wired _adapter_post_prune; do
+    assert_contains "interface: has optional ${fn}" "$interface" "$fn"
+    assert_contains "adapter lib: default ${fn}" "$adapter_lib" "${fn}() {"
+done
+
 # ---- Test install with claude adapter produces same structure ----
 test_dir=$(create_test_dir)
 git -C "$test_dir" init --quiet 2>/dev/null

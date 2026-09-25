@@ -126,6 +126,15 @@ CONVEOF
 
 # ---- Optional functions ----
 
+# generate.py references installed agents in .aider.conf.yml and CONVENTIONS.md;
+# drop the pruned ones.
+_adapter_post_prune() {
+    local project_dir="$1"
+    shift
+    _adapter_prune_list_entries "${project_dir}/.aider.conf.yml" "$@"
+    _adapter_prune_list_entries "${project_dir}/CONVENTIONS.md" "$@"
+}
+
 _adapter_install_dir_structure() {
     local project_dir="$1"
     local install_dir="${project_dir}/${_ADAPTER_INSTALL_DIR}"

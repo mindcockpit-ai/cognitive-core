@@ -6,13 +6,13 @@ aa948735fa6bd0d3582abff1323285af	./.cognitive-core/AGENTS_README.md
 17f2dcdc65b30b218d94fc794dcbc43e	./.cognitive-core/cognitive-core/check-update.sh
 2fc08fe8f49e21e94118f1a82877a374	./.cognitive-core/cognitive-core/context-cleanup.sh
 86d734104e7335eae29a594188e085e3	./.cognitive-core/cognitive-core/health-check.sh
-050d7b3b2fca064f7ca41da6a9ee09fd	./.cognitive-core/cognitive-core/version.json
+d7792787f0cfdef8ac11a0a2eafae0d7	./.cognitive-core/cognitive-core/version.json
 47b561a9cb3594c789ecad8b6b8e6766	./.cognitive-core/compact-rules.md
 7f3cfa96a9afa2db9b937b1e32cb56a0	./.cognitive-core/fitness-checks.sh
 93a614f0d620a8305b6f7ed86bf2ad36	./.cognitive-core/gitattributes-lang
 c3e0c99f2107171af0da02169a507681	./.cognitive-core/gitignore
-6a8224a52f3036826fb6279cc6766494	./.cognitive-core/hooks/_lib.sh
-d0c2e26671ca61e2026df111f74599ca	./.cognitive-core/hooks/setup-env.sh
+d0cf4e70f3af78788d17385b8b75aaca	./.cognitive-core/hooks/_lib.sh
+0dbebce8e0a71ae4272beae07d4dead4	./.cognitive-core/hooks/setup-env.sh
 c306e1aff208b53055c46a796e87ecab	./.cognitive-core/hooks/validate-bash.sh
 6fc129bd500c4592b008a31178751125	./.cognitive-core/lint-config.sh
 68042f1e5a7f7a73b4716126a02deef3	./.cognitive-core/monitor-patterns.conf

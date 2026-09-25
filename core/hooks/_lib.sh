@@ -15,6 +15,8 @@ CC_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../..
 # Load configuration (resolution order: project root > .claude/ > user defaults > env)
 _cc_load_config() {
     local conf=""
+    # Overrides may only come from the conf, never from the environment (#328)
+    unset CC_LOCAL_OVERRIDES
     if [ -f "${CC_PROJECT_DIR}/cognitive-core.conf" ]; then
         conf="${CC_PROJECT_DIR}/cognitive-core.conf"
     elif [ -f "${CC_PROJECT_DIR}/.claude/cognitive-core.conf" ]; then
@@ -26,6 +28,64 @@ _cc_load_config() {
         # shellcheck disable=SC1090
         source "$conf"
     fi
+}
+
+# ---- Project-owned local overrides (#328) ----
+# CC_LOCAL_OVERRIDES (conf only): space separated paths relative to the
+# install dir, a trailing / marks a directory. A file entry may carry a
+# sha256 pin: "hooks/validate-bash.sh@<sha256>". A pinned override is honoured
+# only while the file matches the pin. Security relevant hooks (validate-*,
+# setup-env, _-prefixed libraries) are honoured only with a matching pin.
+
+_cc_override_needs_pin() {
+    case "$1" in
+        hooks/_*|hooks/setup-env.sh|hooks/validate-*) return 0 ;;
+    esac
+    return 1
+}
+
+# Usage: _cc_is_local_override <path> [installed file]
+# <path> is relative to the install dir (a leading .claude/ or
+# .cognitive-core/ is stripped). Without [installed file] a pin is not checked.
+# Returns 0 = honoured, 1 = not listed, 2 = listed but not honoured
+# (security hook without pin, or pin mismatch).
+_cc_is_local_override() {
+    local rel="${1#.claude/}" file="${2:-}" entry path pin rc=1
+    local -a entries
+    rel="${rel#.cognitive-core/}"
+    read -r -a entries <<< "${CC_LOCAL_OVERRIDES:-}"
+    for entry in ${entries[@]+"${entries[@]}"}; do
+        path="${entry%%@*}"
+        pin=""
+        [ "$path" = "$entry" ] || pin="${entry#*@}"
+        case "$path" in
+            */) case "$rel" in "$path"*) ;; *) continue ;; esac ;;
+            *)  [ "$rel" = "$path" ] || continue ;;
+        esac
+        if [ -z "$pin" ]; then
+            _cc_override_needs_pin "$rel" && { rc=2; continue; }
+            return 0
+        fi
+        # Pins apply to single files only
+        case "$path" in */) rc=2; continue ;; esac
+        if [ -z "$file" ] || [ "$(_cc_compute_sha256 "$file")" = "$pin" ]; then
+            return 0
+        fi
+        rc=2
+    done
+    return "$rc"
+}
+
+# True if a directory, or any file below it, is listed (pins not checked).
+_cc_has_local_override_under() {
+    local dir="$1" entry
+    local -a entries
+    _cc_is_local_override "$dir" && return 0
+    read -r -a entries <<< "${CC_LOCAL_OVERRIDES:-}"
+    for entry in ${entries[@]+"${entries[@]}"}; do
+        case "${entry%%@*}" in "$dir"*) return 0 ;; esac
+    done
+    return 1
 }
 
 # Recursive grep using ripgrep when available, falling back to grep -r
@@ -215,7 +275,13 @@ _cc_json_pretool_ask() {
 # Security event logging
 _cc_security_log() {
     local level="$1" event="$2" detail="$3"
-    local logfile="${CC_PROJECT_DIR}/.claude/cognitive-core/security.log"
+    # CC_INSTALL_DIR is set by installers for non-Claude layouts (.cognitive-core).
+    # Honoured only inside the project, so an inherited value cannot move the log.
+    local install_dir="${CC_PROJECT_DIR}/.claude"
+    case "${CC_INSTALL_DIR:-}" in
+        "${CC_PROJECT_DIR}"/*) case "$CC_INSTALL_DIR" in *..*) ;; *) install_dir="$CC_INSTALL_DIR" ;; esac ;;
+    esac
+    local logfile="${install_dir}/cognitive-core/security.log"
     local timestamp
     timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     local logdir

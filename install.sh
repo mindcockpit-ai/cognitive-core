@@ -451,22 +451,7 @@ header "Creating directory structure"
 _adapter_resolve_install_dir "$PROJECT_DIR"
 _adapter_install_dir_structure "$PROJECT_DIR"
 
-# ---- Agent name mapping ----
-agent_file_for() {
-    case "$1" in
-        coordinator) echo "project-coordinator.md" ;;
-        reviewer)    echo "code-standards-reviewer.md" ;;
-        architect)   echo "solution-architect.md" ;;
-        tester)      echo "test-specialist.md" ;;
-        researcher)  echo "research-analyst.md" ;;
-        database)          echo "database-specialist.md" ;;
-        security-analyst)       echo "security-analyst.md" ;;
-        skill-updater)          echo "skill-updater.md" ;;
-        angular-specialist)     echo "angular-specialist.md" ;;
-        spring-boot-specialist) echo "spring-boot-specialist.md" ;;
-        *) echo "" ;;
-    esac
-}
+# Agent name mapping (agent_file_for) lives in adapters/_adapter-lib.sh
 
 # ---- Install hooks ----
 if [ "$_CC_PLUGIN_DETECTED" = "true" ] && [ "${CC_PLATFORM:-}" = "claude" ]; then
