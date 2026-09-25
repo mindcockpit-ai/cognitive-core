@@ -10,6 +10,40 @@ source "${SCRIPT_DIR}/../lib/test-helpers.sh"
 
 suite_start "17 - Agent Health Monitoring"
 
+# Fake long-running agent/tool for the detection tests. No exec, so the
+# script name stays visible in ps. It kills its own sleep on TERM/INT: a
+# plain `sleep 300` child would be adopted by PID 1 once the script dies
+# and keep running (and holding the runner's stdout) for 5 minutes.
+# Each script records its sleep PID here, so the final check can prove none
+# of them outlived the suite.
+_SIM_SLEEP_PIDS="$(mktemp "${TMPDIR:-/tmp}/cc-sim-sleep-pids.XXXXXX")"
+_SIM_SCRIPTS=0  # each written script is started exactly once
+
+_write_sim_script() {
+    # _write_sim_script <path> [extra comment line]
+    {
+        echo '#!/bin/bash'
+        [ -z "${2:-}" ] || echo "$2"
+        echo 'trap '\''kill "$c" 2>/dev/null; exit 0'\'' TERM INT'
+        echo 'sleep 300 & c=$!'
+        printf 'echo "$c" >> %q\n' "$_SIM_SLEEP_PIDS"
+        echo 'wait "$c"'
+        echo 'exit 0'
+    } > "$1"
+    chmod +x "$1"
+    _SIM_SCRIPTS=$((_SIM_SCRIPTS + 1))
+}
+
+# Safety net: stop any fake process left behind, even if the suite aborts
+_sim_cleanup() {
+    local pid
+    pkill -TERM -f "cc-(agent|orphan)-sim-test-$$" 2>/dev/null || true
+    while read -r pid; do
+        kill "$pid" 2>/dev/null || true
+    done < "$_SIM_SLEEP_PIDS" 2>/dev/null
+}
+trap '_sim_cleanup; rm -f "$_SIM_SLEEP_PIDS"' EXIT
+
 HYGIENE_SH="${ROOT_DIR}/core/hooks/_session-hygiene.sh"
 CONF="${ROOT_DIR}/cognitive-core.conf"
 CONF_EXAMPLE="${ROOT_DIR}/cognitive-core.conf.example"
@@ -176,9 +210,8 @@ for _agent_name in \
     "claude-test-subagent-research-background" \
     "claude-test-agent-implement-background"; do
     _script="$_sim_dir/${_agent_name}.sh"
-    printf '#!/bin/bash\nsleep 300\nexit 0\n' > "$_script"
-    chmod +x "$_script"
-    "$_script" &
+    _write_sim_script "$_script"
+    "$_script" >/dev/null 2>&1 &
     _sim_pids="$_sim_pids $!"
 done
 
@@ -275,9 +308,8 @@ assert_eq "sim: all test agents killed" "0" "$_post_alive"
 # ---- High timeout test: agents should NOT be detected ----
 # Spawn a fresh agent, check with timeout=9999 - must NOT be detected
 _fresh_script="$_sim_dir/claude-test-agent-fresh-background.sh"
-printf '#!/bin/bash\nsleep 300\nexit 0\n' > "$_fresh_script"
-chmod +x "$_fresh_script"
-"$_fresh_script" &
+_write_sim_script "$_fresh_script"
+"$_fresh_script" >/dev/null 2>&1 &
 _fresh_pid=$!
 sleep 1
 
@@ -364,8 +396,7 @@ for _orphan_name in \
     _orphan_script="$_orphan_dir/${_orphan_name}-orphan-sim-${$}.sh"
     # The script name contains ".claude" via the directory path reference in args
     # We pass .claude as an argument so it appears in the command line
-    printf '#!/bin/bash\nsleep 300\nexit 0\n' > "$_orphan_script"
-    chmod +x "$_orphan_script"
+    _write_sim_script "$_orphan_script"
     # Spawn as orphan: subshell exits, child reparents to PID 1
     ( nohup "$_orphan_script" "$_orphan_dir/.claude/test" </dev/null >/dev/null 2>&1 & echo $! > "$_orphan_dir/${_orphan_name}.pid" )
 done
@@ -403,8 +434,7 @@ _orphan_pids=""
 for _orphan_name in git node curl; do
     # Create a script that is named exactly like the tool
     _tool_script="$_orphan_dir/${_orphan_name}"
-    printf '#!/bin/bash\n# .claude marker for orphan detection\nsleep 300\nexit 0\n' > "$_tool_script"
-    chmod +x "$_tool_script"
+    _write_sim_script "$_tool_script" "# .claude marker for orphan detection"
     # Spawn as orphan with .claude in argument
     ( nohup "$_tool_script" --work-dir "$_orphan_dir/.claude/cognitive-core" </dev/null >/dev/null 2>&1 & echo $! > "$_orphan_dir/${_orphan_name}.pid" )
 done
@@ -537,5 +567,22 @@ for _p in $_orphan_pids; do
     kill -9 "$_p" 2>/dev/null || true
 done
 rm -rf "$_orphan_dir"
+
+# ============================================================
+# No fake process may outlive the suite
+# ============================================================
+# Not via _sim_cleanup: the suite's own cleanup must already have ended them
+sleep 1
+# pgrep exits 1 when nothing matches, which pipefail would turn into an abort
+_leftover=$({ pgrep -f "cc-(agent|orphan)-sim-test-$$" 2>/dev/null || true; } | wc -l | tr -d ' ')
+assert_eq "cleanup: no fake agent or tool script left" "0" "$_leftover"
+_live_sleeps=0
+_recorded_sleeps=0
+while read -r _pid; do
+    _recorded_sleeps=$((_recorded_sleeps + 1))
+    if kill -0 "$_pid" 2>/dev/null; then _live_sleeps=$((_live_sleeps + 1)); fi
+done < "$_SIM_SLEEP_PIDS"
+assert_eq "cleanup: sleep PID of every fake process recorded" "$_SIM_SCRIPTS" "$_recorded_sleeps"
+assert_eq "cleanup: no fake sleep outlived its script" "0" "$_live_sleeps"
 
 suite_end
