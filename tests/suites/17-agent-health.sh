@@ -37,7 +37,7 @@ _write_sim_script() {
 # Safety net: stop any fake process left behind, even if the suite aborts
 _sim_cleanup() {
     local pid
-    pkill -TERM -f "cc-(agent|orphan)-sim-test-$$" 2>/dev/null || true
+    pkill -TERM -f "cc-(agent|orphan|outside)-sim-test-$$" 2>/dev/null || true
     while read -r pid; do
         kill "$pid" 2>/dev/null || true
     done < "$_SIM_SLEEP_PIDS" 2>/dev/null
@@ -332,6 +332,7 @@ rm -rf "$_sim_dir"
 # override via function patching (threshold=0) for immediate detection.
 
 _orphan_dir="/tmp/cc-orphan-sim-test-$$"
+_CC_TEST_PS_FILTER="$_orphan_dir"
 mkdir -p "$_orphan_dir/.claude/cognitive-core"
 _orphan_log="$_orphan_dir/.claude/cognitive-core/agent-health.log"
 _orphan_pids=""
@@ -380,10 +381,21 @@ assert_contains "orphan log: killed field" "$_hygiene_content" 'killed=${_killed
 # wrapping it. This avoids needing to wait 10+ minutes in tests.
 
 _cc_check_orphaned_subprocesses_test() {
-    # Override min minutes to 0 for testing
-    local _orig_fn
+    # Test-only copy of the detector: min age 0 (no 10 minute wait), and it
+    # only sees this run's fake processes. Unscoped, the auto-kill test would
+    # SIGTERM every orphaned tool process with .claude in its command line on
+    # the machine: a parallel run's fakes, or a real orphaned node/git.
+    local _orig_fn _test_fn
+    local _scoped_ps='| tail -n +2 | grep -F -- "$_CC_TEST_PS_FILTER" || true)'
     _orig_fn=$(declare -f _cc_check_orphaned_subprocesses)
-    eval "${_orig_fn/_ORPHAN_MIN_MINUTES=10/_ORPHAN_MIN_MINUTES=0}"
+    _test_fn=${_orig_fn/_ORPHAN_MIN_MINUTES=10/_ORPHAN_MIN_MINUTES=0}
+    _test_fn=${_test_fn/"| tail -n +2)"/$_scoped_ps}
+    if [[ "$_test_fn" != *_CC_TEST_PS_FILTER* ]]; then
+        # Never run an unscoped auto-kill against the whole machine
+        echo "orphan test: could not scope the detector to the test dir" >&2
+        return 1
+    fi
+    eval "$_test_fn"
     _cc_check_orphaned_subprocesses "$@"
     # Restore original
     eval "${_orig_fn}"
@@ -524,6 +536,15 @@ else
     assert_eq "orphan sim: high min-elapsed = no detection" "$_high_orphan_result" ""
 
     # ---- Auto-kill test: auto_kill=true ----
+    # An orphan outside the test dir that matches every other criterion
+    # (tool name, PPID 1, no TTY, .claude in its command line) must survive.
+    _outside_dir="/tmp/cc-outside-sim-test-$$"
+    mkdir -p "$_outside_dir/.claude/cognitive-core"
+    _write_sim_script "$_outside_dir/git" "# .claude marker for orphan detection"
+    ( nohup "$_outside_dir/git" --work-dir "$_outside_dir/.claude/cognitive-core" </dev/null >/dev/null 2>&1 & echo $! > "$_outside_dir/git.pid" )
+    sleep 1
+    _outside_pid=$(cat "$_outside_dir/git.pid" 2>/dev/null || echo "")
+
     # Clear log to isolate kill entries
     rm -f "$_orphan_log"
 
@@ -559,6 +580,14 @@ else
         fi
     done
     assert_eq "orphan sim: all orphans killed after SIGTERM" "0" "$_post_orphan_alive"
+
+    if [ -n "$_outside_pid" ] && kill -0 "$_outside_pid" 2>/dev/null; then
+        _pass "orphan sim: orphan outside the test dir survives auto-kill"
+    else
+        _fail "orphan sim: orphan outside the test dir survives auto-kill"
+    fi
+    kill "$_outside_pid" 2>/dev/null || true
+    rm -rf "$_outside_dir"
 fi
 
 # Cleanup: kill any remaining orphan test processes
