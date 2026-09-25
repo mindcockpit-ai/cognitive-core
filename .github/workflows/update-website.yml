@@ -7,15 +7,19 @@ on:
 jobs:
   update-health-data:
     runs-on: ubuntu-latest
+    env:
+      # Step-level env is not visible to that step's own `if`, and `secrets`
+      # cannot be used in `if` at all, so expose presence as a job-level flag
+      HAS_OP_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN != '' }}
     steps:
       - name: Checkout cognitive-core
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # 1Password secrets injection (preferred)
       # Requires: OP_SERVICE_ACCOUNT_TOKEN GitHub secret
       # Falls back to individual GitHub secrets if not configured
       - name: Load secrets from 1Password
-        if: ${{ env.OP_SERVICE_ACCOUNT_TOKEN != '' }}
+        if: env.HAS_OP_TOKEN == 'true'
         uses: 1password/load-secrets-action@v2
         with:
           export-env: true
@@ -37,17 +41,42 @@ jobs:
 
       - name: Check cross-repo token
         id: check-token
+        env:
+          SECRET_PAT: ${{ secrets.MULTIVAC_PAT }}
         run: |
-          if [ -n "${{ secrets.MULTIVAC_PAT }}" ] || [ -n "${{ env.MULTIVAC_PAT }}" ]; then
-            echo "has_token=true" >> "$GITHUB_OUTPUT"
-          else
+          # 1Password export (MULTIVAC_PAT) wins over the repo secret
+          token="${MULTIVAC_PAT:-${SECRET_PAT:-}}"
+          if [ -z "$token" ]; then
             echo "has_token=false" >> "$GITHUB_OUTPUT"
             echo "::warning::MULTIVAC_PAT not configured - skipping website update. Set MULTIVAC_PAT secret or OP_SERVICE_ACCOUNT_TOKEN for cross-repo updates."
+            exit 0
           fi
+          # Validate before use: an expired token otherwise fails later with a bare "Bad credentials"
+          # A network failure must reach the error below, not abort bash -e silently
+          headers=$(curl -sS --max-time 20 -D - -o /dev/null -H "Authorization: Bearer ${token}" \
+            https://api.github.com/repos/mindcockpit-ai/multivac42.ai || true)
+          status=$(printf '%s\n' "$headers" | awk 'NR == 1 { print $2 }')
+          case "$status" in
+            200) ;;
+            401|403|404)
+              echo "::error::MULTIVAC_PAT rejected by GitHub (HTTP ${status}). 401 = invalid or expired, 403/404 = no access to mindcockpit-ai/multivac42.ai. Rotate the fine-grained PAT (owner mindcockpit-ai, Contents + Pull requests read/write) and update the MULTIVAC_PAT secret."
+              exit 1 ;;
+            *)
+              echo "::error::Could not validate MULTIVAC_PAT: unexpected response '${status:-no response}' from the GitHub API (network problem, rate limit or outage). Re-run the job."
+              exit 1 ;;
+          esac
+          expiry=$(printf '%s\n' "$headers" | tr -d '\r' | awk -F': ' 'tolower($1) == "github-authentication-token-expiration" { print $2 }')
+          # No header = token without expiry; GNU date would read "" as today
+          expiry_s=""
+          [ -z "$expiry" ] || expiry_s=$(date -d "$expiry" +%s 2>/dev/null || true)
+          if [ -n "$expiry_s" ] && [ "$expiry_s" -lt "$(date -d '+30 days' +%s)" ]; then
+            echo "::warning::MULTIVAC_PAT expires ${expiry}. Rotate it before then."
+          fi
+          echo "has_token=true" >> "$GITHUB_OUTPUT"
 
       - name: Checkout multivac42.ai
         if: steps.check-token.outputs.has_token == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: mindcockpit-ai/multivac42.ai
           token: ${{ env.MULTIVAC_PAT || secrets.MULTIVAC_PAT }}
