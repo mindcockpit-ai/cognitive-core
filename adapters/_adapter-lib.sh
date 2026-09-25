@@ -26,6 +26,48 @@ _adapter_install_dir_structure() {
     mkdir -p "${install_dir}/cognitive-core"
 }
 
+# Is an installed hook still wired into the platform settings? (update.sh --prune)
+# Return 0 to keep the hook. Default: platform has no hook wiring.
+_adapter_hook_is_wired() {
+    # args: <project_dir> <hook_file e.g. validate-bash.sh>
+    return 1
+}
+
+# Clean up generated files after update.sh --prune removed components.
+_adapter_post_prune() {
+    # args: <project_dir> <removed paths relative to install dir...>
+    :
+}
+
+# ---- Helper: drop references to pruned components from a generated file ----
+# Removes YAML list items "  - <install_dir>/<path>" and Markdown agent
+# references "- **Name**: `<install_dir>/<path>`" (generate_utils.build_agent_refs).
+# Symlinked files are left alone.
+# Usage: _adapter_prune_list_entries <file> <paths relative to install dir...>
+_adapter_prune_list_entries() {
+    local file="$1" rc=0 tmp
+    shift
+    [ -f "$file" ] && [ ! -L "$file" ] && [ "$#" -gt 0 ] || return 0
+    tmp=$(mktemp)
+    awk -v dir="$_ADAPTER_INSTALL_DIR" -v paths="$*" '
+        BEGIN { n = split(paths, p, " ") }
+        {
+            for (i = 1; i <= n; i++) {
+                ref = dir "/" p[i]
+                if ($0 == "  - " ref) next
+                if (index($0, "- **") == 1 && substr($0, length($0) - length(ref) - 1) == "`" ref "`") next
+            }
+            print
+        }' "$file" > "$tmp" || rc=$?
+    if [ "$rc" -eq 0 ] && ! cmp -s "$tmp" "$file"; then
+        cat "$tmp" > "$file"
+        info "  CLEANUP: removed pruned references from $(basename "$file")"
+    elif [ "$rc" -ne 0 ]; then
+        warn "  Could not clean $(basename "$file") (awk exit ${rc}), left unchanged"
+    fi
+    rm -f "$tmp"
+}
+
 # ---- Default implementations for install functions ----
 # Adapters override these only when platform-specific behavior is needed.
 
@@ -118,4 +160,24 @@ _adapter_resolve_install_dir() {
     # Backwards compatibility alias
     CLAUDE_DIR="$CC_INSTALL_DIR"
     export CC_INSTALL_DIR CLAUDE_DIR
+}
+
+# ---- Agent name mapping ----
+# Maps a CC_AGENTS short name to its file in core/agents/.
+# Shared by install.sh and update.sh (--prune).
+
+agent_file_for() {
+    case "$1" in
+        coordinator) echo "project-coordinator.md" ;;
+        reviewer)    echo "code-standards-reviewer.md" ;;
+        architect)   echo "solution-architect.md" ;;
+        tester)      echo "test-specialist.md" ;;
+        researcher)  echo "research-analyst.md" ;;
+        database)          echo "database-specialist.md" ;;
+        security-analyst)       echo "security-analyst.md" ;;
+        skill-updater)          echo "skill-updater.md" ;;
+        angular-specialist)     echo "angular-specialist.md" ;;
+        spring-boot-specialist) echo "spring-boot-specialist.md" ;;
+        *) echo "" ;;
+    esac
 }

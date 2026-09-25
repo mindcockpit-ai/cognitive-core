@@ -112,6 +112,19 @@ if [ -f "$_VERSION_FILE" ]; then
         for hook_file in "${CC_PROJECT_DIR}/.claude/hooks/"*.sh; do
             [ -f "$hook_file" ] || continue
             _basename=$(basename "$hook_file")
+            # Project-owned overrides are intentional, not drift, but always
+            # logged. Unpinned or stale overrides of security hooks fall
+            # through to the normal drift check (#328).
+            if type _cc_is_local_override &>/dev/null; then
+                _override_rc=0
+                _cc_is_local_override "hooks/${_basename}" "$hook_file" || _override_rc=$?
+                if [ "$_override_rc" -eq 0 ]; then
+                    _cc_security_log "INFO" "integrity-override" "Project-owned hook: ${_basename}"
+                    continue
+                elif [ "$_override_rc" -eq 2 ]; then
+                    _cc_security_log "WARN" "integrity-override" "Override not honoured (security hook needs a matching sha256 pin): ${_basename}"
+                fi
+            fi
             _src_file="${_SOURCE_DIR}/core/hooks/${_basename}"
             if [ -f "$_src_file" ]; then
                 _installed_sha=$(_cc_compute_sha256 "$hook_file")

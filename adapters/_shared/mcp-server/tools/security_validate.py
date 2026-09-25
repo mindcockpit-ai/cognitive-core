@@ -4,6 +4,10 @@ Security validation for bash commands.
 Ports the safety patterns from cognitive-core's validate-bash.sh hook to Python.
 Returns allow/deny decisions matching the hook protocol.
 """
+# Lazy annotations: "list | None" must not be evaluated on Python 3.9
+# (macOS system python), which runs the MCP server in IDE projects.
+from __future__ import annotations
+
 import re
 
 

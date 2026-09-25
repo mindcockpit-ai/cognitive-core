@@ -163,6 +163,26 @@ CC_COMPACT_RULES="
 | `CC_UPDATE_CHECK_INTERVAL` | int | `7` | Days between automatic update checks |
 | `CC_SKILL_AUTO_UPDATE` | bool | `"false"` | Auto-apply safe updates without prompting (only unmodified files) |
 | `CC_SKILL_UPDATE_SOURCES` | string | `"core"` | Sources to check: `core`, `language-packs`, `database-packs` |
+| `CC_LOCAL_OVERRIDES` | string | `""` | Framework files the project owns. Space separated paths relative to the install dir (`.claude/` or `.cognitive-core/`), a trailing `/` marks a directory, a file may carry a sha256 pin: `"skills/my-skill/ hooks/validate-write.sh@<sha256>"`. Listed files are not reported as drift at session start and are never overwritten or pruned by `update.sh`. Read from the conf only, never from the environment |
+
+Security relevant hooks (`validate-*`, `setup-env.sh` and `_`-prefixed hook libraries) can only be
+overridden with a pin, and the override holds only while the file matches it. If the file changes
+again, drift is reported as usual. `update.sh` prints the pin for the current content when it finds
+an unpinned entry. Every honoured hook override is logged to `security.log`.
+
+`update.sh --prune` removes installed agents, skills and hooks that are no longer selected in
+`CC_AGENTS`, `CC_SKILLS` and `CC_HOOKS`. Add `--dry-run` to list them without changing anything.
+Prune refuses to run without a project conf that sets all three lists, and when the install dir or
+its `agents/`, `skills/` or `hooks/` folder is a symlink. Only components with a framework source
+are removed. These are kept:
+
+- local components, listed overrides and skills with an overridden file
+- `_` prefixed hook libraries and language or database pack skills
+- components modified since install (reported as `KEPT (modified since install)`)
+- hooks still wired in `.claude/settings.json` or `.claude/settings.local.json`
+
+Adapters that list agents in generated files (`.aider.conf.yml`, `CONVENTIONS.md`,
+`.devoxxgenie.yaml`, `DEVOXXGENIE.md`, `.github/copilot-instructions.md`) drop the pruned entries.
 
 ### Context Management
 

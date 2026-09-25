@@ -24,6 +24,16 @@ _adapter_install_skill() {
     fi
 }
 
+# A hook referenced in settings.json or settings.local.json must not be
+# pruned, otherwise every matching tool call fails with "No such file".
+_adapter_hook_is_wired() {
+    local settings
+    for settings in "${1}/${_ADAPTER_INSTALL_DIR}/settings.json" "${1}/${_ADAPTER_INSTALL_DIR}/settings.local.json"; do
+        [ -f "$settings" ] && grep -qF "hooks/${2}" "$settings" && return 0
+    done
+    return 1
+}
+
 _adapter_generate_settings() {
     local project_dir="$1"
     local settings_file="${CC_INSTALL_DIR}/settings.json"

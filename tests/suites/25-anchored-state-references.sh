@@ -66,7 +66,11 @@ fi
 # --- 1c. Scan shell sources for the unanchored pattern ---
 # Scope: only tracked *.sh files. Self-exclude this suite file (it contains
 # the regex literal in CANONICAL_BUGGY above and in the comment header).
-mapfile -t LINT_HITS < <(
+# while-read instead of mapfile: macOS /bin/bash is 3.2
+LINT_HITS=()
+while IFS= read -r _hit; do
+    [ -n "$_hit" ] && LINT_HITS+=("$_hit")
+done < <(
     cd "$ROOT_DIR" && git ls-files -z '*.sh' 2>/dev/null \
         | xargs -0 grep -HnE "$LINT_REGEX" 2>/dev/null \
         | grep -vE "^tests/suites/${SUITE_SELF_NAME}(:|$)" \
