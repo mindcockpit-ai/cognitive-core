@@ -45,15 +45,15 @@ jobs:
           SECRET_PAT: ${{ secrets.MULTIVAC_PAT }}
         run: |
           # 1Password export (MULTIVAC_PAT) wins over the repo secret
-          token="${MULTIVAC_PAT:-${SECRET_PAT:-}}"
-          if [ -z "$token" ]; then
+          pat="${MULTIVAC_PAT:-${SECRET_PAT:-}}"
+          if [ -z "$pat" ]; then
             echo "has_token=false" >> "$GITHUB_OUTPUT"
             echo "::warning::MULTIVAC_PAT not configured - skipping website update. Set MULTIVAC_PAT secret or OP_SERVICE_ACCOUNT_TOKEN for cross-repo updates."
             exit 0
           fi
           # Validate before use: an expired token otherwise fails later with a bare "Bad credentials"
           # A network failure must reach the error below, not abort bash -e silently
-          headers=$(curl -sS --max-time 20 -D - -o /dev/null -H "Authorization: Bearer ${token}" \
+          headers=$(curl -sS --max-time 20 -D - -o /dev/null -H "Authorization: Bearer ${pat}" \
             https://api.github.com/repos/mindcockpit-ai/multivac42.ai || true)
           status=$(printf '%s\n' "$headers" | awk 'NR == 1 { print $2 }')
           case "$status" in
