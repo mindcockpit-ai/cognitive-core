@@ -794,6 +794,17 @@ fi
 GIT_REMOTE_SECRET="${HOOKS_DIR}/validate-git-remote-secret.sh"
 
 if [ -f "$GIT_REMOTE_SECRET" ]; then
+    # Isolation: denials are logged, so point the project at a temp dir instead
+    # of the repo's own security.log, and ignore the user's git config.
+    grs_saved_project="${CLAUDE_PROJECT_DIR-__unset__}"
+    grs_saved_git_global="${GIT_CONFIG_GLOBAL-__unset__}"
+    grs_saved_git_nosystem="${GIT_CONFIG_NOSYSTEM-__unset__}"
+    grs_saved_home="$HOME"
+    CLAUDE_PROJECT_DIR="$(create_test_dir)"
+    HOME="$(create_test_dir)"
+    export CLAUDE_PROJECT_DIR HOME GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+    grs_scratch_project="$CLAUDE_PROJECT_DIR"
+
     assert_hook_denies \
         "git-remote-secret: token in remote set-url -> deny" \
         "$GIT_REMOTE_SECRET" \
@@ -823,6 +834,188 @@ if [ -f "$GIT_REMOTE_SECRET" ]; then
         "git-remote-secret: non-git command with token -> allow (scoped to git)" \
         "$GIT_REMOTE_SECRET" \
         "$(mock_bash_json "echo https://x-access-token:gho_AAAAAAAAAAAAAAAAAAAAAAAA@github.com")"
+
+    # Config writes with options, the newer `git config set` syntax, insteadOf
+    # rewrites and submodules (.gitmodules is committed) must not slip through.
+    assert_hook_denies \
+        "git-remote-secret: config --local remote.*.url with token -> deny" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git config --local remote.origin.url https://u:ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA@github.com/x/y.git")"
+
+    assert_hook_denies \
+        "git-remote-secret: config set remote.*.url with user:pass -> deny" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git config set remote.origin.url https://user:s3cr3tpass@github.com/x/y.git")"
+
+    assert_hook_denies \
+        "git-remote-secret: config url.*.insteadOf with token -> deny" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git config --global url.https://u:ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA@github.com/.insteadOf https://github.com/")"
+
+    assert_hook_denies \
+        "git-remote-secret: submodule add with token -> deny" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git submodule add https://u:ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA@github.com/x/y.git lib")"
+
+    assert_hook_denies \
+        "git-remote-secret: ls-remote with token -> deny" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git ls-remote https://u:ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA@github.com/x/y.git")"
+
+    assert_hook_allows \
+        "git-remote-secret: config remote.*.url without credential -> allow" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git config --local remote.origin.url https://github.com/x/y.git")"
+
+    assert_hook_allows \
+        "git-remote-secret: submodule add without credential -> allow" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git submodule add https://github.com/x/y.git lib")"
+
+    assert_hook_denies \
+        "git-remote-secret: config -f .gitmodules submodule.*.url with token -> deny" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git config -f .gitmodules submodule.lib.url https://u:ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA@github.com/x/y.git")"
+
+    assert_hook_denies \
+        "git-remote-secret: config branch.*.remote with user:pass -> deny" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git config branch.main.remote https://user:s3cr3tpass@github.com/x/y.git")"
+
+    assert_hook_denies \
+        "git-remote-secret: remote -v add with user:pass -> deny" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git remote -v add origin https://user:s3cr3tpass@github.com/x/y.git")"
+
+    assert_hook_denies \
+        "git-remote-secret: GitLab token as user in clone -> deny" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git clone https://glpat-AAAAAAAAAAAAAAAAAAAAAAAA@gitlab.com/x/y.git")"
+
+    assert_hook_denies \
+        "git-remote-secret: sudo git remote add with user:pass -> deny" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "sudo git remote add origin https://user:s3cr3tpass@github.com/x/y.git")"
+
+    assert_hook_denies \
+        "git-remote-secret: /usr/bin/git clone with user:pass -> deny" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "cd /tmp && /usr/bin/git clone https://user:s3cr3tpass@github.com/x/y.git")"
+
+    # Wrapped or nested git invocations still count (fail closed)
+    for grs_cmd in \
+        'x=$(git remote add origin https://user:s3cr3tpass@github.com/x/y.git)' \
+        "bash -c 'git remote add origin https://user:s3cr3tpass@github.com/x/y.git'" \
+        'sleep 1 & git clone https://user:s3cr3tpass@github.com/x/y.git' \
+        'if true; then git remote add origin https://user:s3cr3tpass@github.com/x/y.git; fi' \
+        'echo repo | xargs git clone https://user:s3cr3tpass@github.com/x/y.git' \
+        '"git" remote add origin https://user:s3cr3tpass@github.com/x/y.git' \
+        '\git remote add origin https://user:s3cr3tpass@github.com/x/y.git' \
+        "git remote add origin 'https://user:pa;ss@github.com/x/y.git'" \
+        'echo https://user:s3cr3tpass@github.com/x/y.git | xargs git remote add o' \
+        'gh repo clone x/y -- https://user:s3cr3tpass@github.com/x/y.git' \
+        'hub clone https://user:s3cr3tpass@github.com/x/y.git'; do
+        # json.dumps, not mock_bash_json: it must also escape the backslash
+        assert_hook_denies "git-remote-secret: nested/wrapped git -> deny: ${grs_cmd%% https*}" \
+            "$GIT_REMOTE_SECRET" \
+            "$(python3 -c 'import json, sys; print(json.dumps({"tool_name": "Bash", "tool_input": {"command": sys.argv[1]}}))' "$grs_cmd")"
+    done
+
+    # Segments are checked separately: a credential outside the git remote
+    # operation (commit message, grep pattern, another command) is not a leak.
+    assert_hook_allows \
+        "git-remote-secret: credential in commit message, then push -> allow" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git commit -m 'block https://user:pass@host urls' && git push origin feature")"
+
+    assert_hook_allows \
+        "git-remote-secret: push piped into grep for a token pattern -> allow" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "git push origin feature 2>&1 | grep -c ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")"
+
+    assert_hook_allows \
+        "git-remote-secret: .git in a non-git command -> allow" \
+        "$GIT_REMOTE_SECRET" \
+        "$(mock_bash_json "docker pull img && echo https://u:s3cr3t@host/r.git")"
+
+    # Event handling: only SessionStart audits; anything else stays silent
+    grs_dir="$(create_test_dir)"
+    git -C "$grs_dir" init -q
+    git -C "$grs_dir" remote add origin "https://x-access-token:gho_AAAAAAAAAAAAAAAAAAAAAAAA@github.com/x/y.git"
+    grs_run() {
+        # grs_run <stdin> : run from an unrelated cwd, project given via CLAUDE_PROJECT_DIR
+        (cd / && printf '%s' "$1" | CLAUDE_PROJECT_DIR="$grs_dir" bash "$GIT_REMOTE_SECRET" 2>/dev/null) || true
+    }
+
+    grs_out=$(grs_run '{"hook_event_name":"SessionStart","source":"startup"}')
+    assert_contains "git-remote-secret: SessionStart audits CLAUDE_PROJECT_DIR, not cwd" "$grs_out" "SECURITY: a credential is embedded"
+    assert_contains "git-remote-secret: SessionStart finding is redacted" "$grs_out" "https://<REDACTED>@github.com/x/y.git"
+    assert_not_contains "git-remote-secret: SessionStart never prints the token" "$grs_out" "gho_AAAA"
+
+    # Run inside the repo: the old event detection audited here on bad input
+    grs_out=$( (cd "$grs_dir" && printf 'not json' | CLAUDE_PROJECT_DIR="$grs_dir" bash "$GIT_REMOTE_SECRET" 2>/dev/null) || true)
+    assert_eq "git-remote-secret: unparseable input -> silent" "" "$grs_out"
+
+    grs_out=$(grs_run '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{}}')
+    assert_eq "git-remote-secret: PreToolUse without command -> silent" "" "$grs_out"
+
+    grs_out=$(grs_run '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git remote set-url origin https://u:ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA@github.com/x/y.git"}}')
+    assert_contains "git-remote-secret: deny with hook_event_name" "$grs_out" '"deny"'
+    grs_log="${grs_dir}/.claude/cognitive-core/security.log"
+    if grep -q "DENY.*git-remote-secret" "$grs_log" 2>/dev/null; then
+        _pass "git-remote-secret: deny logged to security.log"
+    else
+        _fail "git-remote-secret: deny logged to security.log"
+    fi
+    if grep -q "WARN.*git-remote-secret" "$grs_log" 2>/dev/null; then
+        _pass "git-remote-secret: SessionStart finding logged to security.log"
+    else
+        _fail "git-remote-secret: SessionStart finding logged to security.log"
+    fi
+    if grep -qE "gh[op]_AAAA" "$grs_log" 2>/dev/null; then
+        _fail "git-remote-secret: security.log is redacted (DENY and WARN lines)"
+    else
+        _pass "git-remote-secret: security.log is redacted (DENY and WARN lines)"
+    fi
+
+    # A password containing @ is redacted up to the host
+    grs_run '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git clone https://u:p4ss@w0rd@github.com/x/y.git"}}' >/dev/null
+    if grep -q "w0rd" "$grs_log" 2>/dev/null; then
+        _fail "git-remote-secret: password containing @ fully redacted in log"
+    else
+        _pass "git-remote-secret: password containing @ fully redacted in log"
+    fi
+
+    # A newline in the command must not forge a separate security.log entry
+    grs_count_lines() { if [ -f "$grs_log" ]; then wc -l < "$grs_log" | tr -d ' '; else echo 0; fi; }
+    grs_lines_before=$(grs_count_lines)
+    grs_run '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git fetch https://u:ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA@github.com/x/y.git\n2026-01-01T00:00:00Z [INFO] forged entry"}}' >/dev/null
+    assert_eq "git-remote-secret: multi-line command logs exactly one line" "$((grs_lines_before + 1))" "$(grs_count_lines)"
+    if grep -q "^2026-01-01T00:00:00Z \\[INFO\\] forged" "$grs_log" 2>/dev/null; then
+        _fail "git-remote-secret: no forged security.log entry"
+    else
+        _pass "git-remote-secret: no forged security.log entry"
+    fi
+
+    git -C "$grs_dir" remote set-url origin "https://github.com/x/y.git"
+    grs_out=$(grs_run '{"hook_event_name":"SessionStart","source":"startup"}')
+    assert_eq "git-remote-secret: clean remotes -> silent SessionStart" "" "$grs_out"
+
+    # .gitmodules is committed: a credential there is reported too
+    printf '[submodule "lib"]\n\tpath = lib\n\turl = https://u:ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA@github.com/x/lib.git\n' > "${grs_dir}/.gitmodules"
+    grs_out=$(grs_run '{"hook_event_name":"SessionStart","source":"startup"}')
+    assert_contains "git-remote-secret: credential in .gitmodules reported" "$grs_out" ".gitmodules submodule.lib.url: https://<REDACTED>@github.com/x/lib.git"
+    assert_not_contains "git-remote-secret: .gitmodules finding redacted" "$grs_out" "ghp_AAAA"
+    rm -rf "$grs_dir" "$grs_scratch_project" "$HOME"
+
+    grs_restore() {
+        # grs_restore <var> <saved value or __unset__>
+        if [ "$2" = "__unset__" ]; then unset "$1"; else export "$1=$2"; fi
+    }
+    grs_restore CLAUDE_PROJECT_DIR "$grs_saved_project"
+    grs_restore GIT_CONFIG_GLOBAL "$grs_saved_git_global"
+    grs_restore GIT_CONFIG_NOSYSTEM "$grs_saved_git_nosystem"
+    HOME="$grs_saved_home"
 else
     _skip "validate-git-remote-secret.sh not found"
 fi

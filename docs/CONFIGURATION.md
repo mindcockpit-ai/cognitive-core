@@ -95,7 +95,9 @@ Available skills: `session-resume`, `session-sync`, `code-review`, `pre-commit`,
 |----------|------|---------|-------------|
 | `CC_HOOKS` | string | `"setup-env compact-reminder validate-bash validate-read validate-fetch validate-write post-edit-lint notify-complete"` | Space-separated hook names to enable |
 
-Available hooks: `setup-env`, `compact-reminder`, `validate-bash`, `validate-read`, `validate-write`, `validate-fetch`, `post-edit-lint`, `notify-complete`
+Available hooks: `setup-env`, `compact-reminder`, `validate-bash`, `validate-git-remote-secret`, `validate-read`, `validate-write`, `validate-fetch`, `post-edit-lint`, `notify-complete`
+
+`validate-git-remote-secret` blocks git commands that would store a token or `user:secret@` in a remote URL (`remote add/set-url`, `clone`, `push/fetch/pull`, `ls-remote`, `submodule add/set-url`, and `config` writes to `remote.*`, `url.*` (`insteadOf`), `submodule.*` or `branch.*`). It checks each command of a `&&`/`;`/`|` chain separately and fails closed, so a commit message that itself contains such a URL is refused too. At session start it warns, redacted, when a configured remote or `.gitmodules` of the project carries a credential. Both are logged to `security.log`. Writes to `.git/config` through file tools or `sed` are not covered; pair it with server-side secret scanning.
 
 ### Compact Rules
 
