@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.1](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.6.0...v1.6.1) (2026-09-25)
+
+
+### Bug Fixes
+
+* **hooks:** default EXCLUDE .claude/ + strip AI-tell chars from framework code ([#316](https://github.com/mindcockpit-ai/cognitive-core/issues/316)) ([#317](https://github.com/mindcockpit-ai/cognitive-core/issues/317)) ([4dbd20f](https://github.com/mindcockpit-ai/cognitive-core/commit/4dbd20fe89213feea49492d1dec1b1d1d19447ef))
+* **hooks:** exclude the merge-* subcommands from the shared-state gate ([#322](https://github.com/mindcockpit-ai/cognitive-core/issues/322)) ([4cc925e](https://github.com/mindcockpit-ai/cognitive-core/commit/4cc925e111974529309e607719246248b4631c61))
+
 ## [1.6.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.5.0...v1.6.0) (2026-06-06)
 
 
