@@ -19,10 +19,10 @@ for agent_md in "${AGENTS_DIR}"/*.md; do
 
     # Check frontmatter exists
     has_frontmatter=false
-    if head -1 "$agent_md" | grep -q '^---'; then
-        if sed -n '2,$p' "$agent_md" | grep -qm1 '^---'; then
-            has_frontmatter=true
-        fi
+    # Single awk, no pipeline: grep -q exiting early made sed hit SIGPIPE,
+    # which pipefail turned into a random "missing frontmatter"
+    if awk 'NR == 1 && !/^---/ { exit 1 } NR > 1 && /^---/ { found = 1; exit } END { exit !found }' "$agent_md"; then
+        has_frontmatter=true
     fi
 
     if $has_frontmatter; then
