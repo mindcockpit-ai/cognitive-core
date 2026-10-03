@@ -3,8 +3,8 @@ aa948735fa6bd0d3582abff1323285af	./.claude/AGENTS_README.md
 69d1d377d071e3025356a96ffa2cf926	./.claude/agents/project-coordinator.md
 17f2dcdc65b30b218d94fc794dcbc43e	./.claude/cognitive-core/check-update.sh
 2fc08fe8f49e21e94118f1a82877a374	./.claude/cognitive-core/context-cleanup.sh
-86d734104e7335eae29a594188e085e3	./.claude/cognitive-core/health-check.sh
-28fafa9ba14f2a45e37c87dceef0835f	./.claude/cognitive-core/version.json
+a987ad5da83c96c4298736e6af712ff6	./.claude/cognitive-core/health-check.sh
+6fda77960383705e27c9c31465378eae	./.claude/cognitive-core/version.json
 47b561a9cb3594c789ecad8b6b8e6766	./.claude/compact-rules.md
 7f3cfa96a9afa2db9b937b1e32cb56a0	./.claude/fitness-checks.sh
 93a614f0d620a8305b6f7ed86bf2ad36	./.claude/gitattributes-lang

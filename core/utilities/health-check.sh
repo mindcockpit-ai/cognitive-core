@@ -171,9 +171,17 @@ if [ -d "$HOOKS_DIR" ]; then
         done
         if [ -n "$_HC_LIB" ]; then
             # shellcheck disable=SC1090
-            CC_PROJECT_DIR="$PROJECT_DIR" source "$_HC_LIB"
-            _cc_load_config 2>/dev/null || true
-            if type _cc_validate_framework_source >/dev/null 2>&1 \
+            source "$_HC_LIB"
+            # _lib.sh resolves its own project dir; a prefix assignment on
+            # source is discarded afterwards, leaving it unset under set -u
+            CC_PROJECT_DIR="$PROJECT_DIR"
+            _cc_load_config || true
+            if [ -z "${CC_FRAMEWORK_ROOT:-}" ]; then
+                # Not pinned yet (setup-env pins it on the next session):
+                # skip quietly, a read-only check must not log a DENY
+                echo -e "  ${BLUE}[INFO]${NC} CC_FRAMEWORK_ROOT not pinned yet; skipping integrity compare"
+                SOURCE_DIR=""
+            elif type _cc_validate_framework_source >/dev/null 2>&1 \
                     && _cc_validate_framework_source "$SOURCE_DIR" 2>/dev/null; then
                 SOURCE_DIR="$CC_VALIDATED_SOURCE"
             else

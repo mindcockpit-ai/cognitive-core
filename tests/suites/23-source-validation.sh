@@ -334,6 +334,38 @@ else
 fi
 
 # ----------------------------------------------------------------------
+# Consumer: health-check.sh on an installed project (#345)
+# CC_FRAMEWORK_ROOT comes only from the project conf, so a framework
+# compare proves the conf was loaded from the project dir
+# ----------------------------------------------------------------------
+HC_PROJECT=$(mktemp -d "${TMPDIR:-/tmp}/cc-hc-XXXXXX")
+mkdir -p "${HC_PROJECT}/.claude/hooks" "${HC_PROJECT}/.claude/cognitive-core"
+cp "$LIB" "${HC_PROJECT}/.claude/hooks/_lib.sh"
+cp "${ROOT_DIR}/core/utilities/health-check.sh" "${HC_PROJECT}/.claude/cognitive-core/"
+printf 'CC_FRAMEWORK_ROOT="%s"\n' "$ROOT_DIR" > "${HC_PROJECT}/cognitive-core.conf"
+printf '{\n  "version": "0.0.0",\n  "source": "%s"\n}\n' "$ROOT_DIR" \
+    > "${HC_PROJECT}/.claude/cognitive-core/version.json"
+hc_rc=0
+hc_out=$(cd "$HC_PROJECT" && env -u CLAUDE_PROJECT_DIR -u CC_PROJECT_DIR \
+    bash .claude/cognitive-core/health-check.sh 2>&1) || hc_rc=$?
+assert_eq "health-check: completes on an installed project (exit 0)" "0" "$hc_rc"
+assert_contains "health-check: hook integrity lists hooks" "$hc_out" "Total: 1 hook(s)"
+assert_contains "health-check: project conf loaded, source validated" "$hc_out" "_lib.sh: matches framework source"
+assert_not_contains "health-check: no unbound variable" "$hc_out" "unbound variable"
+
+# Anchor not pinned yet: skip the compare quietly, no DENY in security.log
+printf 'CC_PROJECT_NAME="hc"\n' > "${HC_PROJECT}/cognitive-core.conf"
+hc_rc=0
+hc_out=$(cd "$HC_PROJECT" && env -u CLAUDE_PROJECT_DIR -u CC_PROJECT_DIR -u CC_FRAMEWORK_ROOT \
+    bash .claude/cognitive-core/health-check.sh 2>&1) || hc_rc=$?
+assert_eq "health-check: unpinned anchor still completes (exit 0)" "0" "$hc_rc"
+assert_contains "health-check: unpinned anchor reported as info" "$hc_out" "CC_FRAMEWORK_ROOT not pinned yet"
+hc_log="${HC_PROJECT}/.claude/cognitive-core/security.log"
+hc_denies=0
+[ -f "$hc_log" ] && hc_denies=$(grep -c 'DENY' "$hc_log" || true)
+assert_eq "health-check: unpinned anchor logs no DENY" "0" "$hc_denies"
+
+# ----------------------------------------------------------------------
 # TOCTOU - known limitation, documented, not deterministically testable
 # ----------------------------------------------------------------------
 _skip "TOCTOU: validation is single-call; attacker replacing path between validate and exec is out of scope (documented)"
@@ -347,6 +379,6 @@ rm -rf "$VALID_ROOT" "$PROJECT_DIR" "$SPACE_ROOT" "$OUTSIDE" \
        "$CHAIN_TARGET" "$CHAIN_MID" "$CHAIN_HEAD" \
        "$ESCAPE_SRC" "$ESCAPE_TGT" \
        "$NO_UPDATER" "$NOEX_ROOT" "$SUID_ROOT" "$SGID_ROOT" \
-       "$DIR_UP" "$LOG_PROJECT" 2>/dev/null || true
+       "$DIR_UP" "$LOG_PROJECT" "$HC_PROJECT" 2>/dev/null || true
 
 suite_end
