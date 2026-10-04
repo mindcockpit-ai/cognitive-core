@@ -16,6 +16,7 @@ assert_adapter_validates "intellij"
 assert_adapter_variables "intellij" ".cognitive-core"
 assert_adapter_required_functions "intellij"
 assert_adapter_py_compiles "intellij"
+assert_adapter_fallback_readme "intellij" "DEVOXXGENIE.md"
 
 # ---- Test tool-map.yaml ----
 assert_file_exists "intellij: tool-map.yaml exists" "${ROOT_DIR}/adapters/intellij/tool-map.yaml"

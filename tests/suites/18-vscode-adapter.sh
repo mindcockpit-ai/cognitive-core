@@ -16,6 +16,7 @@ assert_adapter_validates "vscode"
 assert_adapter_variables "vscode" ".cognitive-core"
 assert_adapter_required_functions "vscode"
 assert_adapter_py_compiles "vscode"
+assert_adapter_fallback_readme "vscode" ".github/copilot-instructions.md"
 
 # ---- Test tool-map.yaml ----
 assert_file_exists "vscode: tool-map.yaml exists" "${ROOT_DIR}/adapters/vscode/tool-map.yaml"

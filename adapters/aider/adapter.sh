@@ -95,7 +95,7 @@ _adapter_generate_project_readme() {
 - **Database**: ${CC_DATABASE:-none}
 
 ## Code Standards
-- Follow ${CC_LANGUAGE:-the project's} community best practices
+- Follow ${CC_LANGUAGE:-the project} community best practices
 - Run lint before every commit: \`${CC_LINT_COMMAND:-echo no-lint}\`
 - Run tests: \`${CC_TEST_COMMAND:-echo no-tests}\`
 - All new code must have tests
