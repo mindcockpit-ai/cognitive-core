@@ -552,6 +552,67 @@ for hook in ${CC_HOOKS:-}; do
     fi
 done
 
+# Check installed skills for files the framework added since install (#359).
+# Only missing files of selected skills are added; existing ones are handled
+# by the manifest logic above. Overrides and paths through a symlink are
+# never written.
+_cc_skill_source() {
+    local d
+    for d in "${FRAMEWORK_DIR}/core/skills/$1" \
+             "${FRAMEWORK_DIR}/language-packs/"*/skills/"$1" \
+             "${FRAMEWORK_DIR}/database-packs/"*/skills/"$1"; do
+        if [ -d "$d" ]; then printf '%s\n' "$d"; return 0; fi
+    done
+    return 1
+}
+
+# _cc_path_has_symlink <base dir> <relative dir>: true if the base or any
+# component below it is a symlink
+_cc_path_has_symlink() {
+    local p="$1" part found=1 noglob=0
+    [ -L "$p" ] && return 0
+    case "$-" in *f*) noglob=1 ;; esac
+    set -f
+    local IFS=/
+    for part in $2; do
+        [ -n "$part" ] && [ "$part" != "." ] || continue
+        p="${p}/${part}"
+        if [ -L "$p" ]; then found=0; break; fi
+    done
+    [ "$noglob" = 1 ] || set +f
+    return "$found"
+}
+
+if [ -L "${CC_INSTALL_DIR}/skills" ]; then
+    warn "  SKIP (symlink): ${INSTALL_REL}/skills, no skill files added"
+elif [ -d "${CC_INSTALL_DIR}/skills" ]; then
+    for skill_path in "${CC_INSTALL_DIR}/skills/"*; do
+        [ -d "$skill_path" ] && [ ! -L "$skill_path" ] || continue
+        skill_name="${skill_path##*/}"
+        # Unselected skills get nothing (prune may be about to remove them);
+        # confs without CC_SKILLS keep every installed skill complete
+        if [ -n "${CC_SKILLS+x}" ] && ! _cc_word_in "$skill_name" "$CC_SKILLS" \
+                && ! _cc_is_pack_skill "$skill_name"; then
+            continue
+        fi
+        skill_src="$(_cc_skill_source "$skill_name")" || continue
+        while IFS= read -r rel; do
+            dest="${skill_path}/${rel}"
+            [ -e "$dest" ] || [ -L "$dest" ] && continue
+            _cc_is_local_override "skills/${skill_name}/${rel}" && continue
+            if _cc_path_has_symlink "$skill_path" "$(dirname -- "$rel")"; then
+                warn "  SKIP (symlink in path): skills/${skill_name}/${rel}"
+                continue
+            fi
+            mkdir -p "$(dirname -- "$dest")"
+            cp "${skill_src}/${rel}" "$dest"
+            [ -x "${skill_src}/${rel}" ] && chmod +x "$dest"
+            info "  NEW (skill file): skills/${skill_name}/${rel}"
+            NEW_FILES=$((NEW_FILES + 1))
+        done < <(cd "$skill_src" && find . -name '.*' ! -name . -prune -o -type f -print | sed 's|^\./||' | sort)
+    done
+fi
+
 # Check for updated utilities
 for util_name in check-update.sh context-cleanup.sh health-check.sh; do
     UTIL_SRC="${FRAMEWORK_DIR}/core/utilities/${util_name}"

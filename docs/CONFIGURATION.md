@@ -174,6 +174,11 @@ overridden with a pin, and the override holds only while the file matches it. If
 again, drift is reported as usual. `update.sh` prints the pin for the current content when it finds
 an unpinned entry. Every honoured hook override is logged to `security.log`.
 
+`update.sh` also adds files the framework added to a selected, installed skill since it was
+installed (for example `project-board/providers/`), with their mode. A file deleted from such a
+skill comes back on the next update; list it, or its directory, in `CC_LOCAL_OVERRIDES` to keep it
+deleted. Nothing is written when the skill directory, or `skills/` itself, is a symlink.
+
 `update.sh --prune` removes installed agents, skills and hooks that are no longer selected in
 `CC_AGENTS`, `CC_SKILLS` and `CC_HOOKS`. Add `--dry-run` to list them without changing anything.
 Prune refuses to run without a project conf that sets all three lists, and when the install dir or
