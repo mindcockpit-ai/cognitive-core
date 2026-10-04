@@ -145,6 +145,11 @@ jobs:
         env:
           JUNIT_REPORT_DIR: ${{ github.workspace }}/test-results
 
+      - name: Run update skill files test
+        run: bash tests/suites/27-update-skill-files.sh
+        env:
+          JUNIT_REPORT_DIR: ${{ github.workspace }}/test-results
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
