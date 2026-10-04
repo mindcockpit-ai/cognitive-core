@@ -39,7 +39,9 @@ case "$line" in
     "issue close "*" --repo acme/app --comment "*) fail "${STUB_FAIL_CLOSE:-}" ;;
     "issue comment "*" --repo acme/app --body "*) fail "${STUB_FAIL_COMMENT:-}" ;;
     "issue edit "[0-9]" --repo acme/app --add-label "*|"issue edit "[0-9]" --repo acme/app --remove-label "*) fail "${STUB_FAIL_LABEL:-}" ;;
-    "issue list --repo acme/app --state open "*) echo '[]' ;;
+    "issue list --repo acme/app --state "*) echo '[]' ;;
+    "issue develop 7 --repo acme/app --list") printf 'fix/7-old\thttps://github.com/acme/app/tree/fix/7-old\n' ;;
+    "issue edit "[0-9]" --repo acme/app --body "*) fail "${STUB_FAIL_LABEL:-}" ;;
     *) echo "UNEXPECTED: $line" | tee -a "${STUB_ALL}" >> "${STUB_LOG}"; exit 99 ;;
 esac
 STUBEOF
@@ -229,6 +231,12 @@ run_pb -- issue label 7 --remove needs-info
 assert_eq "${S}label remove" "0|issue edit 7 --repo acme/app --remove-label needs-info" "${RC}|${CALLS}"
 run_pb -- issue label 7 needs-info
 assert_eq "${S}label without --add/--remove: exit 1, no gh call" "1|" "${RC}|${CALLS}"
+run_pb -- issue edit 7 --body "**Parent**: #100"
+assert_eq "${S}edit body" "0|issue edit 7 --repo acme/app --body **Parent**: #100" "${RC}|${CALLS}"
+run_pb STUB_FAIL_LABEL="HTTP 502" -- issue edit 7 --body "x"
+assert_eq "${S}edit failure: exit 2, no success message" "2|" "${RC}|${OUT}"
+run_pb -- issue edit 7 --title "new title"
+assert_eq "${S}edit with another flag: exit 1, no gh call" "1|" "${RC}|${CALLS}"
 run_pb -- board blocked 7
 assert_eq "${S}blocked" "0|issue edit 7 --repo acme/app --add-label blocked" "${RC}|${CALLS}"
 run_pb -- board unblock 7
@@ -238,6 +246,15 @@ assert_eq "${S}unblock" "0|issue edit 7 --repo acme/app --remove-label blocked" 
 run_pb -- issue list
 assert_eq "${S}issue list without filters (bash 3.2 empty arrays)" \
     "0|issue list --repo acme/app --state open --json number,title,labels,assignees" "${RC}|${CALLS}"
+run_pb -- issue list --limit 200 --json number,labels
+assert_eq "${S}issue list --limit" "0|issue list --repo acme/app --state open --limit 200 --json number,labels" "${RC}|${CALLS}"
+run_pb -- issue list --state closed
+assert_eq "${S}closed list keeps its default limit" "0|issue list --repo acme/app --state closed --limit 10 --json number,title,labels,assignees" "${RC}|${CALLS}"
+run_pb -- issue list --limit 2x
+assert_eq "${S}issue list --limit not a number: exit 1, no gh call" "1|" "${RC}|${CALLS}"
+run_pb -- branch create 7 fix login-bug
+assert_eq "${S}existing branch: name only, valid JSON" "fix/7-old|False|main" \
+    "$(python3 -c 'import json,sys; d=json.loads(sys.argv[1]); print("%s|%s|%s" % (d["branch"], d["created"], d["base"]))' "$OUT" 2>&1)"
 run_pb -- board list --sprint "Sprint 4"
 assert_eq "${S}board list --sprint: filtered" "0|[(7, 'In Progress', 'Sprint 4')]" \
     "${RC}|$(python3 -c 'import json,sys; print([(i["number"],i["status"],i["sprint"]) for i in json.loads(sys.argv[1])])' "$OUT" 2>&1)"
@@ -272,6 +289,63 @@ escaped=$(env -i PATH="$PATH" "$BASH" -c 'source "$1/_provider-lib.sh"; _pb_erro
 next	tab"$'"'"'\r'"'"'end' -- "$PB" 2>&1)
 assert_eq "error JSON: quotes, backslash, newline, tab, CR escaped" 'say "hi" \ now next tab end' \
     "$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["error"])' "$escaped" 2>&1)"
+
+# ---- SKILL.md: every board operation is a provider call (#363 part b) ----
+SKILL="${PB}/SKILL.md"
+assert_eq "SKILL.md: no gh api command" "" "$(grep -nE 'gh +api' "$SKILL" || true)"
+assert_eq "SKILL.md: no gh project command" "" "$(grep -nE 'gh +project +[a-z]' "$SKILL" || true)"
+assert_eq "SKILL.md: no curl, gh pr or gh issue develop command" "" \
+    "$(grep -nE '(^|[$( ])curl +-|gh +pr +[a-z]|gh +issue +develop' "$SKILL" || true)"
+assert_eq "SKILL.md: no raw gh issue board operation" "" \
+    "$(grep -nE 'gh +issue +(edit|close|comment|create|list|view|reopen)' "$SKILL" || true)"
+assert_eq "SKILL.md: no inline GraphQL or ID placeholders" "" \
+    "$(grep -nE 'updateProjectV2ItemFieldValue|addProjectV2ItemById|\{\{STATUS_|\{\{AREA_' "$SKILL" || true)"
+assert_eq "SKILL.md: metrics no longer offered" "" "$(grep -niE 'board metrics|^argument-hint:.*metrics' "$SKILL" || true)"
+
+# Every $PB_SCRIPT <group> <command> names a command the router accepts (help text = router table)
+routes=$("$BASH" -c 'source "$1/_provider-lib.sh"; _pb_route help' -- "$PB" \
+    | awk '$1 ~ /^(issue|board|sprint|branch|provider)$/ { n = split($2, c, "|"); for (i = 1; i <= n; i++) print $1 " " c[i] }')
+used=$(grep -oE '("?\$\{?PB_SCRIPT\}?"?) +[a-z]+ +[a-z]+' "$SKILL" | awk '{print $2 " " $3}' | sort -u)
+n_used=$(grep -c . <<< "$used" || true)
+if [ "$n_used" -ge 15 ]; then _pass "SKILL.md: uses ${n_used} distinct provider commands"; else _fail "SKILL.md: only ${n_used} provider commands found"; fi
+unknown=$(comm -23 <(printf '%s\n' "$used") <(printf '%s\n' "$routes" | sort -u))
+assert_eq "SKILL.md: every provider call is a routed command" "" "$unknown"
+
+# The discovery block runs: missing provider -> error with hint; present -> no error
+block=$(awk '/^```bash$/ { inb = 1; buf = ""; next }
+    inb && /^```$/ { if (buf ~ /^source \.\/cognitive-core\.conf/) { printf "%s", buf; exit } inb = 0; next }
+    inb { buf = buf $0 "\n" }' "$SKILL")
+assert_contains "SKILL.md: discovery block found" "$block" 'PB_SCRIPT='
+disc() { # <conf line> <provider: yes|no|plain (not executable)> [provider name] [conf path]
+    local d f
+    d=$(mktemp -d "${WORK}/disc.XXXX")
+    mkdir -p "${d}/.claude"
+    printf '%s\n' "$1" > "${d}/${4:-cognitive-core.conf}"
+    if [ "$2" != no ]; then
+        mkdir -p "${d}/.claude/skills/project-board/providers"
+        f="${d}/.claude/skills/project-board/providers/${3:-github}.sh"
+        : > "$f"
+        [ "$2" = plain ] || chmod +x "$f"
+    fi
+    DISC_RC=0
+    (cd "$d" && env -i PATH="$PATH" HOME="$WORK" "$BASH" -c "${block}"$'\n''echo "PB_SCRIPT=$PB_SCRIPT"' 2>&1) || DISC_RC=$?
+}
+disc 'CC_PROJECT_BOARD_PROVIDER="github"' no > "${WORK}/disc.out"; out=$(cat "${WORK}/disc.out")
+assert_eq "discovery, provider missing: stops with exit 1, nothing after it runs" "1|" "${DISC_RC}|$(grep -o 'PB_SCRIPT=.*' <<< "$out" | grep -v ERROR || true)"
+assert_contains "discovery, provider missing: error" "$out" "ERROR: project-board provider missing"
+assert_contains "discovery, provider missing: hint" "$out" "update.sh"
+out=$(disc 'CC_PROJECT_BOARD_PROVIDER="github"' yes)
+assert_eq "discovery, provider present: no error, path" "PB_SCRIPT=.claude/skills/project-board/providers/github.sh" "$out"
+out=$(disc 'CC_BOARD_PROVIDER="jira"' yes jira)
+assert_eq "discovery, old key: jira provider" "PB_SCRIPT=.claude/skills/project-board/providers/jira.sh" "$out"
+out=$(disc 'CC_BOARD_PROVIDER="jira"
+CC_PROJECT_BOARD_PROVIDER="youtrack"' yes youtrack)
+assert_eq "discovery, both keys: canonical wins" "PB_SCRIPT=.claude/skills/project-board/providers/youtrack.sh" "$out"
+out=$(disc 'CC_PROJECT_BOARD_PROVIDER="jira"' yes jira .claude/cognitive-core.conf)
+assert_eq "discovery, conf in .claude/" "PB_SCRIPT=.claude/skills/project-board/providers/jira.sh" "$out"
+disc 'CC_PROJECT_BOARD_PROVIDER="github"' plain > "${WORK}/disc.out"; out=$(cat "${WORK}/disc.out")
+assert_eq "discovery, provider not executable: exit 1" "1" "$DISC_RC"
+assert_contains "discovery, provider not executable: error" "$out" "ERROR: project-board provider missing"
 
 assert_eq "no unexpected gh call in any case" "0" "$(grep -c '^UNEXPECTED' "${WORK}/all.log" || true)"
 

@@ -297,6 +297,7 @@ if total > 0 and unchecked > 0:
 #   pb_branch_list NUMBER
 #   pb_board_label_add NUMBER LABEL
 #   pb_board_label_remove NUMBER LABEL
+#   pb_issue_edit NUMBER --body BODY
 #   pb_board_list [--sprint S]
 #   pb_board_metrics [--sprint S]
 #   pb_issue_timeline NUMBER  (returns status change events for metrics)
@@ -337,6 +338,10 @@ pb_board_label_remove() {
 
 pb_board_list() {
     _pb_die "pb_board_list not supported by this provider"
+}
+
+pb_issue_edit() {
+    _pb_die "pb_issue_edit not supported by this provider"
 }
 
 pb_board_metrics() {
@@ -383,6 +388,7 @@ _pb_route() {
                 view)    pb_issue_view "$@" ;;
                 comment) pb_issue_comment "$@" ;;
                 assign)  pb_issue_assign "$@" ;;
+                edit)    pb_issue_edit "$@" ;;
                 label)
                     case "${2:-}" in
                         --add)    pb_board_label_add "${1:?Issue number required}" "${3:?Label required}" ;;
@@ -390,7 +396,7 @@ _pb_route() {
                         *)        _pb_die "Usage: issue label NUMBER --add|--remove LABEL" ;;
                     esac
                     ;;
-                *)       _pb_die "Unknown issue command: $cmd. Use: list|create|close|reopen|view|comment|assign|label" ;;
+                *)       _pb_die "Unknown issue command: $cmd. Use: list|create|close|reopen|view|comment|assign|edit|label" ;;
             esac
             ;;
         board)
@@ -434,7 +440,7 @@ project-board provider CLI
 Usage: <provider>.sh <group> <command> [args...]
 
 Groups:
-  issue     list|create|close|reopen|view|comment|assign|label
+  issue     list|create|close|reopen|view|comment|assign|edit|label
   board     summary|list|status|move|add|approve|blocked|unblock
   sprint    list|assign
   branch    create|list

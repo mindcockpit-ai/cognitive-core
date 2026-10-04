@@ -175,9 +175,10 @@ _gh_set_iteration() {
 # =============================================================================
 
 pb_issue_list() {
-    local priority="" area="" state="open" json_fields="number,title,labels,assignees"
+    local priority="" area="" state="open" json_fields="number,title,labels,assignees" limit=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --limit)    limit="${2:?Limit required}"; shift 2 ;;
             --priority) priority="$2"; shift 2 ;;
             --area)     area="$2"; shift 2 ;;
             --state)    state="$2"; shift 2 ;;
@@ -191,7 +192,12 @@ pb_issue_list() {
     [[ -n "$area" ]] && label_args+=(--label "area:$area")
 
     local limit_args=()
-    [[ "$state" == "closed" ]] && limit_args+=(--limit 10)
+    if [[ -n "$limit" ]]; then
+        _gh_validate_number "$limit"
+        limit_args+=(--limit "$limit")
+    elif [[ "$state" == "closed" ]]; then
+        limit_args+=(--limit 10)
+    fi
 
     # ${a[@]+...}: an empty array is unbound under set -u on bash 3.2
     _gh issue list --repo "$CC_GITHUB_REPO" \
@@ -303,6 +309,15 @@ pb_issue_comment() {
     local body="${2:?Comment body required}"
     _gh issue comment "$number" --repo "$CC_GITHUB_REPO" --body "$body" >/dev/null
     _pb_success "Comment added to #$number"
+}
+
+pb_issue_edit() {
+    local number="${1:?Issue number required}"
+    _gh_validate_number "$number"
+    [[ "${2:-}" == "--body" ]] || _pb_die "Usage: issue edit NUMBER --body BODY"
+    local body="${3:?Body required}"
+    _gh issue edit "$number" --repo "$CC_GITHUB_REPO" --body "$body" >/dev/null
+    _pb_success "Body of #$number updated"
 }
 
 pb_issue_assign() {
@@ -586,9 +601,10 @@ pb_branch_create() {
 
     # Check if branch already exists
     local existing
-    existing=$(gh issue develop "$number" --repo "$CC_GITHUB_REPO" --list 2>/dev/null | head -1 || echo "")
+    # --list prints "branch<TAB>url" per linked branch
+    existing=$(gh issue develop "$number" --repo "$CC_GITHUB_REPO" --list 2>/dev/null | head -1 | cut -f1 || echo "")
     if [[ -n "$existing" ]]; then
-        echo "{\"branch\":\"$existing\",\"created\":false,\"message\":\"Branch already exists\"}"
+        echo "{\"branch\":\"$(_pb_json_escape "$existing")\",\"created\":false,\"base\":\"$base\",\"message\":\"Branch already exists\"}"
         return 0
     fi
 
