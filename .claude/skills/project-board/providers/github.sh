@@ -31,48 +31,111 @@ _gh_require_config() {
     fi
 }
 
-# ---- Helper: Get project item ID for an issue number ----
+# ---- Helper: run gh; a failure exits 2 with gh's own message ----
 
-_gh_get_item_id() {
-    local number="$1"
-    gh project item-list "$CC_PROJECT_NUMBER" \
-        --owner "$CC_GITHUB_OWNER" \
-        --format json --limit 500 \
-        | python3 -c "
-import json, sys
-items = json.load(sys.stdin)
-for item in items.get('items', []):
-    if item.get('content', {}).get('number') == $number:
-        print(item['id'])
-        sys.exit(0)
-sys.exit(1)
-" 2>/dev/null
+_gh() {
+    local err out rc=0
+    err=$(mktemp)
+    out=$(gh "$@" 2>"$err") || rc=$?
+    if [[ $rc -ne 0 ]]; then
+        local msg
+        msg=$(grep -v '^[[:space:]]*$' "$err" | head -1)
+        rm -f "$err"
+        # _GH_NOT_FOUND: gh message that means "does not exist": exit 1, the caller reports it
+        [[ -n "${_GH_NOT_FOUND:-}" && "$msg" == *"$_GH_NOT_FOUND"* ]] && exit 1
+        _pb_fail "gh $1 $2 failed: ${msg:-exit $rc}"
+    fi
+    rm -f "$err"
+    printf '%s\n' "$out"
 }
 
-# ---- Helper: Get all items (cached per invocation) ----
+# ---- Helper: this board's item for an issue or PR (one query, no paging) ----
+# Prints {"id","status","option_id","sprint","assignees"}; exit 1 = not on this board
 
-_GH_ITEMS_CACHE=""
+_gh_item() {
+    local number="$1" data
+    # -f: owner and repo stay strings even when they look like numbers; only n is typed
+    data=$(_GH_NOT_FOUND="Could not resolve to an issue or pull request" _gh api graphql \
+        -f owner="${CC_GITHUB_REPO%%/*}" -f repo="${CC_GITHUB_REPO#*/}" -F n="$number" \
+        -f query='query($owner: String!, $repo: String!, $n: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issueOrPullRequest(number: $n) {
+      ... on Issue { assignees(first: 20) { nodes { login } } projectItems(first: 50) { nodes { ...item } } }
+      ... on PullRequest { assignees(first: 20) { nodes { login } } projectItems(first: 50) { nodes { ...item } } }
+    }
+  }
+}
+fragment item on ProjectV2Item {
+  id
+  project { id }
+  status: fieldValueByName(name: "Status") { ... on ProjectV2ItemFieldSingleSelectValue { name optionId } }
+  sprint: fieldValueByName(name: "Sprint") { ... on ProjectV2ItemFieldIterationValue { title } }
+}') || exit $?
+    local rc=0
+    _CC_PROJECT_ID="$CC_PROJECT_ID" python3 -c '
+import json, os, sys
+try:
+    node = (json.load(sys.stdin).get("data") or {}).get("repository", {}).get("issueOrPullRequest") or {}
+except (ValueError, AttributeError):
+    sys.exit(3)
+for item in node.get("projectItems", {}).get("nodes", []):
+    if (item.get("project") or {}).get("id") == os.environ["_CC_PROJECT_ID"]:
+        status = item.get("status") or {}
+        json.dump({"id": item["id"], "status": status.get("name", ""), "option_id": status.get("optionId", ""),
+                   "sprint": (item.get("sprint") or {}).get("title", ""),
+                   "assignees": [a["login"] for a in node.get("assignees", {}).get("nodes", [])]}, sys.stdout)
+        sys.exit(0)
+sys.exit(1)
+' <<< "$data" || rc=$?
+    [[ $rc -eq 3 ]] && _pb_fail "gh api graphql returned an unexpected answer for #$number"
+    return "$rc"
+}
+
+_gh_item_id() { python3 -c 'import json, sys; print(json.load(sys.stdin)["id"])' <<< "$1"; }
+
+# ---- Helper: Get all items (summary, list, approve) ----
+
 _gh_get_items() {
-    if [[ -z "$_GH_ITEMS_CACHE" ]]; then
-        _GH_ITEMS_CACHE=$(gh project item-list "$CC_PROJECT_NUMBER" \
-            --owner "$CC_GITHUB_OWNER" \
-            --format json --limit 500)
-    fi
-    echo "$_GH_ITEMS_CACHE"
+    _gh project item-list "$CC_PROJECT_NUMBER" \
+        --owner "$CC_GITHUB_OWNER" \
+        --format json --limit 500
+}
+
+# ---- Helper: status key -> option ID ----
+# Order: explicit ID, CC_STATUS_<KEY>_ID, then the live Status field by column name
+
+_gh_option_id() {
+    local key="$1" explicit="${2:-}" var
+    [[ "$explicit" == -* ]] && _pb_die "Invalid option ID: $explicit"
+    if [[ -n "$explicit" ]]; then echo "$explicit"; return 0; fi
+    var="CC_STATUS_$(echo "$key" | tr '[:lower:]' '[:upper:]')_ID"
+    if [[ -n "${!var:-}" ]]; then echo "${!var}"; return 0; fi
+    local fields name
+    fields=$(_gh project field-list "$CC_PROJECT_NUMBER" --owner "$CC_GITHUB_OWNER" --format json --limit 100) || exit $?
+    name=$(_pb_status_name_for_key "$key" "${CC_GITHUB_STATUS_MAP:-}")
+    _CC_FIELD="$CC_STATUS_FIELD_ID" _CC_NAME="$name" python3 -c '
+import json, os, sys
+for field in json.load(sys.stdin).get("fields", []):
+    if field.get("id") == os.environ["_CC_FIELD"]:
+        for option in field.get("options", []):
+            if option.get("name") == os.environ["_CC_NAME"]:
+                print(option["id"]); sys.exit(0)
+sys.exit(1)
+' <<< "$fields" || _pb_die "No column '$name' for status '$key' on the board (set $var or CC_GITHUB_STATUS_MAP; check with setup.sh --check)"
 }
 
 # ---- Helper: Get issue's content ID (GraphQL node ID) ----
 
 _gh_get_content_id() {
     local number="$1"
-    gh issue view "$number" --repo "$CC_GITHUB_REPO" --json id --jq '.id'
+    _gh issue view "$number" --repo "$CC_GITHUB_REPO" --json id --jq '.id'
 }
 
 # ---- Helper: Set project field value ----
 
 _gh_set_field() {
     local item_id="$1" field_id="$2" option_id="$3"
-    gh api graphql -f query="
+    _gh api graphql -f query="
         mutation {
             updateProjectV2ItemFieldValue(input: {
                 projectId: \"$CC_PROJECT_ID\"
@@ -96,7 +159,7 @@ _gh_validate_number() {
 
 _gh_set_iteration() {
     local item_id="$1" field_id="$2" iteration_id="$3"
-    gh api graphql -f query="
+    _gh api graphql -f query="
         mutation {
             updateProjectV2ItemFieldValue(input: {
                 projectId: \"$CC_PROJECT_ID\"
@@ -130,10 +193,11 @@ pb_issue_list() {
     local limit_args=()
     [[ "$state" == "closed" ]] && limit_args+=(--limit 10)
 
-    gh issue list --repo "$CC_GITHUB_REPO" \
+    # ${a[@]+...}: an empty array is unbound under set -u on bash 3.2
+    _gh issue list --repo "$CC_GITHUB_REPO" \
         --state "$state" \
-        "${label_args[@]}" \
-        "${limit_args[@]}" \
+        ${label_args[@]+"${label_args[@]}"} \
+        ${limit_args[@]+"${limit_args[@]}"} \
         --json "$json_fields"
 }
 
@@ -158,13 +222,13 @@ pb_issue_create() {
     [[ -n "$assignee" ]] && create_args+=(--assignee "$assignee")
 
     local url
-    url=$(gh issue create "${create_args[@]}")
+    url=$(_gh issue create "${create_args[@]}") || exit $?
     local number
     number=$(basename "$url")
 
     # Auto-add to project board in Backlog
     local content_id item_id
-    content_id=$(gh issue view "$number" --repo "$CC_GITHUB_REPO" --json id --jq '.id')
+    content_id=$(_gh issue view "$number" --repo "$CC_GITHUB_REPO" --json id --jq '.id') || exit $?
     item_id=$(gh api graphql -f query="
         mutation {
             addProjectV2ItemById(input: {
@@ -207,14 +271,16 @@ pb_issue_close() {
     fi
 
     local close_args=(--repo "$CC_GITHUB_REPO" --comment "$comment")
+    # A cancel is "not planned": the board workflow moves it to Canceled, not To Be Tested
+    [[ "$comment" == Canceled:* ]] && close_args+=(--reason "not planned")
 
-    gh issue close "$number" "${close_args[@]}" >/dev/null 2>&1
+    _gh issue close "$number" "${close_args[@]}" >/dev/null
     _pb_success "Issue #$number closed"
 }
 
 pb_issue_reopen() {
     local number="${1:?Issue number required}"
-    gh issue reopen "$number" --repo "$CC_GITHUB_REPO" >/dev/null 2>&1
+    _gh issue reopen "$number" --repo "$CC_GITHUB_REPO" >/dev/null
     _pb_success "Issue #$number reopened"
 }
 
@@ -229,20 +295,20 @@ pb_issue_view() {
         esac
     done
 
-    gh issue view "$number" --repo "$CC_GITHUB_REPO" --json "$json_fields"
+    _gh issue view "$number" --repo "$CC_GITHUB_REPO" --json "$json_fields"
 }
 
 pb_issue_comment() {
     local number="${1:?Issue number required}"
     local body="${2:?Comment body required}"
-    gh issue comment "$number" --repo "$CC_GITHUB_REPO" --body "$body" >/dev/null 2>&1
+    _gh issue comment "$number" --repo "$CC_GITHUB_REPO" --body "$body" >/dev/null
     _pb_success "Comment added to #$number"
 }
 
 pb_issue_assign() {
     local number="${1:?Issue number required}"
     local user="${2:?Username required}"
-    gh issue edit "$number" --repo "$CC_GITHUB_REPO" --add-assignee "$user" >/dev/null 2>&1
+    _gh issue edit "$number" --repo "$CC_GITHUB_REPO" --add-assignee "$user" >/dev/null
     _pb_success "Assigned $user to #$number"
 }
 
@@ -252,7 +318,7 @@ pb_issue_assign() {
 
 pb_board_summary() {
     local items
-    items=$(_gh_get_items)
+    items=$(_gh_get_items) || exit $?
     echo "$items" | _CC_OWNER="$CC_GITHUB_OWNER" _CC_PROJ_NUM="$CC_PROJECT_NUMBER" python3 -c "
 import json, sys, os
 from collections import Counter
@@ -271,47 +337,75 @@ json.dump(result, sys.stdout, indent=2)
 
 pb_board_status() {
     local number="${1:?Issue number required}"
-    local items
-    items=$(_gh_get_items)
-    echo "$items" | _CC_REPO="$CC_GITHUB_REPO" _CC_NUM="$number" python3 -c "
-import json, sys, os
-items = json.load(sys.stdin)
-repo = os.environ['_CC_REPO']
-number = int(os.environ['_CC_NUM'])
-for item in items.get('items', []):
-    if item.get('content', {}).get('number') == number:
-        json.dump({
-            'number': number,
-            'status': item.get('status', 'Unknown'),
-            'item_id': item.get('id', ''),
-            'sprint': item.get('sprint', ''),
-            'assignees': item.get('content', {}).get('assignees', []),
-            'url': f'https://github.com/{repo}/issues/{number}'
-        }, sys.stdout, indent=2)
-        sys.exit(0)
-print(json.dumps({'error': f'Issue #{number} not found on board'}))
-sys.exit(1)
-"
+    _gh_validate_number "$number"
+    local item rc=0
+    item=$(_gh_item "$number") || rc=$?
+    [[ $rc -eq 1 ]] && _pb_die "Issue #$number not found on board"
+    [[ $rc -ne 0 ]] && exit "$rc"
+    _CC_REPO="$CC_GITHUB_REPO" _CC_NUM="$number" python3 -c '
+import json, os, sys
+item = json.load(sys.stdin)
+number = int(os.environ["_CC_NUM"])
+json.dump({"number": number, "status": item["status"] or "Unknown", "item_id": item["id"],
+           "sprint": item["sprint"], "assignees": item["assignees"],
+           "url": "https://github.com/%s/issues/%d" % (os.environ["_CC_REPO"], number)}, sys.stdout, indent=2)
+' <<< "$item"
 }
 
 pb_board_move() {
     local number="${1:?Issue number required}"
-    local status_key="${2:?Status key required (roadmap|backlog|todo|progress|testing|done|canceled)}"
+    local status_key="${2:?Status key required ($(_pb_status_keys))}"
+    _gh_validate_number "$number"
+    _pb_valid_status_key "$status_key" || _pb_die "Unknown status key: $status_key. Use: $(_pb_status_keys)"
 
-    # Get item ID
-    local item_id
-    item_id=$(_gh_get_item_id "$number") || _pb_die "Issue #$number not found on project board"
+    local option_id item rc=0
+    option_id=$(_gh_option_id "$status_key" "${3:-}") || exit $?
+    item=$(_gh_item "$number") || rc=$?
+    [[ $rc -eq 1 ]] && _pb_die "Issue #$number not found on project board"
+    [[ $rc -ne 0 ]] && exit "$rc"
 
-    # The status option ID must be provided via config or discovered
-    # Provider expects the caller (SKILL.md) to resolve status_key -> option ID
-    # using the status option IDs configured in the skill
-    local option_id="${3:-}"
-    if [[ -z "$option_id" ]]; then
-        _pb_die "Status option ID required as 3rd argument. Resolve from board status option IDs."
-    fi
-
-    _gh_set_field "$item_id" "$CC_STATUS_FIELD_ID" "$option_id" >/dev/null
+    _gh project item-edit --id "$(_gh_item_id "$item")" \
+        --project-id "$CC_PROJECT_ID" --field-id "$CC_STATUS_FIELD_ID" \
+        --single-select-option-id "$option_id" >/dev/null
     _pb_success "Issue #$number moved to $(_pb_status_display_name "$status_key")"
+}
+
+pb_board_list() {
+    local sprint=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --sprint) sprint="${2:?Sprint title required}"; shift 2 ;;
+            *)        shift ;;
+        esac
+    done
+    local items
+    items=$(_gh_get_items) || exit $?
+    _CC_SPRINT="$sprint" python3 -c '
+import json, os, sys
+sprint = os.environ["_CC_SPRINT"]
+out = []
+for item in json.load(sys.stdin).get("items", []):
+    content = item.get("content") or {}
+    s = item.get("sprint") or ""
+    title = s.get("title", "") if isinstance(s, dict) else s
+    if sprint and title != sprint:
+        continue
+    out.append({"number": content.get("number"), "title": content.get("title", item.get("title", "")),
+                "status": item.get("status", ""), "sprint": title})
+json.dump(out, sys.stdout, indent=2)
+' <<< "$items"
+}
+
+pb_board_label_add() {
+    local number="${1:?Issue number required}" label="${2:?Label required}"
+    _gh issue edit "$number" --repo "$CC_GITHUB_REPO" --add-label "$label" >/dev/null
+    _pb_success "Label $label added to #$number"
+}
+
+pb_board_label_remove() {
+    local number="${1:?Issue number required}" label="${2:?Label required}"
+    _gh issue edit "$number" --repo "$CC_GITHUB_REPO" --remove-label "$label" >/dev/null
+    _pb_success "Label $label removed from #$number"
 }
 
 pb_board_add() {
@@ -327,23 +421,23 @@ pb_board_add() {
 
     # Get issue's GraphQL content ID
     local content_id
-    content_id=$(_gh_get_content_id "$number")
+    content_id=$(_gh_get_content_id "$number") || exit $?
 
     # Add to project
     local item_id
-    item_id=$(gh api graphql -f query="
+    item_id=$(_gh api graphql -f query="
         mutation {
             addProjectV2ItemById(input: {
                 projectId: \"$CC_PROJECT_ID\"
                 contentId: \"$content_id\"
             }) { item { id } }
-        }" --jq '.data.addProjectV2ItemById.item.id')
+        }" --jq '.data.addProjectV2ItemById.item.id') || exit $?
 
     # Set area if provided and field configured
     if [[ -n "$area" && -n "${CC_AREA_FIELD_ID:-}" ]]; then
         local area_option_id="${4:-}"
         if [[ -n "$area_option_id" ]]; then
-            _gh_set_field "$item_id" "$CC_AREA_FIELD_ID" "$area_option_id" >/dev/null
+            _gh_set_field "$item_id" "$CC_AREA_FIELD_ID" "$area_option_id" >/dev/null || exit $?
         fi
     fi
 
@@ -363,7 +457,7 @@ pb_board_approve() {
 
     # Verify issue is in "To Be Tested" status
     local items item_id current_status
-    items=$(_gh_get_items)
+    items=$(_gh_get_items) || exit $?
     item_id=$(echo "$items" | python3 -c "
 import json, sys
 for item in json.load(sys.stdin).get('items', []):
@@ -417,7 +511,7 @@ pb_sprint_list() {
     org_check=$(gh api "orgs/$CC_GITHUB_OWNER" --jq '.login' 2>/dev/null || echo "")
     [[ -n "$org_check" ]] && owner_type="organization"
 
-    gh api graphql -f query="
+    _gh api graphql -f query="
         query {
             ${owner_type}(login: \"$CC_GITHUB_OWNER\") {
                 projectV2(number: $CC_PROJECT_NUMBER) {
@@ -440,7 +534,7 @@ pb_sprint_assign() {
 
     # Get iteration ID for the sprint title
     local iterations
-    iterations=$(pb_sprint_list)
+    iterations=$(pb_sprint_list) || exit $?
     local iteration_id
     iteration_id=$(echo "$iterations" | _CC_SPRINT="$sprint_title" python3 -c "
 import json, sys, os
@@ -456,9 +550,14 @@ sys.exit(1)
 
     local results=()
     for number in "$@"; do
+        _gh_validate_number "$number"
         local item_id
-        item_id=$(_gh_get_item_id "$number") || { results+=("#$number: not on board"); continue; }
-        _gh_set_iteration "$item_id" "$CC_SPRINT_FIELD_ID" "$iteration_id" >/dev/null
+        local item rc=0
+        item=$(_gh_item "$number") || rc=$?
+        [[ $rc -eq 1 ]] && { results+=("#$number: not on board"); continue; }
+        [[ $rc -ne 0 ]] && exit "$rc"
+        item_id=$(_gh_item_id "$item")
+        _gh_set_iteration "$item_id" "$CC_SPRINT_FIELD_ID" "$iteration_id" >/dev/null || exit $?
         results+=("#$number: assigned to $sprint_title")
     done
 
@@ -496,11 +595,11 @@ pb_branch_create() {
     local checkout_flag=""
     [[ "${CC_BRANCH_AUTO_CHECKOUT:-true}" == "true" ]] && checkout_flag="--checkout"
 
-    gh issue develop "$number" \
+    _gh issue develop "$number" \
         --repo "$CC_GITHUB_REPO" \
         --base "$base" \
         --name "$branch_name" \
-        $checkout_flag 2>/dev/null
+        $checkout_flag >/dev/null
 
     echo "{\"branch\":\"$branch_name\",\"created\":true,\"base\":\"$base\"}"
 }

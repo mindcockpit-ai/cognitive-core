@@ -23,41 +23,22 @@ MOCK_PB_DIR="${MOCK_DIR}/project-board"
 MOCK_PROVIDERS_DIR="${MOCK_PB_DIR}/providers"
 mkdir -p "$MOCK_PROVIDERS_DIR"
 
-cat > "${MOCK_PB_DIR}/_provider-lib.sh" << 'MOCKEOF'
-# Mock _provider-lib.sh - provides stubs for testing provider functions
-PB_STATUS_DISPLAY_NAMES=(
-    "roadmap:Roadmap" "backlog:Backlog" "todo:Todo"
-    "progress:In Progress" "testing:To Be Tested"
-    "done:Done" "canceled:Canceled"
-)
-_pb_status_display_name() {
-    local key="$1" entry
-    for entry in "${PB_STATUS_DISPLAY_NAMES[@]}"; do
-        [[ "${entry%%:*}" == "$key" ]] && { echo "${entry#*:}"; return 0; }
-    done
-    echo "$key"
-}
+# No test may reach the real GitHub: any gh not mocked inside a test fails loudly
+mkdir -p "${MOCK_DIR}/bin"
+printf '#!/bin/sh\necho "UNEXPECTED gh $*" >> "%s"\necho "UNEXPECTED gh call" >&2\nexit 99\n' "${MOCK_DIR}/unexpected.log" > "${MOCK_DIR}/bin/gh"
+chmod +x "${MOCK_DIR}/bin/gh"
+export PATH="${MOCK_DIR}/bin:${PATH}"
+: > "${MOCK_DIR}/unexpected.log"
+
+# The real library, with config loading, validation and routing neutralized
+{
+    cat "${PB_DIR}/_provider-lib.sh"
+    cat << 'MOCKEOF'
 _pb_load_config() { :; }
-_pb_json_kv() { local out="{" first=true; while [[ $# -ge 2 ]]; do $first || out+=","; first=false; out+="\"$1\":\"$2\""; shift 2; done; echo "$out}"; }
-_pb_error() { echo "{\"error\": \"$1\"}" >&2; }
-_pb_die() { _pb_error "$1"; exit 1; }
-_pb_success() { echo "{\"ok\":true,\"message\":\"$1\"}"; }
 _pb_validate_provider() { :; }
 _pb_route() { :; }
-pb_board_label_add() { :; }
-pb_board_label_remove() { :; }
-pb_board_metrics() { :; }
-pb_issue_timeline() { :; }
-pb_sprint_list() { :; }
-pb_sprint_assign() { :; }
-pb_branch_create() { :; }
-pb_branch_list() { :; }
 MOCKEOF
-
-# Append real functions from _provider-lib.sh into the mock
-# Extract each function (from definition to closing brace) so tests can exercise them
-sed -n '/^_pb_canonical_status()/,/^}/p' "${PB_DIR}/_provider-lib.sh" >> "${MOCK_PB_DIR}/_provider-lib.sh"
-sed -n '/^_pb_closure_guard()/,/^}/p' "${PB_DIR}/_provider-lib.sh" >> "${MOCK_PB_DIR}/_provider-lib.sh"
+} > "${MOCK_PB_DIR}/_provider-lib.sh"
 
 # Create provider symlinks that point to mock _provider-lib.sh
 for p in github jira youtrack; do
@@ -540,7 +521,7 @@ fi
 # =============================================================================
 
 # GitHub pb_board_status includes url
-if grep -A 20 '^pb_board_status()' "${PROVIDERS_DIR}/github.sh" | grep -q "'url'"; then
+if grep -A 20 '^pb_board_status()' "${PROVIDERS_DIR}/github.sh" | grep -qE "[\"']url[\"']"; then
     _pass "github: pb_board_status includes url in output"
 else
     _fail "github: pb_board_status missing url in output"
@@ -742,8 +723,8 @@ gh_status_test=$(bash -c "
     export CC_PROJECT_NUMBER='1'
     export CC_STATUS_FIELD_ID='PVTSSF_test'
     source '${MOCK_PROVIDERS_DIR}/github.sh'
-    # Mock _gh_get_items to return a board item
-    _gh_get_items() { echo '{\"items\":[{\"id\":\"item1\",\"status\":\"Todo\",\"sprint\":\"\",\"content\":{\"number\":42,\"assignees\":[]}}]}'; }
+    # Mock _gh_item to return this board's item
+    _gh_item() { echo '{\"id\":\"item1\",\"status\":\"Todo\",\"option_id\":\"\",\"sprint\":\"\",\"assignees\":[]}'; }
     pb_board_status 42
 " 2>&1) || true
 
@@ -874,7 +855,7 @@ guard_done_test=$(bash -c "
     export CC_STATUS_FIELD_ID='PVTSSF_test'
     export CC_REQUIRE_HUMAN_APPROVAL='false'
     source '${MOCK_PROVIDERS_DIR}/github.sh'
-    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"Done\",\"content\":{\"number\":42}}]}'; }
+    _gh_item() { echo '{\"id\":\"i1\",\"status\":\"Done\",\"option_id\":\"\",\"sprint\":\"\",\"assignees\":[]}'; }
     pb_issue_view() { echo '{\"body\":\"\"}'; }
     _pb_closure_guard 42 2>&1
 " 2>&1) || true
@@ -895,7 +876,7 @@ guard_testing_test=$(bash -c "
     export CC_STATUS_FIELD_ID='PVTSSF_test'
     export CC_REQUIRE_HUMAN_APPROVAL='true'
     source '${MOCK_PROVIDERS_DIR}/github.sh'
-    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"To Be Tested\",\"content\":{\"number\":42}}]}'; }
+    _gh_item() { echo '{\"id\":\"i1\",\"status\":\"To Be Tested\",\"option_id\":\"\",\"sprint\":\"\",\"assignees\":[]}'; }
     pb_issue_view() { echo '{\"body\":\"\"}'; }
     _pb_closure_guard 42 2>&1
 " 2>&1) || true
@@ -916,7 +897,7 @@ guard_progress_test=$(bash -c "
     export CC_STATUS_FIELD_ID='PVTSSF_test'
     export CC_REQUIRE_HUMAN_APPROVAL='false'
     source '${MOCK_PROVIDERS_DIR}/github.sh'
-    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"In Progress\",\"content\":{\"number\":42}}]}'; }
+    _gh_item() { echo '{\"id\":\"i1\",\"status\":\"In Progress\",\"option_id\":\"\",\"sprint\":\"\",\"assignees\":[]}'; }
     pb_issue_view() { echo '{\"body\":\"\"}'; }
     _pb_closure_guard 42 2>&1
 " 2>&1)
@@ -942,7 +923,7 @@ guard_cancel_test=$(bash -c "
     export CC_STATUS_FIELD_ID='PVTSSF_test'
     export CC_REQUIRE_HUMAN_APPROVAL='true'
     source '${MOCK_PROVIDERS_DIR}/github.sh'
-    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"To Be Tested\",\"content\":{\"number\":42}}]}'; }
+    _gh_item() { echo '{\"id\":\"i1\",\"status\":\"To Be Tested\",\"option_id\":\"\",\"sprint\":\"\",\"assignees\":[]}'; }
     pb_issue_view() { echo '{\"body\":\"\"}'; }
     _pb_closure_guard 42 --comment 'Canceled: duplicate' 2>&1
 " 2>&1)
@@ -964,7 +945,7 @@ guard_nocancelprefix_test=$(bash -c "
     export CC_STATUS_FIELD_ID='PVTSSF_test'
     export CC_REQUIRE_HUMAN_APPROVAL='true'
     source '${MOCK_PROVIDERS_DIR}/github.sh'
-    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"To Be Tested\",\"content\":{\"number\":42}}]}'; }
+    _gh_item() { echo '{\"id\":\"i1\",\"status\":\"To Be Tested\",\"option_id\":\"\",\"sprint\":\"\",\"assignees\":[]}'; }
     pb_issue_view() { echo '{\"body\":\"\"}'; }
     _pb_closure_guard 42 --comment 'Was canceled last week' 2>&1
 " 2>&1) || true
@@ -985,7 +966,7 @@ guard_cancel_done_test=$(bash -c "
     export CC_STATUS_FIELD_ID='PVTSSF_test'
     export CC_REQUIRE_HUMAN_APPROVAL='true'
     source '${MOCK_PROVIDERS_DIR}/github.sh'
-    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"Done\",\"content\":{\"number\":42}}]}'; }
+    _gh_item() { echo '{\"id\":\"i1\",\"status\":\"Done\",\"option_id\":\"\",\"sprint\":\"\",\"assignees\":[]}'; }
     pb_issue_view() { echo '{\"body\":\"\"}'; }
     _pb_closure_guard 42 --comment 'Canceled: duplicate' 2>&1
 " 2>&1) || true
@@ -1006,7 +987,7 @@ guard_force_test=$(bash -c "
     export CC_STATUS_FIELD_ID='PVTSSF_test'
     export CC_REQUIRE_HUMAN_APPROVAL='true'
     source '${MOCK_PROVIDERS_DIR}/github.sh'
-    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"To Be Tested\",\"content\":{\"number\":42}}]}'; }
+    _gh_item() { echo '{\"id\":\"i1\",\"status\":\"To Be Tested\",\"option_id\":\"\",\"sprint\":\"\",\"assignees\":[]}'; }
     pb_issue_view() { echo '{\"body\":\"\"}'; }
     _pb_closure_guard 42 --force 2>&1
 " 2>&1)
@@ -1032,7 +1013,7 @@ guard_unchecked_test=$(bash -c "
     export CC_STATUS_FIELD_ID='PVTSSF_test'
     export CC_REQUIRE_HUMAN_APPROVAL='false'
     source '${MOCK_PROVIDERS_DIR}/github.sh'
-    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"In Progress\",\"content\":{\"number\":42}}]}'; }
+    _gh_item() { echo '{\"id\":\"i1\",\"status\":\"In Progress\",\"option_id\":\"\",\"sprint\":\"\",\"assignees\":[]}'; }
     pb_issue_view() { echo '{\"body\":\"## Criteria\n- [x] Done\n- [ ] Not done\n- [ ] Also not done\"}'; }
     _pb_closure_guard 42 2>&1
 " 2>&1) || true
@@ -1053,7 +1034,7 @@ guard_allchecked_test=$(bash -c "
     export CC_STATUS_FIELD_ID='PVTSSF_test'
     export CC_REQUIRE_HUMAN_APPROVAL='false'
     source '${MOCK_PROVIDERS_DIR}/github.sh'
-    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"In Progress\",\"content\":{\"number\":42}}]}'; }
+    _gh_item() { echo '{\"id\":\"i1\",\"status\":\"In Progress\",\"option_id\":\"\",\"sprint\":\"\",\"assignees\":[]}'; }
     pb_issue_view() { echo '{\"body\":\"## Criteria\n- [x] Done\n- [x] Also done\"}'; }
     _pb_closure_guard 42 2>&1
 " 2>&1)
@@ -1075,7 +1056,7 @@ guard_noboxes_test=$(bash -c "
     export CC_STATUS_FIELD_ID='PVTSSF_test'
     export CC_REQUIRE_HUMAN_APPROVAL='false'
     source '${MOCK_PROVIDERS_DIR}/github.sh'
-    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"In Progress\",\"content\":{\"number\":42}}]}'; }
+    _gh_item() { echo '{\"id\":\"i1\",\"status\":\"In Progress\",\"option_id\":\"\",\"sprint\":\"\",\"assignees\":[]}'; }
     pb_issue_view() { echo '{\"body\":\"Just a description, no checkboxes\"}'; }
     _pb_closure_guard 42 2>&1
 " 2>&1)
@@ -1101,7 +1082,7 @@ guard_canceled_status_test=$(bash -c "
     export CC_STATUS_FIELD_ID='PVTSSF_test'
     export CC_REQUIRE_HUMAN_APPROVAL='false'
     source '${MOCK_PROVIDERS_DIR}/github.sh'
-    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"Canceled\",\"content\":{\"number\":42}}]}'; }
+    _gh_item() { echo '{\"id\":\"i1\",\"status\":\"Canceled\",\"option_id\":\"\",\"sprint\":\"\",\"assignees\":[]}'; }
     pb_issue_view() { echo '{\"body\":\"\"}'; }
     _pb_closure_guard 42 2>&1
 " 2>&1) || true
@@ -1162,7 +1143,7 @@ guard_testing_noapproval_test=$(bash -c "
     export CC_STATUS_FIELD_ID='PVTSSF_test'
     export CC_REQUIRE_HUMAN_APPROVAL='false'
     source '${MOCK_PROVIDERS_DIR}/github.sh'
-    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"To Be Tested\",\"content\":{\"number\":42}}]}'; }
+    _gh_item() { echo '{\"id\":\"i1\",\"status\":\"To Be Tested\",\"option_id\":\"\",\"sprint\":\"\",\"assignees\":[]}'; }
     pb_issue_view() { echo '{\"body\":\"\"}'; }
     _pb_closure_guard 42 2>&1
 " 2>&1)
@@ -1184,7 +1165,7 @@ guard_uppercaseX_test=$(bash -c "
     export CC_STATUS_FIELD_ID='PVTSSF_test'
     export CC_REQUIRE_HUMAN_APPROVAL='false'
     source '${MOCK_PROVIDERS_DIR}/github.sh'
-    _gh_get_items() { echo '{\"items\":[{\"id\":\"i1\",\"status\":\"In Progress\",\"content\":{\"number\":42}}]}'; }
+    _gh_item() { echo '{\"id\":\"i1\",\"status\":\"In Progress\",\"option_id\":\"\",\"sprint\":\"\",\"assignees\":[]}'; }
     pb_issue_view() { echo '{\"body\":\"- [X] Done uppercase\n- [x] Done lowercase\n- [ ] Not done\"}'; }
     _pb_closure_guard 42 2>&1
 " 2>&1) || true
@@ -1543,6 +1524,8 @@ if grep -q 'Approved by @' "$ci_workflow" "${ROOT_DIR}/core/skills/project-board
 else
     _pass "CI: no comment-based 'Approved by @' check"
 fi
+
+assert_eq "no test reached the real gh" "" "$(cat "${MOCK_DIR}/unexpected.log")"
 
 # Cleanup
 rm -rf "$MOCK_DIR"

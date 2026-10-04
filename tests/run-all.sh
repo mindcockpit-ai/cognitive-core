@@ -49,6 +49,7 @@ suite_pretty_name() {
         27-update-skill-files.sh) echo "Update Adds Skill Files" ;;
         29-self-install-parity.sh) echo "Self-Install Parity" ;;
         30-board-automation.sh) echo "Board Automation" ;;
+        31-board-provider.sh) echo "Board Provider" ;;
         *) echo "$1" ;;
     esac
 }

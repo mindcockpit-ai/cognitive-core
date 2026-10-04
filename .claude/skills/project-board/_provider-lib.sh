@@ -17,6 +17,8 @@ _pb_load_config() {
         if [[ -f "$conf" ]]; then
             # shellcheck source=/dev/null
             source "$conf"
+            # CC_BOARD_PROVIDER is the old name of CC_PROJECT_BOARD_PROVIDER
+            CC_PROJECT_BOARD_PROVIDER="${CC_PROJECT_BOARD_PROVIDER:-${CC_BOARD_PROVIDER:-}}"
             return 0
         fi
     done
@@ -40,17 +42,32 @@ _pb_json_kv() {
     echo "$out"
 }
 
-_pb_error() {
-    echo "{\"error\": \"$1\"}" >&2
+_pb_json_escape() {
+    local s="${1//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\t'/ }"
+    s="${s//$'\r'/ }"
+    printf '%s' "${s//$'\n'/ }"
 }
 
+_pb_error() {
+    echo "{\"error\": \"$(_pb_json_escape "$1")\"}" >&2
+}
+
+# Exit 1: usage error, not found, refused
 _pb_die() {
     _pb_error "$1"
     exit 1
 }
 
+# Exit 2: the backend failed (network, auth, rate limit). Report it, never work around it.
+_pb_fail() {
+    _pb_error "$1"
+    exit 2
+}
+
 _pb_success() {
-    echo "{\"ok\":true,\"message\":\"$1\"}"
+    echo "{\"ok\":true,\"message\":\"$(_pb_json_escape "$1")\"}"
 }
 
 # ---- Status Key Mapping ----
@@ -77,6 +94,38 @@ _pb_status_display_name() {
         fi
     done
     echo "$key"
+}
+
+# Usage: _pb_valid_status_key KEY -> exit 0 when KEY is a canonical status key
+_pb_valid_status_key() {
+    local entry
+    for entry in "${PB_STATUS_DISPLAY_NAMES[@]}"; do
+        [[ "${entry%%:*}" == "$1" ]] && return 0
+    done
+    return 1
+}
+
+_pb_status_keys() {
+    local entry out=""
+    for entry in "${PB_STATUS_DISPLAY_NAMES[@]}"; do
+        out+="${out:+|}${entry%%:*}"
+    done
+    echo "$out"
+}
+
+# Column name for a status key: the CC_*_STATUS_MAP override (key=Name|...), else the display name
+# Usage: _pb_status_name_for_key KEY "$CC_GITHUB_STATUS_MAP"
+_pb_status_name_for_key() {
+    local key="$1" map="${2:-}" name="" pair
+    if [[ -n "$map" ]]; then
+        local -a pairs
+        IFS='|' read -ra pairs <<< "$map"
+        for pair in "${pairs[@]}"; do
+            [[ "${pair%%=*}" == "$key" ]] && name="${pair#*=}"
+        done
+    fi
+    [[ -n "$name" ]] || name=$(_pb_status_display_name "$key")
+    echo "$name"
 }
 
 # Reverse-map a provider-native status name to a canonical key.
@@ -161,8 +210,10 @@ _pb_closure_guard() {
     fi
 
     # Guard 1: Check board status (terminal states blocked)
-    local status_json current_status
-    status_json=$(pb_board_status "$number" 2>/dev/null) || true
+    local status_json current_status status_rc=0
+    status_json=$(pb_board_status "$number" 2>/dev/null) || status_rc=$?
+    # Exit 2 = backend failure: the status is unknown, so fail closed
+    [[ $status_rc -eq 2 ]] && _pb_fail "Cannot close #$number - board status unavailable (backend failure); retry later"
     current_status=$(echo "$status_json" | _CC_FIELD="status" python3 -c "
 import json, sys, os
 try:
@@ -246,6 +297,7 @@ if total > 0 and unchecked > 0:
 #   pb_branch_list NUMBER
 #   pb_board_label_add NUMBER LABEL
 #   pb_board_label_remove NUMBER LABEL
+#   pb_board_list [--sprint S]
 #   pb_board_metrics [--sprint S]
 #   pb_issue_timeline NUMBER  (returns status change events for metrics)
 
@@ -281,6 +333,10 @@ pb_board_label_remove() {
     : "${1:?Issue identifier required}"
     : "${2:?Label required}"
     _pb_die "pb_board_label_remove not supported by this provider"
+}
+
+pb_board_list() {
+    _pb_die "pb_board_list not supported by this provider"
 }
 
 pb_board_metrics() {
@@ -327,12 +383,20 @@ _pb_route() {
                 view)    pb_issue_view "$@" ;;
                 comment) pb_issue_comment "$@" ;;
                 assign)  pb_issue_assign "$@" ;;
-                *)       _pb_die "Unknown issue command: $cmd. Use: list|create|close|reopen|view|comment|assign" ;;
+                label)
+                    case "${2:-}" in
+                        --add)    pb_board_label_add "${1:?Issue number required}" "${3:?Label required}" ;;
+                        --remove) pb_board_label_remove "${1:?Issue number required}" "${3:?Label required}" ;;
+                        *)        _pb_die "Usage: issue label NUMBER --add|--remove LABEL" ;;
+                    esac
+                    ;;
+                *)       _pb_die "Unknown issue command: $cmd. Use: list|create|close|reopen|view|comment|assign|label" ;;
             esac
             ;;
         board)
             case "$cmd" in
                 summary) pb_board_summary "$@" ;;
+                list)    pb_board_list "$@" ;;
                 status)  pb_board_status "$@" ;;
                 move)    pb_board_move "$@" ;;
                 add)     pb_board_add "$@" ;;
@@ -340,7 +404,7 @@ _pb_route() {
                 blocked)      pb_board_label_add "$1" "blocked" "${@:2}" ;;
                 unblock)      pb_board_label_remove "$1" "blocked" "${@:2}" ;;
                 metrics)      pb_board_metrics "$@" ;;
-                *)            _pb_die "Unknown board command: $cmd. Use: summary|status|move|add|approve|blocked|unblock|metrics" ;;
+                *)            _pb_die "Unknown board command: $cmd. Use: summary|list|status|move|add|approve|blocked|unblock" ;;
             esac
             ;;
         sprint)
@@ -370,11 +434,13 @@ project-board provider CLI
 Usage: <provider>.sh <group> <command> [args...]
 
 Groups:
-  issue     list|create|close|reopen|view|comment|assign
-  board     summary|status|move|add|approve|blocked|unblock|metrics
+  issue     list|create|close|reopen|view|comment|assign|label
+  board     summary|list|status|move|add|approve|blocked|unblock
   sprint    list|assign
   branch    create|list
   provider  info
+
+Exit codes: 0 ok, 1 usage error or not found, 2 backend failure (report it, do not work around it)
 
 Examples:
   ./github.sh issue list --priority p1-high
