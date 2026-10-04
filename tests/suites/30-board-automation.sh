@@ -447,6 +447,10 @@ for wf in project-board-automation.yml project-board-reconcile.yml; do
     assert_contains "${wf}: credentials not persisted" "$(cat "$t")" "persist-credentials: false"
 done
 assert_eq "no schedule in the event workflow" "" "$(grep -n 'schedule' "${ROOT_DIR}/cicd/workflows/project-board-automation.yml" || true)"
+ev_wf="${ROOT_DIR}/cicd/workflows/project-board-automation.yml"
+# shellcheck disable=SC2016 # literal workflow expression
+assert_contains "event workflow: one concurrency group per issue or PR" "$(cat "$ev_wf")" 'group: board-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}'
+assert_eq "event workflow: queued, never cancelled" "cancel-in-progress: false" "$(grep -E '^[[:space:]]+cancel-in-progress:' "$ev_wf" | sed 's/^ *//')"
 
 fi
 
