@@ -47,6 +47,7 @@ suite_pretty_name() {
         24-framework-root-anchor.sh) echo "Framework Root Anchor" ;;
         26-local-override-prune.sh) echo "Local Override + Prune" ;;
         27-update-skill-files.sh) echo "Update Adds Skill Files" ;;
+        29-self-install-parity.sh) echo "Self-Install Parity" ;;
         *) echo "$1" ;;
     esac
 }

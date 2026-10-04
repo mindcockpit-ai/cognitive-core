@@ -19,9 +19,14 @@ if [ -z "$FILE_PATH" ]; then
     exit 0
 fi
 
-# Skip test files and documentation (high false-positive rate)
+# Skip test fixtures and templates (high false-positive rate). Markdown is NOT skipped:
+# reports and docs are exactly where a copied-in credential needs to be caught. Skip this
+# hooks directory because the scanner's own regex strings would match themselves.
 case "$FILE_PATH" in
-    *_test.* | *_spec.* | *.test.* | *.spec.* | *.md | *.example | *.template)
+    *_test.* | *_spec.* | *.test.* | *.spec.* | *.example | *.template)
+        exit 0
+        ;;
+    */.claude/hooks/*)
         exit 0
         ;;
 esac
@@ -41,8 +46,9 @@ if grep -qE 'AKIA[0-9A-Z]{16}' "$FILE_PATH" 2>/dev/null; then
     STRUCTURED_DENY="aws"
 fi
 
-# PEM private keys
-if grep -q -e '-----BEGIN.*PRIVATE.*KEY-----' "$FILE_PATH" 2>/dev/null; then
+# PEM private keys - require both BEGIN and END so the pattern itself, quoted in docs, doesn't match
+if grep -q -e '-----BEGIN.*PRIVATE.*KEY-----' "$FILE_PATH" 2>/dev/null \
+   && grep -q -e '-----END.*PRIVATE.*KEY-----' "$FILE_PATH" 2>/dev/null; then
     WARNINGS="${WARNINGS}\n- Private key (PEM format) detected"
     if [ -z "$STRUCTURED_DENY" ]; then
         STRUCTURED_DENY="pem"

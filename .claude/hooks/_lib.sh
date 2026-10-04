@@ -15,6 +15,8 @@ CC_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../..
 # Load configuration (resolution order: project root > .claude/ > user defaults > env)
 _cc_load_config() {
     local conf=""
+    # Overrides may only come from the conf, never from the environment (#328)
+    unset CC_LOCAL_OVERRIDES
     if [ -f "${CC_PROJECT_DIR}/cognitive-core.conf" ]; then
         conf="${CC_PROJECT_DIR}/cognitive-core.conf"
     elif [ -f "${CC_PROJECT_DIR}/.claude/cognitive-core.conf" ]; then
@@ -26,6 +28,64 @@ _cc_load_config() {
         # shellcheck disable=SC1090
         source "$conf"
     fi
+}
+
+# ---- Project-owned local overrides (#328) ----
+# CC_LOCAL_OVERRIDES (conf only): space separated paths relative to the
+# install dir, a trailing / marks a directory. A file entry may carry a
+# sha256 pin: "hooks/validate-bash.sh@<sha256>". A pinned override is honoured
+# only while the file matches the pin. Security relevant hooks (validate-*,
+# setup-env, _-prefixed libraries) are honoured only with a matching pin.
+
+_cc_override_needs_pin() {
+    case "$1" in
+        hooks/_*|hooks/setup-env.sh|hooks/validate-*) return 0 ;;
+    esac
+    return 1
+}
+
+# Usage: _cc_is_local_override <path> [installed file]
+# <path> is relative to the install dir (a leading .claude/ or
+# .cognitive-core/ is stripped). Without [installed file] a pin is not checked.
+# Returns 0 = honoured, 1 = not listed, 2 = listed but not honoured
+# (security hook without pin, or pin mismatch).
+_cc_is_local_override() {
+    local rel="${1#.claude/}" file="${2:-}" entry path pin rc=1
+    local -a entries
+    rel="${rel#.cognitive-core/}"
+    read -r -a entries <<< "${CC_LOCAL_OVERRIDES:-}"
+    for entry in ${entries[@]+"${entries[@]}"}; do
+        path="${entry%%@*}"
+        pin=""
+        [ "$path" = "$entry" ] || pin="${entry#*@}"
+        case "$path" in
+            */) case "$rel" in "$path"*) ;; *) continue ;; esac ;;
+            *)  [ "$rel" = "$path" ] || continue ;;
+        esac
+        if [ -z "$pin" ]; then
+            _cc_override_needs_pin "$rel" && { rc=2; continue; }
+            return 0
+        fi
+        # Pins apply to single files only
+        case "$path" in */) rc=2; continue ;; esac
+        if [ -z "$file" ] || [ "$(_cc_compute_sha256 "$file")" = "$pin" ]; then
+            return 0
+        fi
+        rc=2
+    done
+    return "$rc"
+}
+
+# True if a directory, or any file below it, is listed (pins not checked).
+_cc_has_local_override_under() {
+    local dir="$1" entry
+    local -a entries
+    _cc_is_local_override "$dir" && return 0
+    read -r -a entries <<< "${CC_LOCAL_OVERRIDES:-}"
+    for entry in ${entries[@]+"${entries[@]}"}; do
+        case "${entry%%@*}" in "$dir"*) return 0 ;; esac
+    done
+    return 1
 }
 
 # Recursive grep using ripgrep when available, falling back to grep -r
@@ -215,7 +275,13 @@ _cc_json_pretool_ask() {
 # Security event logging
 _cc_security_log() {
     local level="$1" event="$2" detail="$3"
-    local logfile="${CC_PROJECT_DIR}/.claude/cognitive-core/security.log"
+    # CC_INSTALL_DIR is set by installers for non-Claude layouts (.cognitive-core).
+    # Honoured only inside the project, so an inherited value cannot move the log.
+    local install_dir="${CC_PROJECT_DIR}/.claude"
+    case "${CC_INSTALL_DIR:-}" in
+        "${CC_PROJECT_DIR}"/*) case "$CC_INSTALL_DIR" in *..*) ;; *) install_dir="$CC_INSTALL_DIR" ;; esac ;;
+    esac
+    local logfile="${install_dir}/cognitive-core/security.log"
     local timestamp
     timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     local logdir
@@ -297,10 +363,16 @@ _cc_guard_run() {
 
 # Session-scoped domain cache for hooks (e.g., validate-fetch "don't ask again")
 # Cache file is scoped to the Claude session to prevent cross-session leakage.
-# Uses CLAUDE_SESSION_KEY (set by Claude Code) or falls back to parent PID.
+# Session key resolution order:
+#   1. CLAUDE_SESSION_KEY     - explicit override (used by tests)
+#   2. CLAUDE_CODE_SESSION_ID - the real session id Claude Code exports; stable
+#      across every hook invocation AND subagent in a session (incl. workflows)
+#   3. ppid_$PPID            - fallback to the parent (the persistent Claude Code
+#      process), NOT $$ which is each hook's own one-shot PID and never matches
+#      between a PostToolUse write and the next PreToolUse read.
 _cc_session_cache_file() {
     local namespace="${1:-domains}"
-    local session_key="${CLAUDE_SESSION_KEY:-ppid_$$}"
+    local session_key="${CLAUDE_SESSION_KEY:-${CLAUDE_CODE_SESSION_ID:-ppid_$PPID}}"
     local cache_dir="${TMPDIR:-/tmp}"
     echo "${cache_dir}/cc-session-${namespace}-${session_key}"
 }
@@ -322,6 +394,196 @@ _cc_session_cache_has() {
     local cache_file
     cache_file=$(_cc_session_cache_file "$namespace")
     [ -f "$cache_file" ] && grep -qxF "$value" "$cache_file" 2>/dev/null
+}
+
+# Canonicalize a path without python3 dependency (#256).
+# Strategy: prefer the system `realpath` when available; fall back to a POSIX
+# shell resolver that uses `cd` + `pwd -P` to drop `..` and symlink components.
+# Signals failure via non-zero exit when the path cannot be resolved. Callers
+# must NOT fall back to the raw input on failure.
+_cc_realpath() {
+    local p="${1:-}"
+    [ -n "$p" ] || return 1
+    if command -v realpath >/dev/null 2>&1; then
+        realpath "$p" 2>/dev/null && return 0
+        return 1
+    fi
+    # POSIX fallback: resolve parent directory, then reattach basename.
+    # Handles both files and directories; rejects when dirname cannot be cd'd.
+    local dir base resolved
+    dir=$(dirname -- "$p")
+    base=$(basename -- "$p")
+    resolved=$(cd -- "$dir" 2>/dev/null && pwd -P) || return 1
+    case "$base" in
+        /) printf '/\n' ;;
+        .) printf '%s\n' "$resolved" ;;
+        *) printf '%s/%s\n' "$resolved" "$base" ;;
+    esac
+}
+
+# Validate a framework source path before any exec/git operation (#256).
+# Returns 0 only when ALL of these hold:
+#   1. $CC_FRAMEWORK_ROOT is set and non-empty (anchor must be pinned)
+#   2. Path argument is non-empty, absolute, free of `..` and null bytes
+#   3. Canonicalized path is within canonicalized $CC_FRAMEWORK_ROOT (prefix
+#      match must land on a `/` boundary to reject sibling-prefix attacks)
+#   4. The directory exists
+#   5. $path/update.sh is a regular file (not a symlink escaping the root),
+#      executable, not setuid/setgid, and owned by the current user
+# On accept: exports CC_VALIDATED_SOURCE to the canonical resolved path -
+# callers MUST consume $CC_VALIDATED_SOURCE only, never the raw input.
+# On deny: emits _cc_security_log DENY with {reason, path, caller} and
+# returns 1 without touching CC_VALIDATED_SOURCE.
+_cc_validate_framework_source() {
+    local path="${1:-}"
+    local caller="${FUNCNAME[1]:-top-level}"
+    local reason=""
+
+    # Anchor must be set
+    if [ -z "${CC_FRAMEWORK_ROOT:-}" ]; then
+        reason="CC_FRAMEWORK_ROOT unset"
+        _cc_security_log "DENY" "source-validation" "${reason} path=${path} caller=${caller}"
+        return 1
+    fi
+
+    # Non-empty, absolute
+    if [ -z "$path" ]; then
+        reason="empty path"
+        _cc_security_log "DENY" "source-validation" "${reason} caller=${caller}"
+        return 1
+    fi
+    case "$path" in
+        /*) ;;
+        *)
+            reason="path not absolute"
+            _cc_security_log "DENY" "source-validation" "${reason} path=${path} caller=${caller}"
+            return 1
+            ;;
+    esac
+
+    # No control characters (including NUL, newline, tab). Shell variables
+    # cannot actually hold a literal NUL byte (POSIX exec boundary strips it),
+    # but we reject every other control byte defensively - a path containing
+    # a newline would break logging and argv parsing in callers.
+    if LC_ALL=C printf '%s' "$path" | LC_ALL=C grep -q '[[:cntrl:]]'; then
+        reason="path contains control character"
+        _cc_security_log "DENY" "source-validation" "path=<redacted> caller=${caller}"
+        return 1
+    fi
+
+    # No `..` segments (reject before resolution so we see the original intent)
+    case "$path" in
+        */../*|*/..|../*|..)
+            reason="path contains .. segment"
+            _cc_security_log "DENY" "source-validation" "${reason} path=${path} caller=${caller}"
+            return 1
+            ;;
+    esac
+
+    # Canonicalize both sides
+    local canon_path canon_root
+    canon_path=$(_cc_realpath "$path") || {
+        reason="realpath failed"
+        _cc_security_log "DENY" "source-validation" "${reason} path=${path} caller=${caller}"
+        return 1
+    }
+    canon_root=$(_cc_realpath "$CC_FRAMEWORK_ROOT") || {
+        reason="framework root realpath failed"
+        _cc_security_log "DENY" "source-validation" "${reason} root=${CC_FRAMEWORK_ROOT} caller=${caller}"
+        return 1
+    }
+
+    # Boundary check: canon_path must equal canon_root or begin with canon_root + '/'
+    # Rejects sibling-prefix attacks like root=/tmp/foo, path=/tmp/foobar
+    if [ "$canon_path" != "$canon_root" ]; then
+        case "$canon_path" in
+            "${canon_root}/"*) ;;
+            *)
+                reason="path outside framework root"
+                _cc_security_log "DENY" "source-validation" "${reason} path=${canon_path} root=${canon_root} caller=${caller}"
+                return 1
+                ;;
+        esac
+    fi
+
+    # Directory must exist
+    if [ ! -d "$canon_path" ]; then
+        reason="directory does not exist"
+        _cc_security_log "DENY" "source-validation" "${reason} path=${canon_path} caller=${caller}"
+        return 1
+    fi
+
+    # update.sh checks - regular file, executable, no setuid/setgid
+    local updater="${canon_path}/update.sh"
+    # Refuse if update.sh is a symlink (regular-file test already excludes symlinks
+    # to non-files, but we want to reject even symlinks to regular files inside
+    # the root: the canonicalization would let a symlink-to-outside-file pass
+    # the directory boundary check).
+    if [ -L "$updater" ]; then
+        reason="update.sh is a symlink"
+        _cc_security_log "DENY" "source-validation" "${reason} path=${updater} caller=${caller}"
+        return 1
+    fi
+    if [ ! -f "$updater" ]; then
+        reason="update.sh missing or not a regular file"
+        _cc_security_log "DENY" "source-validation" "${reason} path=${updater} caller=${caller}"
+        return 1
+    fi
+    if [ ! -x "$updater" ]; then
+        reason="update.sh not executable"
+        _cc_security_log "DENY" "source-validation" "${reason} path=${updater} caller=${caller}"
+        return 1
+    fi
+
+    # setuid / setgid test - inline platform detection (no new helpers)
+    local perms owner
+    if stat -f %p "$updater" >/dev/null 2>&1; then
+        # BSD/macOS: stat -f %p yields a 6-digit octal mode
+        perms=$(stat -f %p "$updater" 2>/dev/null)
+        owner=$(stat -f %u "$updater" 2>/dev/null)
+    else
+        # GNU/Linux: stat -c uses %a (symbolic octal) and %u
+        perms=$(stat -c %a "$updater" 2>/dev/null)
+        owner=$(stat -c %u "$updater" 2>/dev/null)
+    fi
+    # setuid bit 4000 / setgid bit 2000 - test by extracting the second-most-significant
+    # octal digit (4 sticky-group position). We use modulo arithmetic for portability.
+    if [ -n "$perms" ]; then
+        # Normalize: pad to at least 5 digits (BSD) or keep short form (GNU 3-4 digits).
+        # Special-bits digit is the one at position "length - 4" (0 if absent).
+        local plen special
+        plen=${#perms}
+        if [ "$plen" -ge 4 ]; then
+            special=$(printf '%s' "$perms" | cut -c$((plen - 3)))
+        else
+            special=0
+        fi
+        case "$special" in
+            4|5|6|7)
+                reason="update.sh has setuid bit"
+                _cc_security_log "DENY" "source-validation" "${reason} path=${updater} perms=${perms} caller=${caller}"
+                return 1
+                ;;
+        esac
+        case "$special" in
+            2|3|6|7)
+                reason="update.sh has setgid bit"
+                _cc_security_log "DENY" "source-validation" "${reason} path=${updater} perms=${perms} caller=${caller}"
+                return 1
+                ;;
+        esac
+    fi
+
+    # Owner must match current user
+    if [ -n "$owner" ] && [ "$owner" != "$(id -u)" ]; then
+        reason="update.sh owner mismatch"
+        _cc_security_log "DENY" "source-validation" "${reason} path=${updater} owner=${owner} uid=$(id -u) caller=${caller}"
+        return 1
+    fi
+
+    # All checks passed
+    export CC_VALIDATED_SOURCE="$canon_path"
+    return 0
 }
 
 # Extract field from stdin JSON

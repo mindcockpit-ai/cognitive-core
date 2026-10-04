@@ -794,8 +794,19 @@ Human approval gate. Moves an issue from "To Be Tested" to "Done" after reviewin
 2. Verify evidence comment exists
 3. Check SOX guard (if enabled): compare approver with assignee
 4. Check dual approval (if enabled): count existing approval comments
-5. Close the issue with "Approved by @username" comment
-6. Move to Done on the board
+5. **Add the `approved` label** — REQUIRED before closing. The `issue-closed` CI guard
+   (`project-board-automation.yml`) reopens any closed issue that has acceptance-criteria
+   checkboxes but lacks this label, bouncing it back to "To Be Tested". Skipping this step
+   makes the approval silently revert seconds later.
+   ```bash
+   gh issue edit <N> --repo {{CC_GITHUB_REPO}} --add-label "approved"
+   ```
+6. Close the issue with an "Approved by @username" comment (the literal `Approved by @`
+   string also satisfies the local closure-guard hook in `validate-bash.sh`)
+7. Move to Done on the board
+
+> The `github` provider's `pb_board_approve` already adds the `approved` label atomically
+> before closing; the steps above document the same requirement for the manual flow.
 
 ### `blocked`
 
