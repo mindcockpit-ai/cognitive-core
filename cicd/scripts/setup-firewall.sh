@@ -138,7 +138,7 @@ run_cmd() {
     if [ "$DRY_RUN" = "true" ]; then
         echo "  -> $*"
     else
-        eval "$@"
+        eval "$*"
     fi
 }
 

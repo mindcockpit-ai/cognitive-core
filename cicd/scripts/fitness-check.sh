@@ -12,7 +12,6 @@
 #   bash fitness-check.sh --gate merge     # Check against gate threshold
 #
 # Environment variables:
-#   FITNESS_CONFIG      Path to config file (default: .fitness.yml)
 #   FITNESS_PACKS_DIR   Directory containing language pack fitness checks
 #   GATE_MERGE_THRESHOLD   Minimum score for merge gate (default: 70)
 #   GATE_DEPLOY_THRESHOLD  Minimum score for deploy gate (default: 80)
@@ -26,7 +25,6 @@ set -euo pipefail
 SCORE_ONLY=false
 VERBOSE=false
 GATE=""
-CONFIG_FILE="${FITNESS_CONFIG:-.fitness.yml}"
 PACKS_DIR="${FITNESS_PACKS_DIR:-language-packs}"
 GATE_MERGE_THRESHOLD="${GATE_MERGE_THRESHOLD:-70}"
 GATE_DEPLOY_THRESHOLD="${GATE_DEPLOY_THRESHOLD:-80}"
@@ -51,7 +49,7 @@ while [[ $# -gt 0 ]]; do
         --score-only) SCORE_ONLY=true; shift ;;
         --verbose|-v) VERBOSE=true; shift ;;
         --gate) GATE="$2"; shift 2 ;;
-        --config) CONFIG_FILE="$2"; shift 2 ;;
+        --config) shift 2 ;;  # accepted for compatibility; no config file is read
         --packs-dir) PACKS_DIR="$2"; shift 2 ;;
         --help|-h)
             echo "Usage: fitness-check.sh [--score-only] [--verbose] [--gate merge|deploy]"

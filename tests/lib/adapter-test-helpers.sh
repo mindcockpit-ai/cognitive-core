@@ -104,3 +104,43 @@ assert_adapter_required_functions() {
         assert_eq "${adapter} adapter: ${fn} defined" "DEFINED" "$fn_check"
     done
 }
+
+# ---- Fallback readme without python3 (#375) ----
+# Runs _adapter_generate_project_readme with a PATH that has no python3, so the
+# heredoc fallback is used, and checks the file it writes.
+# Usage: assert_adapter_fallback_readme "aider" "CONVENTIONS.md"
+assert_adapter_fallback_readme() {
+    local adapter="$1" rel="$2"
+    local adapter_path="${ROOT_DIR}/adapters/${adapter}/adapter.sh"
+    local lang
+    for lang in python ""; do
+        local dir bin out rc=0 file
+        dir=$(mktemp -d)
+        bin="${dir}/bin"
+        mkdir -p "$bin" "${dir}/project"
+        ln -s "$(command -v cat)" "${bin}/cat"
+        ln -s "$(command -v mkdir)" "${bin}/mkdir"
+        out=$(PATH="$bin" CC_LANGUAGE="$lang" "$BASH" -c '
+            set -euo pipefail
+            [ -n "$CC_LANGUAGE" ] || unset CC_LANGUAGE
+            err() { printf "%s\n" "$*" >&2; }; info() { printf "%s\n" "$*"; }; warn() { info "$@"; }
+            SCRIPT_DIR="$1"; FORCE=false; CC_INSTALL_DIR=".cognitive-core"; CC_PROJECT_NAME="fbtest"
+            command -v python3 >/dev/null && { echo "python3 still on PATH"; exit 3; }
+            source "$1/adapters/_adapter-lib.sh"
+            source "$2"
+            _adapter_generate_project_readme "$3"
+        ' -- "$ROOT_DIR" "$adapter_path" "${dir}/project" 2>&1) || rc=$?
+        file="${dir}/project/${rel}"
+        local label="${adapter} fallback (CC_LANGUAGE=${lang:-unset})"
+        assert_eq "${label}: exit 0" "0" "$rc"
+        assert_contains "${label}: fallback branch used" "$out" "(fallback mode)"
+        assert_file_exists "${label}: ${rel} written" "$file"
+        local content=""
+        [ -f "$file" ] && content=$(cat "$file")
+        assert_contains "${label}: project name expanded" "$content" "# Project Conventions - fbtest"
+        assert_contains "${label}: language expanded" "$content" "Follow ${lang:-the project} community best practices"
+        assert_contains "${label}: safety rules inlined" "$content" "1. "
+        assert_not_contains "${label}: no unexpanded parameter" "$content" '${'
+        rm -rf "$dir"
+    done
+}

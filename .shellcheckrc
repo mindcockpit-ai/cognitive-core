@@ -1,0 +1,4 @@
+# ShellCheck settings for this repository (#375)
+# Follow sourced files relative to each script, so libraries are checked in context
+external-sources=true
+source-path=SCRIPTDIR

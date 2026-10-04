@@ -15,6 +15,7 @@ suite_start "10 - Aider Adapter"
 assert_adapter_validates "aider"
 assert_adapter_variables "aider" ".cognitive-core"
 assert_adapter_py_compiles "aider"
+assert_adapter_fallback_readme "aider" "CONVENTIONS.md"
 
 # ---- Test tool-map.yaml ----
 assert_file_exists "aider: tool-map.yaml exists" "${ROOT_DIR}/adapters/aider/tool-map.yaml"

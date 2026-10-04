@@ -152,10 +152,6 @@ push_job_end() {
         duration=$((now - ${start_metric%.*}))
     fi
 
-    # Map status to numeric: success=1, failure=0
-    local status_value=0
-    [ "$status" = "success" ] && status_value=1
-
     local payload
     payload=$(cat <<METRICS
 # HELP cicd_job_duration_seconds Duration of the CI/CD job in seconds

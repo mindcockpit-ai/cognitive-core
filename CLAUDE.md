@@ -11,7 +11,7 @@
 | **Architecture** | Layered (core/, adapters/, language-packs/, database-packs/) |
 | **Main Branch** | main |
 | **Test Command** | `bash tests/run-all.sh` |
-| **Lint Command** | `bash -n $1` (shell syntax check) |
+| **Lint Command** | `bash tests/lib/lint-file.sh $1` (ShellCheck for .sh, compile check for .py) |
 | **Project Board** | [cognitive-core Development](https://github.com/orgs/mindcockpit-ai/projects/9) |
 
 ## Architecture
@@ -59,7 +59,7 @@ cognitive-core/
 - POSIX ERE for regex (no `\s`, `\b`, `\w`) — macOS + Linux compatibility
 - `set -euo pipefail` at the top of every script
 - Use `_lib.sh` helper functions for JSON parsing and hook responses
-- ShellCheck clean (suite 01 validates when shellcheck is installed)
+- ShellCheck clean at severity warning (suite 01 checks every tracked `*.sh`; options in `.shellcheckrc`; CI pins the version)
 
 ### Python (adapters only)
 - Python 3.10+ minimum
