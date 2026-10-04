@@ -150,6 +150,11 @@ jobs:
         env:
           JUNIT_REPORT_DIR: ${{ github.workspace }}/test-results
 
+      - name: Run self-install parity test
+        run: bash tests/suites/29-self-install-parity.sh
+        env:
+          JUNIT_REPORT_DIR: ${{ github.workspace }}/test-results
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4

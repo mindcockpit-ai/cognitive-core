@@ -58,22 +58,32 @@ The smoke test command (`CC_SMOKE_TEST_COMMAND`) MUST output JSON in this format
 }
 ```
 
+## Ability Registry
+
+Each workflow step is classified by ability type. D-type abilities are deterministic
+scripts that execute without LLM involvement. See #195 for the full type system.
+
+| Ability | Type | Script | Description |
+|---------|:---:|--------|-------------|
+| preflight | **D** | `scripts/preflight.sh` | Verify server reachable, validate config |
+| execute-test | **D** | `scripts/execute-test.sh` | Run CC_SMOKE_TEST_COMMAND, validate JSON |
+| check-issues | **D** | `scripts/check-issues.sh` | Search GitHub for existing tracking issues |
+| create-issue | **D/S** | `scripts/create-issue.sh` | LLM provides title+body → script creates issue with dedup |
+| list-open-issues | **D** | `scripts/list-open-issues.sh` | List open smoke-test issues as JSON |
+| cross-reference | **S/D** | *(orchestration)* | Scripts provide data → LLM interprets resolution |
+| format-table | **S** | *(orchestration)* | LLM renders results as markdown table |
+| offer-closures | **H** | *(orchestration)* | Human decides which resolved issues to close |
+
+**Type key**: **D** = deterministic script, **D/S** = LLM provides input → script executes,
+**S/D** = script provides input → LLM generates output, **S** = pure LLM, **H** = human decision.
+
 ## Workflow
 
 ### Subcommand: `run` (default)
 
-1. **Load config**: Read `CC_SMOKE_TEST_COMMAND` and `CC_SMOKE_TEST_URL` from `cognitive-core.conf`
-2. **Preflight check**: Verify server is reachable:
-   ```bash
-   curl -s -o /dev/null -w "%{http_code}" "$CC_SMOKE_TEST_URL"
-   ```
-   If not reachable, print error and stop.
-3. **Execute test**: Run the smoke test command:
-   ```bash
-   eval "$CC_SMOKE_TEST_COMMAND"
-   ```
-4. **Parse JSON**: Read the JSON output (standard schema above)
-5. **Display results**: Print a formatted table:
+1. **Preflight** [D]: Run `scripts/preflight.sh` — exits if server unreachable or config missing
+2. **Execute** [D]: Run `scripts/execute-test.sh` — captures validated JSON results
+3. **Display** [S]: Render results as a formatted markdown table:
    ```
    # Smoke Test Results — <timestamp>
    Server: <server> | Environment: <environment>
@@ -86,33 +96,29 @@ The smoke test command (`CC_SMOKE_TEST_COMMAND`) MUST output JSON in this format
 
    Summary: X/Y passed, Z failed
    ```
-6. **Check existing issues**: For each FAIL, search for an open issue:
-   ```bash
-   gh issue list --repo <CC_ORG>/<CC_PROJECT_NAME> --label "bug,<CC_SMOKE_TEST_LABEL>" --state open --search "<page name>"
-   ```
-7. **Create issues**: For each untracked failure, create a GitHub issue:
+4. **Check existing** [D]: Pipe results through `scripts/check-issues.sh` — outputs tracked/untracked JSON
+5. **Compose issue content** [S]: For each untracked failure, compose:
    - Title: `[smoke-test] <Page Name>: <short error summary>`
-   - Labels: `bug`, `<CC_SMOKE_TEST_LABEL>`
-   - Body: See issue template below
-8. **Add to project board**: If a GitHub project exists, add the issue:
+   - Body: Use issue template (see Issue Body Template below)
+6. **Create issues** [D/S]: For each untracked failure, run:
    ```bash
-   gh project item-add <project-number> --owner <CC_ORG> --url <issue-url>
+   scripts/create-issue.sh --title "<composed title>" --body "<composed body>" [--add-to-project <number>]
    ```
-9. **Report**: Print count of created vs already-tracked issues
+7. **Report** [D]: Print count of created vs already-tracked issues
 
 ### Subcommand: `report`
 
-Same as `run` steps 1-5 only. No issue creation or project board interaction.
+Steps 1-3 from `run` only. No issue creation or project board interaction.
 
 ### Subcommand: `fix`
 
-1. List open smoke-test issues:
-   ```bash
-   gh issue list --repo <CC_ORG>/<CC_PROJECT_NAME> --label "bug,<CC_SMOKE_TEST_LABEL>" --state open
-   ```
-2. Re-run the smoke test (steps 2-5 from `run`)
-3. Cross-reference: identify which open issues are now PASS (resolved) vs still FAIL
-4. Display a resolution table:
+1. **List issues** [D]: Run `scripts/list-open-issues.sh` — outputs JSON of open smoke-test issues
+2. **Re-test** [D]: Run steps 1-2 from `run` (preflight + execute)
+3. **Cross-reference** [S/D]: Compare open issues against fresh results. Identify:
+   - Resolved: open issue, page now PASS
+   - Still failing: open issue, page still FAIL
+   - New failures: no issue, page FAIL
+4. **Display resolution table** [S]: Render comparison:
    ```
    | Issue | Page | Previous | Current | Action |
    |-------|------|----------|---------|--------|
@@ -120,7 +126,7 @@ Same as `run` steps 1-5 only. No issue creation or project board interaction.
    | #43 | MPMF Viewer | FAIL | FAIL | Still broken |
    | — | New Page | — | FAIL | New failure |
    ```
-5. Offer to close resolved issues and create issues for new failures
+5. **Offer closures** [H]: Present resolved issues, human decides which to close
 
 ## Issue Title Convention
 

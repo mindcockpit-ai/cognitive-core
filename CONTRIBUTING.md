@@ -33,6 +33,10 @@ Thank you for your interest in contributing to cognitive-core! This document pro
 5. Update documentation
 6. Submit PR with clear description
 
+The repository dogfoods itself: `.claude/` holds an install of the framework. When you change a
+hook, agent, skill file or utility in `core/`, copy it to the same path under `.claude/` (utilities
+go to `.claude/cognitive-core/`). `tests/suites/29-self-install-parity.sh` fails otherwise.
+
 ## Areas of Contribution
 
 ### Priority Areas
