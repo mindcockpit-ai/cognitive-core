@@ -123,16 +123,9 @@ ba_load_board() {
 
 # Status key -> option id, by display name
 ba_option_id() {
-    local name="" pair
+    local name
     # A renamed column is mapped in CC_GITHUB_STATUS_MAP (key=Name|...)
-    if [ -n "${CC_GITHUB_STATUS_MAP:-}" ]; then
-        local -a pairs
-        IFS='|' read -ra pairs <<< "$CC_GITHUB_STATUS_MAP"
-        for pair in "${pairs[@]}"; do
-            [ "${pair%%=*}" = "$1" ] && name="${pair#*=}"
-        done
-    fi
-    [ -n "$name" ] || name=$(_pb_status_display_name "$1")
+    name=$(_pb_status_name_for_key "$1" "${CC_GITHUB_STATUS_MAP:-}")
     jq -er --arg n "$name" '.[] | select(.name == $n) | .id' <<< "$BA_OPTIONS"
 }
 

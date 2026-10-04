@@ -173,6 +173,13 @@ jobs:
         env:
           JUNIT_REPORT_DIR: ${{ github.workspace }}/test-results
 
+      - name: Run board provider tests
+        run: |
+          bash tests/suites/14-project-board-providers.sh
+          bash tests/suites/31-board-provider.sh
+        env:
+          JUNIT_REPORT_DIR: ${{ github.workspace }}/test-results
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
