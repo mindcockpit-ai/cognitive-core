@@ -95,7 +95,9 @@ Available skills: `session-resume`, `session-sync`, `code-review`, `pre-commit`,
 |----------|------|---------|-------------|
 | `CC_HOOKS` | string | `"setup-env compact-reminder validate-bash validate-read validate-fetch validate-write post-edit-lint notify-complete"` | Space-separated hook names to enable |
 
-Available hooks: `setup-env`, `compact-reminder`, `validate-bash`, `validate-git-remote-secret`, `validate-read`, `validate-write`, `validate-fetch`, `post-edit-lint`, `notify-complete`
+Available hooks: `setup-env`, `compact-reminder`, `validate-bash`, `validate-git-remote-secret`, `validate-read`, `validate-write`, `validate-fetch`, `post-edit-lint`, `validate-reply-links`, `notify-complete`
+
+`validate-reply-links` (Stop) blocks the end of a turn while the final reply contains a bare GitHub reference (`#123`, `Repo#123`, `owner/repo#123`) outside a Markdown link, and tells the model the exact links (repo from `CC_GITHUB_REPO`, else the `origin` remote). Code, URLs, colours and existing links are ignored; the second pass (`stop_hook_active`) never blocks. Hooks cannot rewrite displayed text, so the blocked reply stays visible and the corrected one follows. `settings.json` is user-managed after install: in existing projects add the hook to `CC_HOOKS`, run `update.sh`, then add `{"type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/validate-reply-links.sh"}` to the `Stop` hooks in `.claude/settings.json` yourself.
 
 `validate-git-remote-secret` blocks git commands that would store a token or `user:secret@` in a remote URL (`remote add/set-url`, `clone`, `push/fetch/pull`, `ls-remote`, `submodule add/set-url`, and `config` writes to `remote.*`, `url.*` (`insteadOf`), `submodule.*` or `branch.*`). It checks each command of a `&&`/`;`/`|` chain separately and fails closed, so a commit message that itself contains such a URL is refused too. At session start it warns, redacted, when a configured remote or `.gitmodules` of the project carries a credential. Both are logged to `security.log`. Writes to `.git/config` through file tools or `sed` are not covered; pair it with server-side secret scanning.
 

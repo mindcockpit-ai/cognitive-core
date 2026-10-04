@@ -331,6 +331,7 @@ Live test results and component inventory from the latest build, visible at [mul
 | `compact-reminder.sh` | Notification (compact) | Re-injects critical rules after context compaction |
 | `angular-version-guard.sh` | PreToolUse (Write/Edit) | Angular version-aware pattern enforcement (v18-21) |
 | `spring-boot-version-guard.sh` | PreToolUse (Write/Edit) | Spring Boot version-aware pattern enforcement (v2-4) |
+| `validate-reply-links.sh` | Stop | Blocks the end of a turn while the reply has a bare issue/PR reference (`#123`) outside a Markdown link; names the exact links (repo from `CC_GITHUB_REPO`). Needs `jq` |
 | `notify-complete.sh` | Stop / SubagentStop / Notification | Dispatches completion notifications to enabled channels |
 | `post-fetch-cache.sh` | PostToolUse (WebFetch) | Caches allowed domains so subsequent fetches skip the prompt |
 | `session-guard.sh` | SessionStart | Inter-session coordination: detects concurrent sessions on the same repo (advisory, warns only) |
