@@ -93,7 +93,7 @@ _pb_canonical_status() {
     [[ -n "${CC_YOUTRACK_STATUS_MAP:-}" ]] && parts+=("$CC_YOUTRACK_STATUS_MAP")
     [[ -n "${CC_GITHUB_STATUS_MAP:-}" ]]  && parts+=("$CC_GITHUB_STATUS_MAP")
     local map
-    map=$(IFS='|'; echo "${parts[*]}")
+    map=$(IFS='|'; echo "${parts[*]:-}")
     if [[ -n "$map" ]]; then
         local pair
         IFS='|' read -ra pairs <<< "$map"

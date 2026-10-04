@@ -1,0 +1,58 @@
+# cc-managed: project-board-reconcile v2
+# =============================================================================
+# Project Board Reconciliation - cognitive-core
+# =============================================================================
+# Daily safety net for missed events: closed issues whose board status is not
+# Done/Canceled move to Canceled (not planned, duplicate) or Done (approved,
+# or approval gate off). Unapproved issues are only reported, never moved to
+# Done and never reopened. Kept separate from project-board-automation.yml so
+# that GitHub disabling an idle scheduled workflow cannot stop the event
+# handling. Managed by cognitive-core update.sh.
+# =============================================================================
+name: Project Board Reconcile
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: board-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    env:
+      HAS_APP: ${{ secrets.REVIEWER_APP_ID != '' }}
+    steps:
+      - name: App token
+        id: app
+        if: env.HAS_APP == 'true'
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.REVIEWER_APP_ID }}
+          private-key: ${{ secrets.REVIEWER_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: Checkout board script and conf (default branch)
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /cognitive-core.conf
+            /.claude/cognitive-core.conf
+            /.claude/skills/project-board/
+            /core/skills/project-board/
+      - name: Reconcile
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.PROJECT_PAT }}
+        run: |
+          for s in .claude/skills/project-board/ci/board-automation.sh core/skills/project-board/ci/board-automation.sh; do
+            if [ -f "$s" ]; then exec bash "$s" reconcile; fi
+          done
+          echo "::notice::board-automation.sh not found (project-board skill not installed) - skipped"

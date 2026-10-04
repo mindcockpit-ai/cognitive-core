@@ -1531,16 +1531,17 @@ fi
 # CI workflow uses label-based check (not comment-based)
 ci_workflow="${ROOT_DIR}/.github/workflows/project-board-automation.yml"
 
-if grep -q 'approved.*label' "$ci_workflow" || grep -q 'labels.*approved' "$ci_workflow"; then
-    _pass "CI: issue-closed job checks for 'approved' label"
+# The gate logic lives in ci/board-automation.sh (behaviour tested in suite 30)
+if grep -q 'skills/project-board/ci/board-automation.sh' "$ci_workflow" && grep -qF 'exec bash "$s" event' "$ci_workflow"; then
+    _pass "CI: board workflow delegates to board-automation.sh"
 else
-    _fail "CI: issue-closed job missing label-based approval check"
+    _fail "CI: board workflow does not run board-automation.sh"
 fi
 
-if grep -q 'Approved by @' "$ci_workflow"; then
-    _fail "CI: issue-closed job still uses comment-based 'Approved by @' check"
+if grep -q 'Approved by @' "$ci_workflow" "${ROOT_DIR}/core/skills/project-board/ci/board-automation.sh"; then
+    _fail "CI: comment-based 'Approved by @' check present"
 else
-    _pass "CI: issue-closed job no longer uses comment-based 'Approved by @' check"
+    _pass "CI: no comment-based 'Approved by @' check"
 fi
 
 # Cleanup

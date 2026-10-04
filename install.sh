@@ -829,8 +829,16 @@ mkdir -p "$MANIFEST_DIR"
 # Build installed files list for checksum tracking
 INSTALLED_FILES="[]"
 if command -v python3 &>/dev/null; then
-    # Use python for proper JSON array construction
-    INSTALLED_FILES=$(find "${CC_INSTALL_DIR}" -type f -not -path "${CC_INSTALL_DIR}/cognitive-core/*" | sort | python3 -c "
+    # Use python for proper JSON array construction. Managed board workflows
+    # (#362) are recorded too, so update.sh can tell local edits apart.
+    INSTALLED_FILES=$( {
+        find "${CC_INSTALL_DIR}" -type f -not -path "${CC_INSTALL_DIR}/cognitive-core/*"
+        for wf in "${PROJECT_DIR}"/.github/workflows/project-board-*.yml; do
+            if [ -f "$wf" ] && [ ! -L "$wf" ] && grep -q '^# cc-managed: ' "$wf"; then
+                printf '%s\n' "$wf"
+            fi
+        done
+    } | sort | python3 -c "
 import sys, json, hashlib, os
 files = []
 project = '${PROJECT_DIR}'

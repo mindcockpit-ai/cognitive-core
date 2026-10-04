@@ -1,515 +1,73 @@
+# cc-managed: project-board-automation v2
 # =============================================================================
 # Project Board Automation - cognitive-core
 # =============================================================================
-# Automates board status transitions based on GitHub events:
-#   - PR opened -> linked issues move to In Progress (from Todo only)
-#   - PR merged -> linked issues move to Done
-#   - Issue assigned -> moves to Todo (from Backlog/Roadmap)
-#   - Issue opened -> added to board in Backlog
-#   - Issue reopened -> moves to In Progress
-#   - Issue closed -> moves to Done
+# Moves issues on the GitHub project board and enforces the approval gate.
+# All logic lives in .claude/skills/project-board/ci/board-automation.sh,
+# read from the default branch. Settings come from cognitive-core.conf
+# (CC_GITHUB_OWNER, CC_PROJECT_NUMBER, CC_REQUIRE_HUMAN_APPROVAL); project,
+# field and option IDs are looked up by name.
 #
-# Prerequisites:
-#   - Repository secret PROJECT_PAT (classic PAT with repo + project scopes)
+# With CC_REQUIRE_HUMAN_APPROVAL=true (default):
+#   PR opened -> linked issues Todo -> In Progress
+#   PR merged -> linked issues -> To Be Tested
+#   Issue closed without the `approved` label -> To Be Tested, reopened
+#   Issue closed with `approved` from To Be Tested -> Done
+#   Issue closed as not planned / duplicate -> Canceled
+# With false: PR merged and issue closed -> Done.
+#
+# Token: GitHub App (secrets REVIEWER_APP_ID, REVIEWER_APP_PRIVATE_KEY) or
+# secret PROJECT_PAT (classic PAT: repo, project, read:org). Without either,
+# the workflow does nothing. Turn off the board's built-in workflows
+# "Item closed" and "Pull request merged", they bypass the gate.
+# Daily reconciliation: project-board-reconcile.yml.
+# Managed by cognitive-core update.sh; list it in CC_LOCAL_OVERRIDES to own it.
 # =============================================================================
 name: Project Board Automation
 
 on:
-  schedule:
-    - cron: '0 6 * * *'  # Daily at 06:00 UTC
   pull_request:
     types: [opened, ready_for_review, closed]
   issues:
-    types: [assigned, opened, closed, reopened]
+    types: [opened, assigned, closed, reopened]
 
 permissions:
-  issues: write
-  pull-requests: read
+  contents: read
 
-env:
-  PROJECT_ID: "PVT_kwDODLDmb84BPbGR"
-  STATUS_FIELD_ID: "PVTSSF_lADODLDmb84BPbGRzg91hL4"
-  PROJECT_NUMBER: "9"
-  PROJECT_OWNER: "mindcockpit-ai"
-  ROADMAP_ID: "bc4a7c19"
-  BACKLOG_ID: "0624174c"
-  TODO_ID: "711ddfb9"
-  IN_PROGRESS_ID: "e6a30b30"
-  TESTING_ID: "f8614c05"
-  DONE_ID: "28f9eecd"
-  CANCELED_ID: "95eda9a6"
+concurrency:
+  group: board-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
 
 jobs:
-  # ── PR opened -> linked issues move to In Progress ──
-  pr-opened:
-    if: >
-      github.event_name == 'pull_request' &&
-      (github.event.action == 'opened' || github.event.action == 'ready_for_review')
+  board:
     runs-on: ubuntu-latest
+    env:
+      HAS_APP: ${{ secrets.REVIEWER_APP_ID != '' }}
     steps:
-      - name: Move linked issues to In Progress
+      - name: App token
+        id: app
+        if: env.HAS_APP == 'true'
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.REVIEWER_APP_ID }}
+          private-key: ${{ secrets.REVIEWER_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: Checkout board script and conf (default branch)
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /cognitive-core.conf
+            /.claude/cognitive-core.conf
+            /.claude/skills/project-board/
+            /core/skills/project-board/
+      - name: Route event
         env:
-          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.PROJECT_PAT }}
         run: |
-          set -euo pipefail
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::warning::PROJECT_PAT not configured - skipping board automation"
-            exit 0
-          fi
-          PR_BODY=$(cat <<'PREOF'
-          ${{ github.event.pull_request.body }}
-          PREOF
-          )
-          # `|| true` keeps set -e + pipefail from tripping when no `closes #N` keyword is present (empty result is handled below).
-          ISSUES=$(echo "$PR_BODY" | \
-            grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?)\s+#[0-9]+' | \
-            grep -oE '[0-9]+' | sort -u || true)
-
-          if [ -z "$ISSUES" ]; then
-            echo "No linked issues found in PR body"
-            exit 0
-          fi
-
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
-            echo "::warning::Cannot access project board (gh exit non-zero - ensure PROJECT_PAT has repo, project, and read:org scopes)"
-            exit 0
-          }
-          if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
-            echo "::warning::gh returned non-JSON or unexpected shape (likely auth, rate-limit, scope drift, or truncated response)"
-            echo "First 80 chars: $(printf '%s' "$ITEMS" | tr -c '[:print:]' '?' | head -c 80)"
-            exit 0
-          fi
-
-          for ISSUE_NUM in $ISSUES; do
-            ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
-              '.items[] | select(.content.number == $n) | .id')
-            CURRENT=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
-              '.items[] | select(.content.number == $n) | .status')
-
-            if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
-              echo "Issue #$ISSUE_NUM not on board, skipping"
-              continue
-            fi
-
-            if [ "$CURRENT" = "Todo" ]; then
-              gh api graphql -f query='mutation {
-                updateProjectV2ItemFieldValue(input: {
-                  projectId: "'"$PROJECT_ID"'"
-                  itemId: "'"$ITEM_ID"'"
-                  fieldId: "'"$STATUS_FIELD_ID"'"
-                  value: { singleSelectOptionId: "'"$IN_PROGRESS_ID"'" }
-                }) { projectV2Item { id } }
-              }' || {
-                echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes or project permissions)"
-                continue
-              }
-              echo "Moved #$ISSUE_NUM: Todo -> In Progress"
-            else
-              echo "Issue #$ISSUE_NUM in '$CURRENT', not moving (only Todo -> In Progress)"
-            fi
+          for s in .claude/skills/project-board/ci/board-automation.sh core/skills/project-board/ci/board-automation.sh; do
+            if [ -f "$s" ]; then exec bash "$s" event; fi
           done
-
-  # ── PR merged -> linked issues move to Done ──
-  pr-merged:
-    if: >
-      github.event_name == 'pull_request' &&
-      github.event.action == 'closed' &&
-      github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
-    steps:
-      - name: Move linked issues (respects approval gate)
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
-          # When "true": a merged PR parks linked issues at To Be Tested for
-          # human /project-board approve. When "false": PR merge -> Done (autonomous).
-          REQUIRE_HUMAN_APPROVAL: "true"
-        run: |
-          set -euo pipefail
-          if [ -z "$GH_TOKEN" ]; then exit 0; fi
-          PR_BODY=$(cat <<'PREOF'
-          ${{ github.event.pull_request.body }}
-          PREOF
-          )
-          # `|| true` keeps set -e + pipefail from tripping when no `closes #N` keyword is present (empty result is handled below).
-          ISSUES=$(echo "$PR_BODY" | \
-            grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?)\s+#[0-9]+' | \
-            grep -oE '[0-9]+' | sort -u || true)
-
-          if [ -z "$ISSUES" ]; then
-            echo "No linked issues found in PR body"
-            exit 0
-          fi
-
-          # Select target column based on the approval gate (#312). With the gate
-          # on, a merged PR must park the issue at To Be Tested for human approval,
-          # NOT slam it to Done - that bypassed the gate. This also removes the only
-          # "Done" writer in the merge path, so the issue-reopened job (which only
-          # acts on Done/Canceled) no longer races on a stale Done and bounces the
-          # card to In Progress after GitHub auto-closes the issue via "Closes #N".
-          if [ "$REQUIRE_HUMAN_APPROVAL" = "true" ]; then
-            TARGET_ID="$TESTING_ID"
-            TARGET_NAME="To Be Tested"
-          else
-            TARGET_ID="$DONE_ID"
-            TARGET_NAME="Done"
-          fi
-
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
-            echo "::warning::Cannot access project board (gh exit non-zero - ensure PROJECT_PAT has repo, project, and read:org scopes)"
-            exit 0
-          }
-          if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
-            echo "::warning::gh returned non-JSON or unexpected shape (likely auth, rate-limit, scope drift, or truncated response)"
-            echo "First 80 chars: $(printf '%s' "$ITEMS" | tr -c '[:print:]' '?' | head -c 80)"
-            exit 0
-          fi
-
-          for ISSUE_NUM in $ISSUES; do
-            ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
-              '.items[] | select(.content.number == $n) | .id')
-
-            if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
-              echo "Issue #$ISSUE_NUM not on board, skipping"
-              continue
-            fi
-
-            gh api graphql -f query='mutation {
-              updateProjectV2ItemFieldValue(input: {
-                projectId: "'"$PROJECT_ID"'"
-                itemId: "'"$ITEM_ID"'"
-                fieldId: "'"$STATUS_FIELD_ID"'"
-                value: { singleSelectOptionId: "'"$TARGET_ID"'" }
-              }) { projectV2Item { id } }
-            }' || {
-              echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes or project permissions)"
-              continue
-            }
-            echo "Moved #$ISSUE_NUM -> $TARGET_NAME (PR merged)"
-          done
-
-  # ── Issue assigned (from Backlog/Roadmap) -> Todo ──
-  issue-assigned:
-    if: >
-      github.event_name == 'issues' &&
-      github.event.action == 'assigned'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Move assigned issue to Todo if in Backlog/Roadmap
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
-        run: |
-          set -euo pipefail
-          if [ -z "$GH_TOKEN" ]; then exit 0; fi
-          ISSUE_NUM=${{ github.event.issue.number }}
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
-            echo "::warning::Cannot access project board (gh exit non-zero - ensure PROJECT_PAT has repo, project, and read:org scopes)"
-            exit 0
-          }
-          if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
-            echo "::warning::gh returned non-JSON or unexpected shape (likely auth, rate-limit, scope drift, or truncated response)"
-            echo "First 80 chars: $(printf '%s' "$ITEMS" | tr -c '[:print:]' '?' | head -c 80)"
-            exit 0
-          fi
-
-          ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
-            '.items[] | select(.content.number == $n) | .id')
-          CURRENT=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
-            '.items[] | select(.content.number == $n) | .status')
-
-          if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
-            echo "Issue #$ISSUE_NUM not on board"
-            exit 0
-          fi
-
-          if [ "$CURRENT" = "Backlog" ] || [ "$CURRENT" = "Roadmap" ]; then
-            gh api graphql -f query='mutation {
-              updateProjectV2ItemFieldValue(input: {
-                projectId: "'"$PROJECT_ID"'"
-                itemId: "'"$ITEM_ID"'"
-                fieldId: "'"$STATUS_FIELD_ID"'"
-                value: { singleSelectOptionId: "'"$TODO_ID"'" }
-              }) { projectV2Item { id } }
-            }' || {
-              echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes or project permissions)"
-              exit 0
-            }
-            echo "Moved #$ISSUE_NUM: $CURRENT -> Todo (assigned)"
-          else
-            echo "Issue #$ISSUE_NUM in '$CURRENT', not moving"
-          fi
-
-  # ── New issue -> add to board in Backlog ──
-  issue-opened:
-    if: >
-      github.event_name == 'issues' &&
-      github.event.action == 'opened'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Add new issue to board in Backlog
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
-        run: |
-          set -euo pipefail
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::warning::PROJECT_PAT not configured - new issue not added to board"
-            exit 0
-          fi
-          ISSUE_NUM=${{ github.event.issue.number }}
-          ISSUE_NODE_ID="${{ github.event.issue.node_id }}"
-
-          ITEM_ID=$(gh api graphql -f query='mutation {
-            addProjectV2ItemById(input: {
-              projectId: "'"$PROJECT_ID"'"
-              contentId: "'"$ISSUE_NODE_ID"'"
-            }) { item { id } }
-          }' --jq '.data.addProjectV2ItemById.item.id') || {
-            echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes - org-owned projects need read:org)"
-            exit 0
-          }
-
-          if [ -n "$ITEM_ID" ] && [ "$ITEM_ID" != "null" ]; then
-            gh api graphql -f query='mutation {
-              updateProjectV2ItemFieldValue(input: {
-                projectId: "'"$PROJECT_ID"'"
-                itemId: "'"$ITEM_ID"'"
-                fieldId: "'"$STATUS_FIELD_ID"'"
-                value: { singleSelectOptionId: "'"$BACKLOG_ID"'" }
-              }) { projectV2Item { id } }
-            }' || {
-              echo "::warning::Issue #$ISSUE_NUM added to board but could not set Backlog status"
-              exit 0
-            }
-            echo "Added #$ISSUE_NUM to board -> Backlog"
-          fi
-
-  # ── Issue reopened -> move back to In Progress ──
-  issue-reopened:
-    if: >
-      github.event_name == 'issues' &&
-      github.event.action == 'reopened'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Move reopened issue to In Progress
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
-        run: |
-          set -euo pipefail
-          if [ -z "$GH_TOKEN" ]; then exit 0; fi
-          ISSUE_NUM=${{ github.event.issue.number }}
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
-            echo "::warning::Cannot access project board (gh exit non-zero - ensure PROJECT_PAT has repo, project, and read:org scopes)"
-            exit 0
-          }
-          if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
-            echo "::warning::gh returned non-JSON or unexpected shape (likely auth, rate-limit, scope drift, or truncated response)"
-            echo "First 80 chars: $(printf '%s' "$ITEMS" | tr -c '[:print:]' '?' | head -c 80)"
-            exit 0
-          fi
-
-          ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
-            '.items[] | select(.content.number == $n) | .id')
-          CURRENT=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
-            '.items[] | select(.content.number == $n) | .status')
-
-          if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
-            echo "Issue #$ISSUE_NUM not on board"
-            exit 0
-          fi
-
-          if [ "$CURRENT" = "Done" ] || [ "$CURRENT" = "Canceled" ]; then
-            gh api graphql -f query='mutation {
-              updateProjectV2ItemFieldValue(input: {
-                projectId: "'"$PROJECT_ID"'"
-                itemId: "'"$ITEM_ID"'"
-                fieldId: "'"$STATUS_FIELD_ID"'"
-                value: { singleSelectOptionId: "'"$IN_PROGRESS_ID"'" }
-              }) { projectV2Item { id } }
-            }' || {
-              echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes or project permissions)"
-              exit 0
-            }
-            echo "Moved #$ISSUE_NUM: $CURRENT -> In Progress (reopened)"
-          fi
-
-  # ── Issue closed -> verify acceptance criteria, then move to Done ──
-  issue-closed:
-    if: >
-      github.event_name == 'issues' &&
-      github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check acceptance criteria and move to Done
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          if [ -z "$GH_TOKEN" ]; then exit 0; fi
-          ISSUE_NUM=${{ github.event.issue.number }}
-
-          # --- Approval verification via label (not comment text) ---
-          APPROVED=$(gh issue view "$ISSUE_NUM" --repo "$GH_REPO" --json labels \
-            --jq '[.labels[].name] | map(select(. == "approved")) | length')
-
-          ISSUE_BODY=$(gh issue view "$ISSUE_NUM" --repo "$GH_REPO" --json body --jq '.body // ""')
-
-          # Check if issue has acceptance criteria (checkbox patterns).
-          # `--` required: pattern starts with `-`, which grep would otherwise parse as an option
-          # and exit 2. Prior bug silently bypassed the approval gate (#262).
-          HAS_CRITERIA="false"
-          if echo "$ISSUE_BODY" | grep -qE -- '- \[ \]|- \[x\]'; then
-            HAS_CRITERIA="true"
-          fi
-
-          if [ "$APPROVED" -eq 0 ] && [ "$HAS_CRITERIA" = "true" ]; then
-            echo "Issue #$ISSUE_NUM has acceptance criteria but no 'approved' label - routing to To Be Tested"
-            # Move to "To Be Tested" on the board BEFORE reopening. The issue-reopened
-            # job only routes Done/Canceled -> In Progress, so it will leave TBT alone.
-            # Without this, pr-merged can miss the link (cross-repo `owner/repo#N` form)
-            # and the issue ends up in In Progress instead of parked for review (#262).
-            GUARD_ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
-              echo "::warning::Cannot access project board - skipping TBT routing for #$ISSUE_NUM (gh exit non-zero)"
-              GUARD_ITEMS=""
-            }
-            if [ -n "$GUARD_ITEMS" ] && ! printf '%s' "$GUARD_ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
-              echo "::warning::gh returned non-JSON or unexpected shape - skipping TBT routing for #$ISSUE_NUM"
-              echo "First 80 chars: $(printf '%s' "$GUARD_ITEMS" | tr -c '[:print:]' '?' | head -c 80)"
-              GUARD_ITEMS=""
-            fi
-            if [ -n "$GUARD_ITEMS" ]; then
-              GUARD_ITEM_ID=$(echo "$GUARD_ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
-                '.items[] | select(.content.number == $n) | .id')
-              if [ -n "$GUARD_ITEM_ID" ] && [ "$GUARD_ITEM_ID" != "null" ]; then
-                gh api graphql -f query='mutation {
-                  updateProjectV2ItemFieldValue(input: {
-                    projectId: "'"$PROJECT_ID"'"
-                    itemId: "'"$GUARD_ITEM_ID"'"
-                    fieldId: "'"$STATUS_FIELD_ID"'"
-                    value: { singleSelectOptionId: "'"$TESTING_ID"'" }
-                  }) { projectV2Item { id } }
-                }' || {
-                  echo "::warning::Board mutation failed for #$ISSUE_NUM - continuing with reopen"
-                }
-              fi
-            fi
-            gh issue reopen "$ISSUE_NUM" --repo "$GH_REPO"
-            GUARD_MSG="**Closure guard (CI)**: This issue was closed without the \`approved\` label."
-            GUARD_MSG="$GUARD_MSG"$'\n\n'"The issue body contains acceptance criteria checkboxes, but no \`approved\` label was found."
-            GUARD_MSG="$GUARD_MSG"$'\n\n'"Moved to **To Be Tested** on the board. Please verify all acceptance criteria and close via \`/project-board approve\` or"
-            GUARD_MSG="$GUARD_MSG"$'\n'"add the \`approved\` label before closing."
-            gh issue comment "$ISSUE_NUM" --repo "$GH_REPO" --body "$GUARD_MSG"
-            exit 0
-          fi
-
-          # --- Move to Done on board ---
-          # Strip control chars (U+0000-U+001F) to prevent jq parse failures
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
-            echo "::warning::Cannot access project board (gh exit non-zero - ensure PROJECT_PAT has repo, project, and read:org scopes)"
-            exit 0
-          }
-          if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
-            echo "::warning::gh returned non-JSON or unexpected shape (likely auth, rate-limit, scope drift, or truncated response)"
-            echo "First 80 chars: $(printf '%s' "$ITEMS" | tr -c '[:print:]' '?' | head -c 80)"
-            exit 0
-          fi
-
-          ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$ISSUE_NUM" \
-            '.items[] | select(.content.number == $n) | .id')
-
-          if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
-            echo "Issue #$ISSUE_NUM not on board"
-            exit 0
-          fi
-
-          gh api graphql -f query='mutation {
-            updateProjectV2ItemFieldValue(input: {
-              projectId: "'"$PROJECT_ID"'"
-              itemId: "'"$ITEM_ID"'"
-              fieldId: "'"$STATUS_FIELD_ID"'"
-              value: { singleSelectOptionId: "'"$DONE_ID"'" }
-            }) { projectV2Item { id } }
-          }' || {
-            echo "::warning::Board mutation failed for #$ISSUE_NUM (check PROJECT_PAT scopes or project permissions)"
-            exit 0
-          }
-          echo "Moved #$ISSUE_NUM -> Done (closed, criteria verified)"
-
-  # ── Weekly reconciliation - catch any closed issues with stale board status ──
-  board-reconcile:
-    if: github.event_name == 'schedule'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Reconcile closed issues with board status
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          if [ -z "$GH_TOKEN" ]; then exit 0; fi
-
-          # Get all board items, strip control chars
-          ITEMS=$(gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" --format json --limit 500 | tr -d '\000-\037') || {
-            echo "::warning::Cannot access project board (gh exit non-zero - ensure PROJECT_PAT has repo, project, and read:org scopes)"
-            exit 0
-          }
-          if ! printf '%s' "$ITEMS" | jq -e 'type == "object" and has("items") and (.items | type == "array")' >/dev/null 2>&1; then
-            echo "::warning::gh returned non-JSON or unexpected shape (likely auth, rate-limit, scope drift, or truncated response)"
-            echo "First 80 chars: $(printf '%s' "$ITEMS" | tr -c '[:print:]' '?' | head -c 80)"
-            exit 0
-          fi
-
-          # Find items NOT in Done/Canceled
-          mapfile -t ACTIVE_NUMS < <(echo "$ITEMS" | jq -r '
-            .items[] |
-            select(.content.type == "Issue") |
-            select(.status != "Done" and .status != "Canceled") |
-            .content.number
-          ' | sort -n -u)
-
-          # Bulk-fetch issue states via aliased GraphQL - a per-issue REST
-          # loop hits GitHub's secondary rate limit on 80+ sequential calls
-          # and exceeds the 15-min step boundary. Batches of 100 alias
-          # entries per query stay under GitHub's GraphQL node/cost limits
-          # while collapsing N round-trips to ceil(N/100).
-          REPO_OWNER="${GH_REPO%/*}"
-          REPO_NAME="${GH_REPO#*/}"
-          CLOSED_NUMS=""
-          BATCH_SIZE=100
-          TOTAL=${#ACTIVE_NUMS[@]}
-          for ((i=0; i<TOTAL; i+=BATCH_SIZE)); do
-            BATCH=("${ACTIVE_NUMS[@]:i:BATCH_SIZE}")
-            QUERY='query { repository(owner: "'"$REPO_OWNER"'", name: "'"$REPO_NAME"'") {'
-            for N in "${BATCH[@]}"; do
-              QUERY="$QUERY i${N}: issue(number: $N) { state }"
-            done
-            QUERY="$QUERY } }"
-            BATCH_CLOSED=$(gh api graphql -f query="$QUERY" \
-              --jq '.data.repository | to_entries[] | select(.value != null and .value.state == "CLOSED") | (.key | sub("^i"; ""))' \
-              2>/dev/null) || {
-              echo "::warning::Bulk state lookup failed for batch starting at index $i - skipping batch"
-              continue
-            }
-            CLOSED_NUMS="$CLOSED_NUMS $BATCH_CLOSED"
-          done
-
-          FIXED=0
-          for NUM in $CLOSED_NUMS; do
-            ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n "$NUM" \
-              '.items[] | select(.content.number == $n) | .id' | head -1)
-            if [ -n "$ITEM_ID" ] && [ "$ITEM_ID" != "null" ]; then
-              gh api graphql -f query='mutation {
-                updateProjectV2ItemFieldValue(input: {
-                  projectId: "'"$PROJECT_ID"'"
-                  itemId: "'"$ITEM_ID"'"
-                  fieldId: "'"$STATUS_FIELD_ID"'"
-                  value: { singleSelectOptionId: "'"$DONE_ID"'" }
-                }) { projectV2Item { id } }
-              }' --silent || {
-                echo "::warning::Board mutation failed for #$NUM (check PROJECT_PAT scopes or project permissions)"
-                continue
-              }
-              echo "Reconciled #$NUM -> Done (was closed but board status stale)"
-              FIXED=$((FIXED + 1))
-            fi
-          done
-          echo "Reconciliation complete: $FIXED issues fixed"
+          echo "::notice::board-automation.sh not found (project-board skill not installed) - skipped"

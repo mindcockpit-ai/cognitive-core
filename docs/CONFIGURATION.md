@@ -179,6 +179,12 @@ installed (for example `project-board/providers/`), with their mode. A file dele
 skill comes back on the next update; list it, or its directory, in `CC_LOCAL_OVERRIDES` to keep it
 deleted. Nothing is written when the skill directory, or `skills/` itself, is a symlink.
 
+The board workflows `.github/workflows/project-board-automation.yml` and `project-board-reconcile.yml`
+(marked `# cc-managed:`) are recorded in the manifest. `update.sh` replaces them while unchanged, keeps
+your edits, and never touches one listed in `CC_LOCAL_OVERRIDES` (`.github/workflows/<file>`). An older
+board workflow without the marker is replaced only while it is the unconfigured template
+(`PROJECT_ID: "PVT_xxx"`); a configured one is reported with the migration steps.
+
 `update.sh --prune` removes installed agents, skills and hooks that are no longer selected in
 `CC_AGENTS`, `CC_SKILLS` and `CC_HOOKS`. Add `--dry-run` to list them without changing anything.
 Prune refuses to run without a project conf that sets all three lists, and when the install dir or

@@ -48,6 +48,7 @@ suite_pretty_name() {
         26-local-override-prune.sh) echo "Local Override + Prune" ;;
         27-update-skill-files.sh) echo "Update Adds Skill Files" ;;
         29-self-install-parity.sh) echo "Self-Install Parity" ;;
+        30-board-automation.sh) echo "Board Automation" ;;
         *) echo "$1" ;;
     esac
 }
