@@ -168,6 +168,11 @@ jobs:
         env:
           JUNIT_REPORT_DIR: ${{ github.workspace }}/test-results
 
+      - name: Run board automation test
+        run: bash tests/suites/30-board-automation.sh
+        env:
+          JUNIT_REPORT_DIR: ${{ github.workspace }}/test-results
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4

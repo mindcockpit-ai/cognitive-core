@@ -435,6 +435,9 @@ process_file() {
     local original_sha="$2"
     local installed_file="${PROJECT_DIR}/${rel_path}"
 
+    # Managed board workflows have their own block below (#362)
+    case "$rel_path" in .github/workflows/project-board-*.yml) return ;; esac
+
     # Project-owned override: never compared, never overwritten (#328)
     local override_rc=0
     _cc_is_local_override "${rel_path#"${INSTALL_REL}/"}" "$installed_file" || override_rc=$?
@@ -653,13 +656,88 @@ if [ "$PRUNE" = true ]; then
     fi
 fi
 
+# ---- Board workflows ----
+header "Board workflows"
+
+# Managed board workflows (#362) carry a "# cc-managed:" marker and are
+# tracked in the manifest. Unmodified ones are replaced, modified ones kept.
+# Legacy copies (no marker) are only replaced while still unconfigured.
+MANAGED_WORKFLOWS=""
+WF_DIR="${PROJECT_DIR}/.github/workflows"
+_cc_recorded_sha() {
+    python3 - "$VERSION_FILE" "$1" << 'PY' 2>/dev/null || true
+import json, sys
+for e in json.load(open(sys.argv[1])).get("files", []):
+    if e.get("path") == sys.argv[2]:
+        print(e.get("sha256", ""))
+        break
+PY
+}
+_cc_install_workflow() { # <src> <dest> <label>
+    cp "$1" "$2"
+    info "  ${3}: ${2#"${PROJECT_DIR}/"}"
+    NEW_FILES=$((NEW_FILES + 1))
+}
+for wf in project-board-automation.yml project-board-reconcile.yml; do
+    src="${FRAMEWORK_DIR}/cicd/workflows/${wf}"
+    dest="${WF_DIR}/${wf}"
+    rel=".github/workflows/${wf}"
+    [ -f "$src" ] || continue
+    if [ -L "$dest" ] || [ -L "$WF_DIR" ] || [ -L "${PROJECT_DIR}/.github" ]; then
+        warn "  SKIP (symlink): ${rel}"
+        continue
+    fi
+    if _cc_is_local_override "$rel"; then
+        info "  OVERRIDE (project owned): ${rel}"
+        continue
+    fi
+    if [ ! -f "$dest" ]; then
+        # The reconcile workflow follows a managed automation workflow
+        if [ "$wf" = "project-board-reconcile.yml" ] \
+                && grep -q '^# cc-managed: project-board-automation' "${WF_DIR}/project-board-automation.yml" 2>/dev/null; then
+            _cc_install_workflow "$src" "$dest" "NEW (workflow)"
+            MANAGED_WORKFLOWS="${MANAGED_WORKFLOWS}${dest}"$'\n'
+        fi
+        continue
+    fi
+    if cmp -s "$src" "$dest"; then
+        MANAGED_WORKFLOWS="${MANAGED_WORKFLOWS}${dest}"$'\n'
+        continue
+    fi
+    if grep -q '^# cc-managed: ' "$dest"; then
+        recorded="$(_cc_recorded_sha "$rel")"
+        if [ -n "$recorded" ] && [ "$(compute_sha256 "$dest")" = "$recorded" ]; then
+            _cc_install_workflow "$src" "$dest" "UPDATED (workflow)"
+            MANAGED_WORKFLOWS="${MANAGED_WORKFLOWS}${dest}"$'\n'
+        else
+            # Without a recorded baseline a difference counts as a local
+            # change; the file stays unrecorded so it is never overwritten
+            warn "  MODIFIED (preserved): ${rel}"
+            warn "    Differs from the framework copy: ${src}"
+            [ -n "$recorded" ] || warn "    To take the framework copy: cp ${src} ${dest}"
+            if [ -n "$recorded" ]; then
+                PRESERVED_PATHS="${PRESERVED_PATHS}${rel}"$'\n'
+                MANAGED_WORKFLOWS="${MANAGED_WORKFLOWS}${dest}"$'\n'
+            fi
+        fi
+    elif grep -qE 'PROJECT_ID:[[:space:]]*"PVT_xxx"' "$dest"; then
+        _cc_install_workflow "$src" "$dest" "REPLACED (unconfigured legacy workflow)"
+        MANAGED_WORKFLOWS="${MANAGED_WORKFLOWS}${dest}"$'\n'
+    else
+        warn "  LEGACY: ${rel} predates the managed board workflow and was not changed."
+        warn "    It trusts a forgeable 'Approved by @' comment and ignores CC_REQUIRE_HUMAN_APPROVAL."
+        warn "    To migrate: set CC_GITHUB_OWNER and CC_PROJECT_NUMBER in cognitive-core.conf, then"
+        warn "    cp ${FRAMEWORK_DIR}/cicd/workflows/project-board-*.yml ${WF_DIR}/"
+    fi
+done
+
 # ---- Update version manifest ----
 header "Updating version manifest"
 
 # Regenerate file checksums
 INSTALLED_FILES="[]"
 if command -v python3 &>/dev/null; then
-    INSTALLED_FILES=$(find "${CC_INSTALL_DIR}" -type f -not -path "${CC_INSTALL_DIR}/cognitive-core/*" | sort \
+    INSTALLED_FILES=$( { find "${CC_INSTALL_DIR}" -type f -not -path "${CC_INSTALL_DIR}/cognitive-core/*"; printf '%s' "$MANAGED_WORKFLOWS"; } | sort \
         | CC_PRESERVED_PATHS="$PRESERVED_PATHS" CC_VERSION_FILE="$VERSION_FILE" python3 -c "
 import sys, json, hashlib, os
 files = []
@@ -809,7 +887,7 @@ fi
 
 if [ "$UPDATED" -gt 0 ] || [ "$NEW_FILES" -gt 0 ] || [ "$PRUNED" -gt 0 ]; then
     info "Commit the updates:"
-    printf "  ${CYAN}git add ${INSTALL_REL}/ && git commit -m \"chore: update cognitive-core to v${FRAMEWORK_VERSION}\"${RESET}\n"
+    printf "  ${CYAN}git add ${INSTALL_REL}/${MANAGED_WORKFLOWS:+ .github/workflows/} && git commit -m \"chore: update cognitive-core to v${FRAMEWORK_VERSION}\"${RESET}\n"
     if [ -n "$_CC_ORIGINAL_BRANCH" ]; then
         printf "  ${CYAN}git push -u origin ${_CC_SYNC_BRANCH}${RESET}\n"
         echo ""

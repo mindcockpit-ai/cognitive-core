@@ -312,14 +312,34 @@ Canceled             -       ✓*     ✓*        -             -          -    
 
 ### CI Automation
 
-The `project-board-automation.yml` workflow (in `cicd/workflows/`) handles:
-- PR opened with `Closes #N` → issue moves to In Progress (from Todo only)
-- PR merged → issue moves to **To Be Tested** (when `REQUIRE_HUMAN_APPROVAL=true`) or Done (when false)
-- Issue assigned (from Backlog/Roadmap) → moves to Todo
-- New issue opened → added to board in Backlog
-- Issue reopened → moves to In Progress
-- Issue closed → moves to **To Be Tested** and reopens issue (when `REQUIRE_HUMAN_APPROVAL=true`) or Done (when false)
-- Issue closed from "To Be Tested" → moves to Done (approval gate: `/project-board approve` path)
+Two workflows from `cicd/workflows/` run `ci/board-automation.sh` (read from the default branch).
+`CC_REQUIRE_HUMAN_APPROVAL` in `cognitive-core.conf` is the only switch (default `true`).
+
+`project-board-automation.yml` (events):
+- PR opened or ready for review → linked issues (GitHub's closing references) Todo → In Progress
+- PR merged → linked issues → **To Be Tested** (gate on) or Done (gate off); Done/Canceled stay
+- Issue assigned → Backlog/Roadmap → Todo
+- Issue opened → added to the board in Backlog
+- Issue reopened → `approved` label removed; Done/Canceled → In Progress
+- Issue closed as not planned or duplicate → Canceled
+- Issue closed with `approved` from To Be Tested or Done → Done
+- Issue closed otherwise (gate on) → To Be Tested, stale `approved` removed, reopened with a guard comment
+  (at most twice per hour; after that it stays closed in To Be Tested with a warning)
+
+`project-board-reconcile.yml` (daily): closed issues not in Done/Canceled → Canceled (not planned),
+Done (approved in To Be Tested, or gate off); anything else is only reported, never reopened.
+
+Turn off the board's built-in workflows "Item closed" and "Pull request merged", they bypass the gate.
+`update.sh` keeps both workflows current unless you changed them or list them in `CC_LOCAL_OVERRIDES`.
+
+Notes:
+- Only `CC_REQUIRE_HUMAN_APPROVAL="false"` turns the gate off; any other value keeps it on. Older board
+  workflows ignored this setting and always gated, so `false` takes effect only after migrating.
+- An issue closed while it is not on the board is not gated; the job logs a warning.
+- Renamed columns: map them in `CC_GITHUB_STATUS_MAP` (`testing=QA|done=Released`), otherwise the
+  default names are expected.
+- Fork and Dependabot PRs get no secrets, so their merge moves nothing; the issue close and the
+  daily reconciliation still apply.
 
 ### Area (Row Grouping)
 
@@ -795,9 +815,8 @@ Human approval gate. Moves an issue from "To Be Tested" to "Done" after reviewin
 3. Check SOX guard (if enabled): compare approver with assignee
 4. Check dual approval (if enabled): count existing approval comments
 5. **Add the `approved` label** — REQUIRED before closing. The `issue-closed` CI guard
-   (`project-board-automation.yml`) reopens any closed issue that has acceptance-criteria
-   checkboxes but lacks this label, bouncing it back to "To Be Tested". Skipping this step
-   makes the approval silently revert seconds later.
+   (`project-board-automation.yml`) reopens any issue closed without this label and moves it
+   back to "To Be Tested". Skipping this step makes the approval revert seconds later.
    ```bash
    gh issue edit <N> --repo {{CC_GITHUB_REPO}} --add-label "approved"
    ```
@@ -1371,7 +1390,12 @@ epic(certification): improve score from 913 to 950+ / 1000
 
 ## CI Automation
 
-The `project-board-automation.yml` workflow requires a `PROJECT_PAT` repository secret (classic PAT with `repo` + `project` scopes). Without it, the automation jobs will fail silently.
+The board workflows need a token with project access: a GitHub App (secrets `REVIEWER_APP_ID`,
+`REVIEWER_APP_PRIVATE_KEY`, organization permission Projects read and write) or a `PROJECT_PAT`
+secret (classic PAT with `repo`, `project` and, for organization projects, `read:org`; fine-grained
+PATs cannot reach user-owned projects). Without a token they log a notice and do nothing.
+`cognitive-core.conf` must set `CC_GITHUB_OWNER` and `CC_PROJECT_NUMBER`; the job fails when the
+gate cannot be enforced (e.g. a reopen fails).
 
 ## Integration with Agents
 
