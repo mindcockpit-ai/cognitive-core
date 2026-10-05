@@ -58,6 +58,7 @@ $PB_SCRIPT sprint assign "sprint-title" <N> [N2 N3...]
 $PB_SCRIPT branch create <N> <type> <slug> [--base B]
 $PB_SCRIPT branch list <N>
 $PB_SCRIPT provider info
+$PB_SCRIPT provider check                 # live config check (GitHub); exit 3 = not supported
 ```
 
 `board move` takes a status key and resolves the option ID itself (see "Status Option IDs").
@@ -217,6 +218,17 @@ CC_BRANCH_LABEL_MAP="bug=fix|enhancement=feature|documentation=docs"
 Users often have several GitHub projects; IDs from the wrong one silently add or move items on an unrelated board. The provider enforces `CC_PROJECT_ID`: item lookups are filtered by the configured project, and moves use the configured project and Status field. The skill never passes project or field IDs itself.
 
 Verify the configured IDs with `setup.sh --check`. If it reports a mismatch, stop and report: "Wrong project detected — configured IDs do not match the project. Aborting to prevent cross-project contamination."
+
+### Board Check and Repair (GitHub)
+
+```bash
+bash .claude/skills/project-board/setup.sh --check   # report only
+bash .claude/skills/project-board/setup.sh --sync    # repair, then check again
+```
+
+`--check` compares the conf with the live board: `CC_PROJECT_ID`, `CC_STATUS_FIELD_ID`, each `CC_STATUS_<KEY>_ID` (missing on the board, or pointing to another column), a column per status key (`CC_GITHUB_STATUS_MAP` for renamed columns), the `approved` and `blocked` labels, and whether the board workflows (`project-board-automation.yml`, `project-board-reconcile.yml`) are disabled. Exit: `0` clean, `1` findings, `2` GitHub failed, `3` not supported by the provider.
+
+`--sync [owner repo number]` creates the missing labels and writes the live IDs into the conf (existing lines are replaced in place, a `.bak` is kept, unsafe values are refused). It does not enable workflows: run the `gh workflow enable` command it prints, after the user agrees.
 
 ## Board Structure
 

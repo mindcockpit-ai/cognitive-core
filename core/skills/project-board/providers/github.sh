@@ -19,13 +19,16 @@ source "$SCRIPT_DIR/../_provider-lib.sh"
 
 # ---- Configuration ----
 
+# provider info/check need only the board's address; the check reports the IDs
 _gh_require_config() {
     local missing=()
     [[ -z "${CC_GITHUB_OWNER:-}" ]] && missing+=("CC_GITHUB_OWNER")
     [[ -z "${CC_GITHUB_REPO:-}" ]] && missing+=("CC_GITHUB_REPO")
     [[ -z "${CC_PROJECT_NUMBER:-}" ]] && missing+=("CC_PROJECT_NUMBER")
-    [[ -z "${CC_PROJECT_ID:-}" ]] && missing+=("CC_PROJECT_ID")
-    [[ -z "${CC_STATUS_FIELD_ID:-}" ]] && missing+=("CC_STATUS_FIELD_ID")
+    if [[ "${1:-}" != "provider" ]]; then
+        [[ -z "${CC_PROJECT_ID:-}" ]] && missing+=("CC_PROJECT_ID")
+        [[ -z "${CC_STATUS_FIELD_ID:-}" ]] && missing+=("CC_STATUS_FIELD_ID")
+    fi
     if [[ ${#missing[@]} -gt 0 ]]; then
         _pb_die "Missing GitHub config: ${missing[*]}. Run setup.sh or set in cognitive-core.conf"
     fi
@@ -644,11 +647,96 @@ pb_provider_info() {
 JSON
 }
 
+# Live check of the configured board: IDs, status options, labels, board workflows.
+# Prints {"ok","live":{"project_id","status_field_id","options":{key:id}},"findings":[...]}
+# Exit 0 clean, 1 findings (level error), 2 gh failure
+pb_provider_check() {
+    local view fields labels workflows wf_ok=true
+    view=$(_gh project view "$CC_PROJECT_NUMBER" --owner "$CC_GITHUB_OWNER" --format json) || exit $?
+    fields=$(_gh project field-list "$CC_PROJECT_NUMBER" --owner "$CC_GITHUB_OWNER" --format json --limit 100) || exit $?
+    labels=$(_gh label list --repo "$CC_GITHUB_REPO" --json name --limit 1000) || exit $?
+    # Workflow state needs the actions scope; without it the check warns instead of failing
+    workflows=$(gh workflow list --repo "$CC_GITHUB_REPO" --all --limit 500 --json name,path,state 2>/dev/null) || wf_ok=false
+
+    local keys="" entry name
+    for entry in "${PB_STATUS_DISPLAY_NAMES[@]}"; do
+        name=$(_pb_status_name_for_key "${entry%%:*}" "${CC_GITHUB_STATUS_MAP:-}")
+        keys+="${entry%%:*}=${name}"$'\n'
+    done
+
+    _CC_VIEW="$view" _CC_FIELDS="$fields" _CC_LABELS="$labels" _CC_WF="${workflows:-[]}" _CC_WF_OK="$wf_ok" \
+    _CC_KEYS="$keys" _CC_PROJECT_ID="${CC_PROJECT_ID:-}" _CC_FIELD_ID="${CC_STATUS_FIELD_ID:-}" \
+    _CC_OPT_IDS="$(for entry in "${PB_STATUS_DISPLAY_NAMES[@]}"; do
+        var="CC_STATUS_$(echo "${entry%%:*}" | tr '[:lower:]' '[:upper:]')_ID"; printf '%s=%s\n' "${entry%%:*}" "${!var:-}"
+    done)" \
+    _CC_OLD_KEY="${CC_BOARD_PROVIDER:-}" python3 -c '
+import json, os, sys
+env = os.environ
+findings = []
+def add(level, key, message, conf="", live=""):
+    findings.append({"level": level, "key": key, "conf": conf, "live": live, "message": message})
+
+project_id = json.loads(env["_CC_VIEW"]).get("id", "")
+status = next((f for f in json.loads(env["_CC_FIELDS"]).get("fields", []) if f.get("name") == "Status"), None)
+field_id = (status or {}).get("id", "")
+options = {o["name"]: o["id"] for o in (status or {}).get("options", [])}
+names = dict(line.split("=", 1) for line in env["_CC_KEYS"].splitlines() if line)
+conf_ids = dict(line.split("=", 1) for line in env["_CC_OPT_IDS"].splitlines() if line)
+
+if env["_CC_PROJECT_ID"] != project_id:
+    add("error", "CC_PROJECT_ID", "configured project ID does not match the board" if env["_CC_PROJECT_ID"] else "not configured",
+        env["_CC_PROJECT_ID"], project_id)
+if not status:
+    add("error", "CC_STATUS_FIELD_ID", "the board has no Status field", env["_CC_FIELD_ID"], "")
+elif env["_CC_FIELD_ID"] != field_id:
+    add("error", "CC_STATUS_FIELD_ID", "configured Status field ID does not match the board" if env["_CC_FIELD_ID"] else "not configured",
+        env["_CC_FIELD_ID"], field_id)
+
+live_options = {}
+for key, name in names.items():
+    var = "CC_STATUS_%s_ID" % key.upper()
+    live = options.get(name, "")
+    if live:
+        live_options[key] = live
+    else:
+        add("warn", var, "no column named %r on the board (set CC_GITHUB_STATUS_MAP if it was renamed)" % name)
+    conf = conf_ids.get(key, "")
+    if conf and conf != live:
+        other = next((n for n, i in options.items() if i == conf), None)
+        add("error", var, ("points to column %r, expected %r" % (other, name)) if other else "option ID not on the board", conf, live)
+
+have = {l["name"].lower() for l in json.loads(env["_CC_LABELS"])}
+for label in ("approved", "blocked"):
+    if label not in have:
+        add("error", "label:" + label, "label missing (setup.sh --sync creates it)")
+
+if env["_CC_WF_OK"] != "true":
+    add("warn", "workflows", "workflow state unknown (gh workflow list failed; needs the actions scope)")
+else:
+    by_path = {w.get("path", "").rsplit("/", 1)[-1]: w for w in json.loads(env["_CC_WF"])}
+    for wf in ("project-board-automation.yml", "project-board-reconcile.yml"):
+        w = by_path.get(wf)
+        if not w:
+            add("info", "workflow:" + wf, "not installed")
+        elif w.get("state", "").startswith("disabled"):
+            add("error", "workflow:" + wf, "workflow is %s (enable: gh workflow enable %s)" % (w["state"], wf), live=w["state"])
+
+if env["_CC_OLD_KEY"]:
+    add("info", "CC_BOARD_PROVIDER", "deprecated key, rename to CC_PROJECT_BOARD_PROVIDER")
+
+ok = not any(f["level"] == "error" for f in findings)
+json.dump({"ok": ok, "live": {"project_id": project_id, "status_field_id": field_id, "options": live_options},
+           "findings": findings}, sys.stdout, indent=2)
+print()
+sys.exit(0 if ok else 1)
+'
+}
+
 # =============================================================================
 # MAIN
 # =============================================================================
 
 _pb_load_config
-_gh_require_config
+_gh_require_config "${1:-}"
 _pb_validate_provider
 _pb_route "$@"
