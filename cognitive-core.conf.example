@@ -127,6 +127,10 @@ CC_REQUIRE_SHARED_STATE_APPROVAL="true"  # true = block git push to shared branc
 # CC_PROJECT_NUMBER=3
 # CC_PROJECT_ID="PVT_xxx"
 # CC_STATUS_FIELD_ID="PVTSSF_xxx"
+# Status option IDs (optional; board move resolves them by column name when unset).
+# setup.sh --sync writes them; setup.sh --check reports drift.
+# CC_STATUS_ROADMAP_ID="" CC_STATUS_BACKLOG_ID="" CC_STATUS_TODO_ID="" CC_STATUS_PROGRESS_ID=""
+# CC_STATUS_TESTING_ID="" CC_STATUS_DONE_ID="" CC_STATUS_CANCELED_ID=""
 # CC_AREA_FIELD_ID="PVTSSF_xxx"
 # CC_SPRINT_FIELD_ID="PVTIF_xxx"
 

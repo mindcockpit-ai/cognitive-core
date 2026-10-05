@@ -298,6 +298,7 @@ if total > 0 and unchecked > 0:
 #   pb_board_label_add NUMBER LABEL
 #   pb_board_label_remove NUMBER LABEL
 #   pb_issue_edit NUMBER --body BODY
+#   pb_provider_check   (live config check: exit 0 clean, 1 findings, 2 backend failure, 3 not supported)
 #   pb_board_list [--sprint S]
 #   pb_board_metrics [--sprint S]
 #   pb_issue_timeline NUMBER  (returns status change events for metrics)
@@ -342,6 +343,11 @@ pb_board_list() {
 
 pb_issue_edit() {
     _pb_die "pb_issue_edit not supported by this provider"
+}
+
+pb_provider_check() {
+    _pb_error "pb_provider_check not supported by this provider"
+    exit 3
 }
 
 pb_board_metrics() {
@@ -430,7 +436,8 @@ _pb_route() {
         provider)
             case "$cmd" in
                 info)    pb_provider_info "$@" ;;
-                *)       _pb_die "Unknown provider command: $cmd. Use: info" ;;
+                check)   pb_provider_check "$@" ;;
+                *)       _pb_die "Unknown provider command: $cmd. Use: info|check" ;;
             esac
             ;;
         help|--help|-h)
@@ -444,9 +451,10 @@ Groups:
   board     summary|list|status|move|add|approve|blocked|unblock
   sprint    list|assign
   branch    create|list
-  provider  info
+  provider  info|check
 
-Exit codes: 0 ok, 1 usage error or not found, 2 backend failure (report it, do not work around it)
+Exit codes: 0 ok, 1 usage error, not found or check findings, 2 backend failure (report it,
+do not work around it), 3 not supported (provider check)
 
 Examples:
   ./github.sh issue list --priority p1-high
