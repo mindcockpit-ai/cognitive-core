@@ -3,7 +3,7 @@ name: project-board
 description: Manage project board — issues, sprints, status tracking, acceptance verification, and release management. Supports GitHub Projects, Jira, and YouTrack via pluggable providers.
 user-invocable: true
 allowed-tools: Bash, Read, Grep, Glob
-argument-hint: "[list|create|close|cancel|assign|sprint|sprint-plan|triage|board|move|verify|approve|blocked|unblock|metrics|propose] [options]"
+argument-hint: "[list|create|close|cancel|assign|sprint|sprint-plan|triage|board|move|verify|approve|blocked|unblock|propose] [options]"
 catalog_description: Project board — issues, sprints, releases, and triage. Supports GitHub, Jira, YouTrack.
 ---
 
@@ -20,44 +20,79 @@ This skill uses a **provider pattern** to support multiple issue tracking system
 | Provider | Backend | CLI Tool | Status |
 |----------|---------|----------|--------|
 | `github` | GitHub Projects + Issues | `gh` | Full support |
-| `jira` | Jira Cloud / Data Center | `curl` | Full support |
-| `youtrack` | YouTrack Cloud / Standalone | `curl` | Full support |
+| `jira` | Jira Cloud / Data Center | `curl` | Supported, see "Provider Capabilities" |
+| `youtrack` | YouTrack Cloud / Standalone | `curl` | Supported, see "Provider Capabilities" |
 
 ### Using Provider Scripts
 
-All API operations go through provider-specific scripts in this skill's `providers/` directory:
+Every board operation is a call to the active provider script. The Bash tool keeps no variables between calls, so **every Bash call that uses the provider starts with these lines** (the recipes below omit them for brevity). They also load the `CC_*` settings the recipes read, such as `$CC_BRANCH_BASE`:
 
 ```bash
-# Source config to get provider setting
 source ./cognitive-core.conf 2>/dev/null || source ./.claude/cognitive-core.conf
+PB_SCRIPT=".claude/skills/project-board/providers/${CC_PROJECT_BOARD_PROVIDER:-${CC_BOARD_PROVIDER:-github}}.sh"
+[ -x "$PB_SCRIPT" ] || { echo "ERROR: project-board provider missing ($PB_SCRIPT). Run update.sh or /skill-sync, then retry."; exit 1; }
+```
 
-# Find and use the active provider script
-PB_PROVIDER="${CC_PROJECT_BOARD_PROVIDER:-github}"
-PB_SCRIPT=$(find . -path "*/project-board/providers/${PB_PROVIDER}.sh" -type f 2>/dev/null | head -1)
+All providers share the same CLI:
 
-# All providers share the same CLI interface:
-$PB_SCRIPT issue list [--priority P] [--area A] [--state S]
-$PB_SCRIPT issue create "title" [--labels L] [--body B]
-$PB_SCRIPT issue close <N> [--comment C]
+```bash
+$PB_SCRIPT issue list [--priority P] [--area A] [--state S] [--json fields] [--limit N]
+$PB_SCRIPT issue create "title" [--labels L] [--body B] [--assignee U]
+$PB_SCRIPT issue close <N> [--comment C]   # closure guard runs first; "Canceled: <reason>" closes as not planned
 $PB_SCRIPT issue reopen <N>
 $PB_SCRIPT issue view <N> [--json fields]
 $PB_SCRIPT issue comment <N> "body"
-$PB_SCRIPT issue assign <N> <user>
+$PB_SCRIPT issue assign <N> <user>         # @me assigns the current user
+$PB_SCRIPT issue edit <N> --body "<body>"
+$PB_SCRIPT issue label <N> --add|--remove <label>
 $PB_SCRIPT board summary
+$PB_SCRIPT board list [--sprint "title"]
 $PB_SCRIPT board status <N>
-$PB_SCRIPT board move <N> <status_key>
+$PB_SCRIPT board move <N> <roadmap|backlog|todo|progress|testing|done|canceled>
 $PB_SCRIPT board add <N>
 $PB_SCRIPT board approve <N> [--comment C]
-$PB_SCRIPT board blocked <N> [--reason R] [--by N2]
-$PB_SCRIPT board unblock <N> [--comment C]
-$PB_SCRIPT board metrics [--sprint S]
-$PB_SCRIPT sprint list [--all]
+$PB_SCRIPT board blocked <N>
+$PB_SCRIPT board unblock <N>
+$PB_SCRIPT sprint list
 $PB_SCRIPT sprint assign "sprint-title" <N> [N2 N3...]
 $PB_SCRIPT branch create <N> <type> <slug> [--base B]
+$PB_SCRIPT branch list <N>
 $PB_SCRIPT provider info
 ```
 
-All provider output is JSON for consistent parsing. The SKILL.md handles workflow rules, transition validation, and output formatting — providers handle only API translation.
+`board move` takes a status key and resolves the option ID itself (see "Status Option IDs").
+
+**Exit codes**: `0` ok; `1` usage error, not found, or refused (e.g. by the closure guard); `2` backend failure (rate limit, auth, network).
+
+**HARD RULE**: If the provider script is missing, or a call exits `2`, STOP and report the error with the backend's message verbatim. Never fall back to raw `gh` API or project commands, `curl`, or hand-written GraphQL.
+
+**Multi-step recipes**: stop at the first non-zero exit. Exit `1` with a message containing "not supported" means the operation is unavailable for this provider: report it, skip that step, and never replace it with raw API calls.
+
+Provider output is JSON for consistent parsing, except `branch list` and GitHub's `sprint assign` (plain lines). The SKILL.md handles workflow rules, transition validation, and output formatting — providers handle only API translation.
+
+### Provider Capabilities
+
+| Command | GitHub | Jira | YouTrack |
+|---------|--------|------|----------|
+| `issue list --json/--limit` | Yes | Flags ignored (fixed fields, no `body`, max 50) | Flags ignored (fixed fields, no `body`, max 50) |
+| `issue edit --body` | Yes | Not supported | Not supported |
+| `issue label`, `board blocked/unblock` | Yes | Not supported | Not supported |
+| `board list` | Yes | Not supported | Not supported |
+| `board add` | Adds to the project | No-op (automatic) | No-op (automatic) |
+| `issue close` | Closes; the board workflow moves the item | Transitions to Done | Sets State to Done |
+| `board approve` | Label + close; the board workflow moves to Done | Label + comment + transition to Done | Tag + comment + State Done |
+| `sprint list/assign` | Needs `CC_SPRINT_FIELD_ID` to assign | Needs `CC_JIRA_BOARD_ID` | Needs `CC_YOUTRACK_AGILE_ID` |
+| `branch create/list` | Branch linked to the issue | Local git branch only; `--base` ignored (uses `CC_BRANCH_BASE`) | Local git branch only; `--base` ignored (uses `CC_BRANCH_BASE`) |
+| `issue reopen` | Reopens the issue | Transitions to Todo | Sets State to Todo |
+
+Output differences the recipes depend on:
+- **Issue IDs**: GitHub uses numbers; Jira and YouTrack use keys (`PROJ-12`) wherever a recipe says `<N>`.
+- **`issue create`**: GitHub `{number, url, on_board}`; Jira `{key, id, url}`; YouTrack `{id, url}`.
+- **`board status`**: GitHub `{number, status, item_id, sprint, assignees}`; Jira `{key, status, status_category, assignee}`; YouTrack `{id, status, assignee}`.
+- **`sprint list`**: GitHub `[{id, title, startDate, duration}]`; Jira `{values: [{id, name, state, startDate, endDate}]}`; YouTrack `[{id, name, start, finish}]`.
+- **`issue view`**: GitHub returns the requested `--json` fields; Jira and YouTrack return their native issue JSON.
+
+GitHub-only: WIP blocked-exclusion, the sprint view (`board list`), `triage`, and on `move` the issue reopen, auto-sprint (needs `.sprint` from `board status`), auto-assignee (`issue view --json assignees`, `@me`) and the label-derived branch type/slug; also the epic back-link (`issue edit`). On other providers, skip these steps and say so (for the branch, ask the user for type and slug).
 
 ## Architecture — Clean Separation of Concerns
 
@@ -68,7 +103,7 @@ The board workflow is designed as a **three-layer architecture** that keeps vend
 │  Layer 1: SKILL.md (Workflow Rules)             │
 │  - Transition matrix, WIP limits, approval gate │
 │  - Epic decomposition, closure guard            │
-│  - Metrics computation, output formatting       │
+│  - Output formatting                            │
 │  - 100% vendor-agnostic                         │
 ├─────────────────────────────────────────────────┤
 │  Layer 2: _provider-lib.sh (Shared Contract)    │
@@ -85,7 +120,7 @@ The board workflow is designed as a **three-layer architecture** that keeps vend
 ```
 
 **Key design rules**:
-1. **SKILL.md never calls vendor APIs directly** — all operations go through the provider script
+1. **SKILL.md never calls vendor APIs directly** — all operations go through the provider script. If it is missing or a call exits `2`, stop and report; never fall back to raw `gh` API or project commands, `curl`, or hand-written GraphQL
 2. **Providers return JSON only** — the skill handles presentation and formatting
 3. **Workflow rules live in SKILL.md** — providers do NOT enforce transitions, WIP limits, or approval gates
 4. **New providers implement the same CLI contract** — no changes to SKILL.md or _provider-lib.sh needed
@@ -95,7 +130,7 @@ The board workflow is designed as a **three-layer architecture** that keeps vend
 1. Create `providers/azure.sh` implementing the CLI contract
 2. Add `CC_AZURE_*` configuration variables
 3. Map Azure work item states to the 7-column model in a `CC_AZURE_STATUS_MAP`
-4. Done — all workflow rules, WIP limits, approval gates, and metrics work automatically
+4. Done — all workflow rules, WIP limits, and approval gates work automatically
 
 ## Configuration
 
@@ -114,8 +149,17 @@ CC_GITHUB_REPO="owner/repo"               # e.g., "wolaschka/TIMS"
 CC_PROJECT_NUMBER=3                         # GitHub Project number
 CC_PROJECT_ID="PVT_xxx"                     # GraphQL Project ID
 CC_STATUS_FIELD_ID="PVTSSF_xxx"             # Status field ID
-CC_AREA_FIELD_ID="PVTSSF_xxx"               # Area field ID (optional)
+CC_AREA_FIELD_ID="PVTSSF_xxx"               # Area field ID (optional; the skill does not set it, area = area:* label)
 CC_SPRINT_FIELD_ID="PVTIF_xxx"              # Sprint iteration field ID (optional)
+# Status option IDs (optional; board move resolves them live by column name when unset)
+# CC_STATUS_ROADMAP_ID=""
+# CC_STATUS_BACKLOG_ID=""
+# CC_STATUS_TODO_ID=""
+# CC_STATUS_PROGRESS_ID=""
+# CC_STATUS_TESTING_ID=""
+# CC_STATUS_DONE_ID=""
+# CC_STATUS_CANCELED_ID=""
+# CC_GITHUB_STATUS_MAP="testing=QA|done=Released"  # renamed columns (optional)
 ```
 
 ### Jira Provider
@@ -170,15 +214,9 @@ CC_BRANCH_LABEL_MAP="bug=fix|enhancement=feature|documentation=docs"
 
 ## Project Guard — Cross-Project Contamination Prevention
 
-**CRITICAL**: Before ANY GraphQL mutation that references a `projectId`, verify it matches the configured `CC_PROJECT_ID` exactly. Users often have multiple GitHub projects and field IDs from the wrong project will silently add/move items to unrelated boards.
+Users often have several GitHub projects; IDs from the wrong one silently add or move items on an unrelated board. The provider enforces `CC_PROJECT_ID`: item lookups are filtered by the configured project, and moves use the configured project and Status field. The skill never passes project or field IDs itself.
 
-**Validation rules**:
-1. All `projectId` values in mutations MUST equal `CC_PROJECT_ID`
-2. All field IDs (`fieldId`) MUST belong to the configured project — they typically contain a substring of the project ID
-3. When discovering field IDs via `gh project field-list`, ALWAYS specify `--owner CC_GITHUB_OWNER` and the correct `CC_PROJECT_NUMBER`
-4. If a `gh project field-list` response returns IDs that don't match the expected project ID substring, ABORT and report the mismatch
-
-**If wrong project is detected**: Stop immediately and report: "Wrong project detected — field IDs do not match configured project. Aborting to prevent cross-project contamination."
+Verify the configured IDs with `setup.sh --check`. If it reports a mismatch, stop and report: "Wrong project detected — configured IDs do not match the project. Aborting to prevent cross-project contamination."
 
 ## Board Structure
 
@@ -205,15 +243,17 @@ Any active issue (Todo, In Progress, To Be Tested) can be flagged as blocked. Bl
 
 **Set blocked**:
 ```bash
-gh issue edit <N> --repo {{CC_GITHUB_REPO}} --add-label "blocked"
-gh issue comment <N> --repo {{CC_GITHUB_REPO}} --body "Blocked: <reason>. Waiting on: <dependency>"
+$PB_SCRIPT board blocked <N> &&
+$PB_SCRIPT issue comment <N> "Blocked: <reason>. Waiting on: <dependency>"
 ```
 
 **Clear blocked**:
 ```bash
-gh issue edit <N> --repo {{CC_GITHUB_REPO}} --remove-label "blocked"
-gh issue comment <N> --repo {{CC_GITHUB_REPO}} --body "Unblocked: <resolution>"
+$PB_SCRIPT board unblock <N> &&
+$PB_SCRIPT issue comment <N> "Unblocked: <resolution>"
 ```
+
+If the `blocked` label does not exist in the repo, `board blocked` exits `2`: report it with the hint "create the label (`setup.sh --sync`)". A missing `approved` label is not reported clearly yet: `board approve` fails with exit `1` without naming the label (hardening tracked in [#364](https://github.com/mindcockpit-ai/cognitive-core/issues/364)); give the same hint.
 
 **Blocked dependency tracking**: Use the convention `Blocked-by: #N` in the blocking comment. When the blocking issue is resolved, the `move` command should prompt to unblock dependent issues.
 
@@ -229,10 +269,10 @@ When configured, the `move` command enforces Work-in-Progress limits per column.
 | `CC_WIP_LIMIT_PROGRESS` | In Progress | 0 (unlimited) |
 | `CC_WIP_LIMIT_TESTING` | To Be Tested | 0 (unlimited) |
 
-**Enforcement**: Before moving an issue into a WIP-limited column, count current items in that column. If at limit:
+**Enforcement**: Before moving an issue into a WIP-limited column, count current items in that column (`$PB_SCRIPT board summary`, `.columns`). If at limit:
 - **Warn**: "WIP limit reached for In Progress (3/3). Moving this issue will exceed the limit."
 - **Allow with override**: The move proceeds but the warning is logged. Use `--force` to suppress the warning.
-- **Blocked items excluded**: Issues with the `blocked` label do not count against WIP limits (they are impediments, not active work).
+- **Blocked items excluded** (GitHub only): Issues with the `blocked` label do not count against WIP limits (they are impediments, not active work). Count them by joining `$PB_SCRIPT board list` (number, status) with `$PB_SCRIPT issue list --json number,labels --limit 200` (capped at 200 open issues).
 
 **Recommended limits** (per team member):
 - Solo developer: Progress=3, Testing=5
@@ -266,17 +306,11 @@ When `CC_REQUIRED_APPROVERS="2"` (dual approval):
 
 ### Status Option IDs
 
-Replace with your project's actual IDs after running `setup.sh`:
+`board move <N> <key>` resolves the Status option ID itself, in this order:
 
-```
-roadmap    → {{STATUS_ROADMAP_ID}}
-backlog    → {{STATUS_BACKLOG_ID}}
-todo       → {{STATUS_TODO_ID}}
-progress   → {{STATUS_PROGRESS_ID}}
-testing    → {{STATUS_TESTING_ID}}
-done       → {{STATUS_DONE_ID}}
-canceled   → {{STATUS_CANCELED_ID}}
-```
+1. `CC_STATUS_<KEY>_ID` in `cognitive-core.conf`, if set (all optional): `CC_STATUS_ROADMAP_ID`, `CC_STATUS_BACKLOG_ID`, `CC_STATUS_TODO_ID`, `CC_STATUS_PROGRESS_ID`, `CC_STATUS_TESTING_ID`, `CC_STATUS_DONE_ID`, `CC_STATUS_CANCELED_ID`
+2. Otherwise the live board, by column name (Roadmap, Backlog, Todo, In Progress, To Be Tested, Done, Canceled)
+3. Renamed columns: map them in `CC_GITHUB_STATUS_MAP` (`testing=QA|done=Released`)
 
 ## Workflow Transition Rules
 
@@ -303,12 +337,12 @@ Canceled             -       ✓*     ✓*        -             -          -    
 1. **Forward flow is primary**: Roadmap/Backlog → Todo → In Progress → To Be Tested → Done
 2. **Backward transitions with warning**: To Be Tested → In Progress (rework), Done → In Progress/To Be Tested (reopen), Canceled → Backlog/Todo (reopen)
 3. **Canceled reachable from anywhere** except Done
-4. **Reopen from Done/Canceled**: Allowed with warning. The `move` command automatically reopens the GitHub issue when moving out of Done or Canceled.
+4. **Reopen from Done/Canceled**: Allowed with warning. On GitHub, the `move` command automatically reopens the issue when moving out of Done or Canceled.
 5. **No skipping**: Cannot jump Backlog → In Progress (must pass through Todo first)
-6. **Deprioritize/descope**: In Progress → Todo (with warning: "Deprioritized") and In Progress → Backlog (with warning: "Descoped from sprint") are allowed. Sprint assignment is cleared when moving backward.
-6. **Reopen syncs GitHub state**: When moving from Done or Canceled to an active column, the `move` command automatically runs `gh issue reopen` to sync the GitHub issue state with the board status.
-7. **Auto-sprint assignment**: When moving to Todo, In Progress, or To Be Tested, the `move` command automatically assigns the issue to the current sprint if it has no sprint set. Requires `CC_SPRINT_FIELD_ID` to be configured.
-8. **Auto-assignee**: Sprint items must have an owner. When moving to a sprint-required column and the issue has no assignee, auto-assign to the current user (initiator of the change).
+6. **Deprioritize/descope**: In Progress → Todo (with warning: "Deprioritized") and In Progress → Backlog (with warning: "Descoped from sprint") are allowed. Clear the sprint assignment when moving backward; this is manual (in the board UI), there is no provider command for it.
+7. **Reopen syncs GitHub state** (GitHub only): When moving from Done or Canceled to an active column, the `move` command runs `$PB_SCRIPT issue reopen` after the move to sync the issue state with the board status. Jira and YouTrack have no separate issue state (their reopen would transition to Todo), so the move alone is enough there.
+8. **Auto-sprint assignment** (GitHub only): When moving to Todo, In Progress, or To Be Tested, the `move` command automatically assigns the issue to the current sprint if it has no sprint set. Requires `CC_SPRINT_FIELD_ID` to be configured.
+9. **Auto-assignee** (GitHub only): Sprint items must have an owner. When moving to a sprint-required column and the issue has no assignee, auto-assign to the current user (initiator of the change).
 
 ### CI Automation
 
@@ -343,15 +377,15 @@ Notes:
 
 ### Area (Row Grouping)
 
-Customizable per project. Default domains:
+Customizable per project. The skill tracks area by the `area:<value>` label only; it does not set the board's Area field. Default domains:
 
-| Area | Scope | Option ID |
-|------|-------|-----------|
-| **CI/CD** | Build pipeline, containers, deployment | `{{AREA_CICD_ID}}` |
-| **Monitoring** | Metrics, alerting, dashboards | `{{AREA_MONITORING_ID}}` |
-| **Testing** | Test framework, coverage, QA | `{{AREA_TESTING_ID}}` |
-| **Security** | Access control, scanning, encryption | `{{AREA_SECURITY_ID}}` |
-| **Infrastructure** | Servers, backup, networking | `{{AREA_INFRASTRUCTURE_ID}}` |
+| Area | Scope | Label |
+|------|-------|-------|
+| **CI/CD** | Build pipeline, containers, deployment | `area:cicd` |
+| **Monitoring** | Metrics, alerting, dashboards | `area:monitoring` |
+| **Testing** | Test framework, coverage, QA | `area:testing` |
+| **Security** | Access control, scanning, encryption | `area:security` |
+| **Infrastructure** | Servers, backup, networking | `area:infrastructure` |
 
 ### Sprint (Time-boxed Iterations)
 
@@ -377,13 +411,10 @@ Parse the user's arguments to determine which command to run. Default (no args) 
 List open issues grouped by priority.
 
 ```bash
-gh issue list --repo {{CC_GITHUB_REPO}} --state open --label "priority:p0-critical" --json number,title,labels,assignees
-gh issue list --repo {{CC_GITHUB_REPO}} --state open --label "priority:p1-high" --json number,title,labels,assignees
-gh issue list --repo {{CC_GITHUB_REPO}} --state open --label "priority:p2-medium" --json number,title,labels,assignees
-gh issue list --repo {{CC_GITHUB_REPO}} --state open --label "priority:p3-low" --json number,title,labels,assignees
+$PB_SCRIPT issue list --json number,title,labels,assignees --limit 200
 ```
 
-Format as priority-grouped table:
+The output is capped at 200 issues on GitHub and 50 on Jira/YouTrack; say so if the cap is reached. Group the result by its `priority:*` labels (issues without one go under "Unprioritized"). Format as priority-grouped table:
 ```
 ## Open Issues
 
@@ -395,43 +426,38 @@ Format as priority-grouped table:
 ...
 ```
 
-Support `--area=<area>` filter (adds `--label "area:<area>"`) and `--state=closed` (changes to `--state closed --limit 10`).
+Support `--area=<area>` filter (adds `--area <area>`) and `--state=closed` (adds `--state closed --limit 10`).
 
 ### `create`
 
-**Syntax**: `/project-board create "title" [--priority p0|p1|p2|p3] [--area cicd|monitoring|testing|security|infrastructure] [--body "description"] [--plan <path>]`
+**Syntax**: `/project-board create "title" [--priority p0|p1|p2|p3] [--area cicd|monitoring|testing|security|infrastructure] [--body "description"] [--status roadmap|backlog|todo] [--plan <path>]`
 
 Map `--priority pN` to labels: p0→`priority:p0-critical`, p1→`priority:p1-high`, p2→`priority:p2-medium`, p3→`priority:p3-low`.
 Map `--area` to label `area:<value>`.
 
-1. Create the GitHub issue with labels:
+1. Create the issue with labels (GitHub also adds it to the board and returns `{"number", "url", "on_board"}`; Jira/YouTrack return a `key`/`id`, see "Provider Capabilities"):
 ```bash
-gh issue create --repo {{CC_GITHUB_REPO}} --title "<title>" --label "<labels>" --body "<body>"
+$PB_SCRIPT issue create "<title>" --labels "<labels>" --body "<body>"
+```
+If `on_board` is `false`, run `$PB_SCRIPT board add <number>`.
+
+2. Set the status: Backlog by default, or the `--status` key (`roadmap`, `todo`, ...):
+```bash
+$PB_SCRIPT board move <number> backlog
 ```
 
-2. Add to project board and set Area field:
-```bash
-ISSUE_ID=$(gh issue view <number> --repo {{CC_GITHUB_REPO}} --json id --jq '.id')
-ITEM_ID=$(gh api graphql -f query='mutation { addProjectV2ItemById(input: { projectId: "{{CC_PROJECT_ID}}" contentId: "'$ISSUE_ID'" }) { item { id } } }' --jq '.data.addProjectV2ItemById.item.id')
-# Set Area field (map --area value to the matching Area Option ID)
-gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "{{CC_PROJECT_ID}}" itemId: "'$ITEM_ID'" fieldId: "{{CC_AREA_FIELD_ID}}" value: { singleSelectOptionId: "<AREA_OPTION_ID>" } }) { projectV2Item { id } } }'
-```
-
-3. Default status: Backlog (unless `--status` specified)
+3. Area is tracked by the `area:<value>` label only; the skill does not set the board's Area field.
 
 4. Attach implementation plan (if `--plan` provided or `CC_ISSUE_ATTACH_PLAN=true`):
 
-If `--plan <path>` is provided, read the file and post it as a comment on the newly created issue:
+If `--plan <path>` is provided, read the file first (Read tool), then post it as a comment on the newly created issue:
 ```bash
-gh issue comment <number> --repo {{CC_GITHUB_REPO}} --body "$(cat <<'PLAN'
-## Implementation Plan
+$PB_SCRIPT issue comment <number> "## Implementation Plan
 
-$(cat <plan-path>)
+<plan file contents>
 
 ---
-*Attached by `/project-board create`. Source: `<plan-path>`*
-PLAN
-)"
+*Attached by \`/project-board create\`. Source: \`<plan-path>\`*"
 ```
 
 If no `--plan` flag but `CC_ISSUE_ATTACH_PLAN=true`, check for an active plan file in `~/.claude/plans/`. If exactly one `.md` file exists, attach it automatically. If multiple exist, skip (ambiguous).
@@ -442,18 +468,22 @@ If no `--plan` flag but `CC_ISSUE_ATTACH_PLAN=true`, check for an active plan fi
 
 **Closure Guard**: If the issue has acceptance criteria (checkbox list in body), run verification FIRST. **NEVER close an issue that has PARTIAL or FAIL criteria.** If any criteria are not PASS, block the close and report the gaps. This prevents premature closure that hides unfinished work.
 
+With several numbers, run the steps once per issue.
+
 1. Check for acceptance criteria — if present, verify all are PASS before proceeding
-2. Close the GitHub issue:
+2. Close the issue (the provider's closure guard runs first and exits `1` if it refuses). With the gate on (`CC_REQUIRE_HUMAN_APPROVAL` not `false`), closing an issue in To Be Tested is refused and points to `/project-board approve <N>`; relay that.
+3. With the gate off, check the status; if the issue is not in Done, move it there yourself (covers repos without the board workflow; on Jira/YouTrack the close already transitions to Done):
 ```bash
-gh issue close <number> --repo {{CC_GITHUB_REPO}} --comment "<comment>"
+$PB_SCRIPT issue close <N> --comment "<comment>" || exit
+if [ "${CC_REQUIRE_HUMAN_APPROVAL:-true}" = "false" ]; then
+    STATUS_JSON=$($PB_SCRIPT board status <N>) || exit
+    if [ "$(echo "$STATUS_JSON" | jq -r '.status')" != "Done" ]; then
+        $PB_SCRIPT board move <N> done
+    fi
+fi
 ```
 
-3. Update board status to Done:
-```bash
-ITEMS=$(gh project item-list {{CC_PROJECT_NUMBER}} --owner {{CC_GITHUB_OWNER}} --format json --limit 500)
-ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n <N> '.items[] | select(.content.number == $n) | .id')
-gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "{{CC_PROJECT_ID}}" itemId: "'$ITEM_ID'" fieldId: "{{CC_STATUS_FIELD_ID}}" value: { singleSelectOptionId: "{{STATUS_DONE_ID}}" } }) { projectV2Item { id } } }'
-```
+On GitHub, the board workflow, when installed, moves closed items (see "CI Automation"); with the gate on, an unapproved close is reopened into To Be Tested. Use `approve` to accept an issue in To Be Tested.
 
 ### `cancel`
 
@@ -461,55 +491,49 @@ Cancel one or more issues. Moves to Canceled on the board. Requires a reason.
 
 **Syntax**: `/project-board cancel <number> [number2 ...] --reason "why"`
 
+With several numbers, run the steps once per issue.
+
 1. Check current status — block if already Done (create new issue instead)
-2. Add comment with cancellation reason
-3. Close the issue
-4. Move to Canceled on the board
+2. Close the issue; the cancellation reason is the close comment
+3. Move to Canceled on the board
 
 ```bash
-# Check current status first
-ITEMS=$(gh project item-list {{CC_PROJECT_NUMBER}} --owner {{CC_GITHUB_OWNER}} --format json --limit 500)
-CURRENT=$(echo "$ITEMS" | jq -r --argjson n <N> '.items[] | select(.content.number == $n) | .status')
-# Block if Done
-if [ "$CURRENT" = "Done" ]; then echo "Cannot cancel a Done issue. Create a new issue instead."; exit 1; fi
-# Close with reason
-gh issue close <number> --repo {{CC_GITHUB_REPO}} --comment "Canceled: <reason>"
-# Set board status to Canceled
-ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n <N> '.items[] | select(.content.number == $n) | .id')
-gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "{{CC_PROJECT_ID}}" itemId: "'$ITEM_ID'" fieldId: "{{CC_STATUS_FIELD_ID}}" value: { singleSelectOptionId: "{{STATUS_CANCELED_ID}}" } }) { projectV2Item { id } } }'
+# Stops at the first non-zero exit
+STATUS_JSON=$($PB_SCRIPT board status <N>) &&
+CURRENT=$(echo "$STATUS_JSON" | jq -r '.status') &&
+if [ "$CURRENT" = "Done" ]; then echo "Cannot cancel a Done issue. Create a new issue instead."; false; fi &&
+$PB_SCRIPT issue close <N> --comment "Canceled: <reason>" &&   # "Canceled: " closes as not planned
+$PB_SCRIPT board move <N> canceled
 ```
+
+The explicit `board move <N> canceled` is a deliberate backstop: on GitHub the board workflow also moves not-planned closes to Canceled, and on Jira/YouTrack the close transitions to Done first.
 
 ### `assign`
 
 **Syntax**: `/project-board assign <number> <username>`
 
 ```bash
-gh issue edit <number> --repo {{CC_GITHUB_REPO}} --add-assignee <username>
+$PB_SCRIPT issue assign <number> <username>
 ```
 
 ### `sprint`
 
-Show current sprint progress. Query the Sprint iteration field, filter items, group by status.
+Show current sprint progress. Find the current iteration, list its items, group by status.
+
+GitHub only (`board list` is not supported on Jira/YouTrack).
 
 ```bash
-# Get sprint iterations
-gh api graphql -f query='query {
-  user(login: "{{CC_GITHUB_OWNER}}") {
-    projectV2(number: {{CC_PROJECT_NUMBER}}) {
-      field(name: "Sprint") {
-        ... on ProjectV2IterationField {
-          configuration { iterations { id title startDate duration } }
-        }
-      }
-    }
-  }
-}'
+# Sprint iterations: [{id, title, startDate, duration}]; current = startDate <= today < startDate + duration days
+$PB_SCRIPT sprint list
 
-# List all items with sprint and status
-gh project item-list {{CC_PROJECT_NUMBER}} --owner {{CC_GITHUB_OWNER}} --format json
+# Items in that sprint: [{number, title, status, sprint}]
+$PB_SCRIPT board list --sprint "<title>"
+
+# Area labels and assignees, joined by number (capped at 200 open issues)
+$PB_SCRIPT issue list --json number,labels,assignees --limit 200
 ```
 
-Filter items matching current iteration. Group by status:
+Group by status:
 
 ```
 ## Sprint: <title> (<date range>)
@@ -518,13 +542,13 @@ Filter items matching current iteration. Group by status:
 | # | Title | Area | Assignee |
 
 ### To Be Tested
-| # | Title | Area | Pending |
+| # | Title | Area | Assignee |
 
 ### Done
-| # | Title | Area |
+| # | Title |
 
 ### Not started
-| # | Title | Area |
+| # | Title | Area | Assignee |
 
 **Progress**: X/Y items done (Z%)
 ```
@@ -537,27 +561,16 @@ Support `--all` (show all sprints) and `--backlog` (include unassigned items).
 
 Example: `/project-board sprint-plan "Sprint 2" 22 23 24`
 
-1. Get the iteration ID for the sprint title:
+1. Check that the sprint exists:
 ```bash
-gh api graphql -f query='query {
-  user(login: "{{CC_GITHUB_OWNER}}") {
-    projectV2(number: {{CC_PROJECT_NUMBER}}) {
-      field(name: "Sprint") {
-        ... on ProjectV2IterationField {
-          configuration { iterations { id title startDate duration } }
-        }
-      }
-    }
-  }
-}' --jq '.data.user.projectV2.field.configuration.iterations[] | select(.title == "<SPRINT_TITLE>") | .id'
+$PB_SCRIPT sprint list
 ```
 
-2. If sprint doesn't exist, create a new iteration via `updateProjectV2` mutation. New iterations get startDate = previous sprint endDate, same duration (14 days).
+2. If it doesn't exist, ask the user to create the iteration in the board UI (Sprint field settings; start = previous sprint end, same 14-day duration), then retry. The skill does not create iterations.
 
-3. For each issue, get its project item ID and assign the sprint:
+3. Assign the issues to the sprint:
 ```bash
-ITEM_ID=$(gh project item-list {{CC_PROJECT_NUMBER}} --owner {{CC_GITHUB_OWNER}} --format json --jq '.items[] | select(.content.number == <N>) | .id')
-gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "{{CC_PROJECT_ID}}" itemId: "'$ITEM_ID'" fieldId: "{{CC_SPRINT_FIELD_ID}}" value: { iterationId: "<ITERATION_ID>" } }) { projectV2Item { id } } }'
+$PB_SCRIPT sprint assign "<sprint-title>" <N> [N2 N3...]
 ```
 
 ### `triage`
@@ -565,23 +578,23 @@ gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { proje
 Find issues without priority or area labels and suggest labels.
 
 ```bash
-gh issue list --repo {{CC_GITHUB_REPO}} --state open --json number,title,labels,body
+$PB_SCRIPT issue list --json number,title,labels,body --limit 200
 ```
 
-For each issue missing `priority:*` or `area:*` labels, analyze the title and body to suggest appropriate labels. Present suggestions for the user to confirm before applying.
+GitHub only (Jira/YouTrack `issue list` has no `body`, and labelling is not supported there). The output is capped at 200 open issues. For each issue missing `priority:*` or `area:*` labels, analyze the title and body to suggest appropriate labels. Present suggestions for the user to confirm before applying, then apply each with `$PB_SCRIPT issue label <N> --add <label>` (or `--remove <label>`).
 
 ### `board`
 
 Show the project board URL and a summary of items per column.
 
 ```bash
-gh project item-list {{CC_PROJECT_NUMBER}} --owner {{CC_GITHUB_OWNER}} --format json
+$PB_SCRIPT board summary   # {url, columns: {name: count}, total}
 ```
 
 Output:
 ```
 ## Project Board
-URL: https://github.com/users/{{CC_GITHUB_OWNER}}/projects/{{CC_PROJECT_NUMBER}}
+URL: <url from board summary>
 
 | Column         | Count |
 |----------------|-------|
@@ -600,15 +613,16 @@ Move an issue to a different board column. **Enforces transition rules.**
 
 **Syntax**: `/project-board move <number> <roadmap|backlog|todo|progress|testing|done|canceled>`
 
-Map column names to Status Option IDs and execute.
+Pass the status key to `board move`; the provider resolves the option ID.
 
-**Before moving, check the transition is allowed:**
+**Before moving, check the transition is allowed** (run the steps after the discovery lines; `|| exit` stops at the first failure):
 
 ```bash
-# 1. Get current status
-ITEMS=$(gh project item-list {{CC_PROJECT_NUMBER}} --owner {{CC_GITHUB_OWNER}} --format json --limit 500)
-CURRENT=$(echo "$ITEMS" | jq -r --argjson n <N> '.items[] | select(.content.number == $n) | .status')
-TARGET="<target_status>"
+# 1. Get current status ({number, status, item_id, sprint, assignees, url})
+STATUS_JSON=$($PB_SCRIPT board status <N>) || exit
+CURRENT=$(echo "$STATUS_JSON" | jq -r '.status')
+TARGET="<target_status>"   # column name, e.g. "In Progress"
+TARGET_KEY="<key>"         # roadmap|backlog|todo|progress|testing|done|canceled
 
 # 2. Validate transition against allowed matrix
 # Allowed transitions (from → to):
@@ -627,60 +641,62 @@ TARGET="<target_status>"
 #    If Done → *, warn: "Reopening: moving from Done back to active"
 #    If Canceled → *, warn: "Reopening: moving from Canceled back to active"
 
-# 5. If moving FROM Done or Canceled, reopen the GitHub issue first:
-#    gh issue reopen <N> --repo {{CC_GITHUB_REPO}}
+# 5. Check the WIP limit of the target column (see "WIP Limits"): count it from
+#    `$PB_SCRIPT board summary` (.columns). GitHub only: subtract the target column's
+#    blocked items, found by joining `$PB_SCRIPT board list` (number, status) with
+#    `$PB_SCRIPT issue list --json number,labels --limit 200` (capped at 200).
 
-# 6. Execute the move
-ITEM_ID=$(echo "$ITEMS" | jq -r --argjson n <N> '.items[] | select(.content.number == $n) | .id')
-gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "{{CC_PROJECT_ID}}" itemId: "'$ITEM_ID'" fieldId: "{{CC_STATUS_FIELD_ID}}" value: { singleSelectOptionId: "<STATUS_OPTION_ID>" } }) { projectV2Item { id } } }'
+# 6. Execute the move. GitHub only: if moving FROM Done or Canceled, reopen the issue
+#    afterwards, so the CI reopen handler sees a non-terminal status. (On Jira/YouTrack
+#    reopen transitions to Todo, so it would undo the move.)
+PROVIDER="${CC_PROJECT_BOARD_PROVIDER:-${CC_BOARD_PROVIDER:-github}}"
+$PB_SCRIPT board move <N> "$TARGET_KEY" || exit
+if [ "$PROVIDER" = "github" ] && { [ "$CURRENT" = "Done" ] || [ "$CURRENT" = "Canceled" ]; }; then
+    $PB_SCRIPT issue reopen <N> || exit
+fi
 
 # 7. Auto-assign to current sprint if target is sprint-required (Todo, In Progress, To Be Tested)
-#    and the issue is NOT already in a sprint. Only applies when CC_SPRINT_FIELD_ID is configured.
-if echo "todo progress testing" | grep -qw "$TARGET_KEY"; then
-    CURRENT_SPRINT=$(echo "$ITEMS" | jq -r --argjson n <N> '.items[] | select(.content.number == $n) | .sprint // empty')
-    if [ -z "$CURRENT_SPRINT" ] && [ -n "{{CC_SPRINT_FIELD_ID}}" ]; then
-        # Get current sprint iteration ID (the one whose date range includes today)
-        ITERATION_ID=$(gh api graphql -f query='query {
-          user(login: "{{CC_GITHUB_OWNER}}") {
-            projectV2(number: {{CC_PROJECT_NUMBER}}) {
-              field(name: "Sprint") {
-                ... on ProjectV2IterationField {
-                  configuration { iterations { id title startDate duration } }
-                }
-              }
-            }
-          }
-        }' --jq '[.data.user.projectV2.field.configuration.iterations[] | select((.startDate | strptime("%Y-%m-%d") | mktime) <= now and ((.startDate | strptime("%Y-%m-%d") | mktime) + (.duration * 86400)) > now)] | .[0].id')
+#    and the issue is NOT already in a sprint. GitHub only; needs CC_SPRINT_FIELD_ID.
+#    Steps 7 and 8 parse GitHub-shaped JSON and use @me: GitHub only.
+if [ "$PROVIDER" = "github" ] && echo "todo progress testing" | grep -qw "$TARGET_KEY"; then
+    CURRENT_SPRINT=$(echo "$STATUS_JSON" | jq -r '.sprint // empty')
+    if [ -z "$CURRENT_SPRINT" ] && [ -n "${CC_SPRINT_FIELD_ID:-}" ]; then
+        # Current sprint = the iteration whose date range includes today
+        SPRINTS=$($PB_SCRIPT sprint list) || exit
+        SPRINT_TITLE=$(echo "$SPRINTS" | jq -r '[.[] | select((.startDate | strptime("%Y-%m-%d") | mktime) <= now and ((.startDate | strptime("%Y-%m-%d") | mktime) + (.duration * 86400)) > now)] | .[0].title // empty')
 
-        if [ -n "$ITERATION_ID" ]; then
-            gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "{{CC_PROJECT_ID}}" itemId: "'$ITEM_ID'" fieldId: "{{CC_SPRINT_FIELD_ID}}" value: { iterationId: "'$ITERATION_ID'" } }) { projectV2Item { id } } }'
+        if [ -n "$SPRINT_TITLE" ]; then
+            $PB_SCRIPT sprint assign "$SPRINT_TITLE" <N> || exit
             echo "Auto-assigned to current sprint"
         fi
     fi
 
-    # 8. Auto-assign to current user if issue has no assignee
+    # 8. Auto-assign to current user if issue has no assignee (GitHub only)
     #    Sprint items must have an owner — default to the initiator of the change
-    ASSIGNEES=$(gh issue view <N> --repo {{CC_GITHUB_REPO}} --json assignees --jq '.assignees | length')
-    if [ "$ASSIGNEES" = "0" ]; then
-        CURRENT_USER=$(gh api user --jq '.login')
-        gh issue edit <N> --repo {{CC_GITHUB_REPO}} --add-assignee "$CURRENT_USER"
-        echo "Auto-assigned to $CURRENT_USER"
+    ASSIGNEES_JSON=$($PB_SCRIPT issue view <N> --json assignees) || exit
+    if [ "$(echo "$ASSIGNEES_JSON" | jq '.assignees | length')" = "0" ]; then
+        $PB_SCRIPT issue assign <N> @me || exit
+        echo "Auto-assigned to current user"
     fi
 fi
 
 # 9. Auto-create feature branch when moving to In Progress
-#    Only runs when CC_BRANCH_AUTO_CREATE is "true" in cognitive-core.conf
-if [ "$TARGET_KEY" = "progress" ] && [ "{{CC_BRANCH_AUTO_CREATE}}" = "true" ]; then
+#    Only runs when CC_BRANCH_AUTO_CREATE is "true" in cognitive-core.conf.
+#    The label-derived type/slug below parses GitHub-shaped JSON. On Jira/YouTrack, ask the
+#    user for type and slug (or derive them from the issue summary by hand), then run
+#    `$PB_SCRIPT branch create <KEY> <type> <slug>`: it branches from CC_BRANCH_BASE and
+#    ignores --base, so a hotfix base is not honoured there.
+if [ "$TARGET_KEY" = "progress" ] && [ "${CC_BRANCH_AUTO_CREATE:-false}" = "true" ] && [ "$PROVIDER" = "github" ]; then
     # Get issue details for branch naming
-    ISSUE_JSON=$(gh issue view <N> --repo {{CC_GITHUB_REPO}} --json title,labels)
+    ISSUE_JSON=$($PB_SCRIPT issue view <N> --json title,labels) || exit
     ISSUE_TITLE=$(echo "$ISSUE_JSON" | jq -r '.title')
     ISSUE_LABELS=$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | join(",")')
 
     # Determine branch type from labels using CC_BRANCH_LABEL_MAP
     # Format: "bug=fix|enhancement=feature|documentation=docs"
     # Falls back to CC_BRANCH_DEFAULT_TYPE (default: "feature")
-    BRANCH_TYPE="{{CC_BRANCH_DEFAULT_TYPE}}"
-    IFS='|' read -ra LABEL_PAIRS <<< "{{CC_BRANCH_LABEL_MAP}}"
+    BRANCH_TYPE="${CC_BRANCH_DEFAULT_TYPE:-feature}"
+    IFS='|' read -ra LABEL_PAIRS <<< "${CC_BRANCH_LABEL_MAP:-bug=fix|enhancement=feature|documentation=docs}"
     for pair in "${LABEL_PAIRS[@]}"; do
         LABEL="${pair%%=*}"
         TYPE="${pair##*=}"
@@ -691,46 +707,36 @@ if [ "$TARGET_KEY" = "progress" ] && [ "{{CC_BRANCH_AUTO_CREATE}}" = "true" ]; t
     done
 
     # Hotfix override: P0 critical bugs branch from hotfix base
-    BASE_BRANCH="{{CC_BRANCH_BASE}}"
+    BASE_BRANCH="${CC_BRANCH_BASE:-main}"
     if echo "$ISSUE_LABELS" | grep -q "priority:p0-critical" && [ "$BRANCH_TYPE" = "fix" ]; then
         BRANCH_TYPE="hotfix"
-        BASE_BRANCH="{{CC_BRANCH_HOTFIX_BASE}}"
+        BASE_BRANCH="${CC_BRANCH_HOTFIX_BASE:-main}"
         echo "P0 Critical — creating hotfix branch from $BASE_BRANCH"
     fi
 
     # Generate slug: lowercase, non-alphanum to hyphen, collapse, trim
     SLUG=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | \
            sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//; s/-$//' | \
-           cut -c1-{{CC_BRANCH_SLUG_MAX_LENGTH}})
-    BRANCH_NAME="${BRANCH_TYPE}/<N>-${SLUG}"
-
-    # Check if a branch already exists for this issue
-    EXISTING=$(gh issue develop <N> --repo {{CC_GITHUB_REPO}} --list 2>/dev/null | head -1)
-    if [ -n "$EXISTING" ]; then
-        echo "Branch already exists: $EXISTING"
-        if [ "{{CC_BRANCH_AUTO_CHECKOUT}}" = "true" ]; then
-            git fetch origin && git checkout "$EXISTING"
-            echo "Checked out existing branch: $EXISTING"
+           cut -c1-"${CC_BRANCH_SLUG_MAX_LENGTH:-40}")
+    # Create the branch <type>/<N>-<slug>, linked to the issue and checked out when
+    # CC_BRANCH_AUTO_CHECKOUT is "true". Returns {branch, created, base}; created is false when the branch already exists.
+    BRANCH_JSON=$($PB_SCRIPT branch create <N> "$BRANCH_TYPE" "$SLUG" --base "$BASE_BRANCH") || exit
+    BRANCH=$(echo "$BRANCH_JSON" | jq -r '.branch')
+    if [ "$(echo "$BRANCH_JSON" | jq -r '.created')" = "false" ]; then
+        echo "Branch already exists: $BRANCH"
+        if [ "${CC_BRANCH_AUTO_CHECKOUT:-true}" = "true" ]; then
+            git fetch origin && git checkout "$BRANCH" &&
+                echo "Checked out existing branch: $BRANCH"
         fi
     else
-        # Create linked branch via gh issue develop (links branch to issue in GitHub UI)
-        CHECKOUT_FLAG=""
-        if [ "{{CC_BRANCH_AUTO_CHECKOUT}}" = "true" ]; then
-            CHECKOUT_FLAG="--checkout"
-        fi
-        gh issue develop <N> \
-            --repo {{CC_GITHUB_REPO}} \
-            --base "$BASE_BRANCH" \
-            --name "$BRANCH_NAME" \
-            $CHECKOUT_FLAG
-        echo "Created branch: $BRANCH_NAME (from $BASE_BRANCH)"
+        echo "Created branch: $BRANCH (from $BASE_BRANCH)"
     fi
 fi
 ```
 
 ### Branch Naming Convention
 
-When `CC_BRANCH_AUTO_CREATE="true"`, moving to In Progress auto-creates branches using `gh issue develop`:
+When `CC_BRANCH_AUTO_CREATE="true"`, moving to In Progress auto-creates branches using `$PB_SCRIPT branch create`:
 
 ```
 <type>/<issue-number>-<kebab-case-slug>
@@ -805,27 +811,33 @@ Human approval gate. Moves an issue from "To Be Tested" to "Done" after reviewin
 **Guards**:
 1. Issue must be in "To Be Tested" status — blocks otherwise
 2. Issue must have at least one verification comment (evidence exists)
-3. Approval is attributed to the current GitHub user
+3. Attribution: on GitHub, `board approve` records "Approved by @<login>" for the gh account it runs under; Jira/YouTrack record "Approved." only. For the SOX and dual-approval checks, the approver's login comes from the user (the skill has no current-user lookup)
 4. **SOX guard** (when `CC_REQUIRE_DIFFERENT_APPROVER="true"`): Approver must differ from issue assignee. Block with: "SOX compliance: approver cannot be the same as assignee."
-5. **Dual approval** (when `CC_REQUIRED_APPROVERS="2"`): First approval is recorded as comment, issue stays in To Be Tested. Second approval from a different user triggers Done.
+5. **Dual approval** (when `CC_REQUIRED_APPROVERS="2"`): First approval is recorded as comment, issue stays in To Be Tested. Second approval from a different user (not the first approver) triggers Done.
 
 **Flow**:
 1. Verify issue is in "To Be Tested"
 2. Verify evidence comment exists
-3. Check SOX guard (if enabled): compare approver with assignee
-4. Check dual approval (if enabled): count existing approval comments
-5. **Add the `approved` label** — REQUIRED before closing. The `issue-closed` CI guard
-   (`project-board-automation.yml`) reopens any issue closed without this label and moves it
-   back to "To Be Tested". Skipping this step makes the approval revert seconds later.
+3. Check SOX guard (if enabled): get the assignee from `$PB_SCRIPT issue view <N> --json assignees`
+   and ask the user for the approver's login (the provider has no current-user lookup yet;
+   automating this is tracked in [#364](https://github.com/mindcockpit-ai/cognitive-core/issues/364)).
+   Block if they match.
+4. Check dual approval (if enabled, `CC_REQUIRED_APPROVERS="2"`): count existing approval comments.
+   The first approval is only a comment; the issue stays in To Be Tested:
    ```bash
-   gh issue edit <N> --repo {{CC_GITHUB_REPO}} --add-label "approved"
+   $PB_SCRIPT issue comment <N> "Approval 1/2 by @<approver>"
    ```
-6. Close the issue with an "Approved by @username" comment (the literal `Approved by @`
-   string also satisfies the local closure-guard hook in `validate-bash.sh`)
-7. Move to Done on the board
-
-> The `github` provider's `pb_board_approve` already adds the `approved` label atomically
-> before closing; the steps above document the same requirement for the manual flow.
+   Only the second approval continues with step 5; its approver (login from the user) must
+   differ from the first approver named in the "Approval 1/2" comment.
+5. Approve through the provider — it adds the `approved` label and closes the issue with an
+   approval comment; on GitHub the board workflow then moves it to Done
+   (Jira/YouTrack transition to Done directly):
+   ```bash
+   $PB_SCRIPT board approve <N> [--comment "<reason>"]
+   ```
+   Do not add the label or close the issue by hand. The `issue-closed` CI guard
+   (`project-board-automation.yml`) reopens any issue closed without the `approved` label and
+   moves it back to "To Be Tested".
 
 ### `blocked`
 
@@ -833,8 +845,8 @@ Flag an issue as blocked by an impediment.
 
 **Syntax**: `/project-board blocked <number> --reason "why" [--by #N]`
 
-1. Add `blocked` label to the issue
-2. Post comment: "Blocked: <reason>. Waiting on: #N" (if `--by` specified)
+1. Add the `blocked` label: `$PB_SCRIPT board blocked <N>`
+2. If step 1 succeeded, post the reason: `$PB_SCRIPT issue comment <N> "Blocked: <reason>. Waiting on: #N2"` (the "Waiting on" part only if `--by` is given)
 3. Issue stays in its current column — blocked is a flag, not a status
 
 ### `unblock`
@@ -843,64 +855,8 @@ Remove blocked flag from an issue.
 
 **Syntax**: `/project-board unblock <number> [--comment "resolution"]`
 
-1. Remove `blocked` label
-2. Post comment: "Unblocked: <resolution>"
-
-### `metrics`
-
-Show agile health metrics for the current or specified sprint.
-
-**Syntax**: `/project-board metrics [--sprint "Sprint N"] [--since 30d]`
-
-Computes from issue event history:
-
-```
-AGILE METRICS
-=============
-Sprint: Sprint 7 (2026-03-04 → 2026-03-18)
-
-THROUGHPUT
-  Completed:     8 issues
-  Canceled:      1 issue
-  Carried over:  2 issues (from previous sprint)
-
-CYCLE TIME (start → done)
-  Average:       3.2 days
-  Median:        2.5 days
-  P95:           7.1 days
-  By priority:
-    P1-high:     1.8 days (3 issues)
-    P2-medium:   3.5 days (4 issues)
-    P3-low:      5.2 days (1 issue)
-
-LEAD TIME (created → done)
-  Average:       8.4 days
-  Median:        6.0 days
-
-WIP HEALTH
-  Current In Progress:  3 (limit: 6)
-  Current To Be Tested: 2 (limit: 8)
-  Blocked items:        1 (#45 — waiting on external API)
-
-FLOW EFFICIENCY
-  Active time:   62% (time in Progress + Testing)
-  Wait time:     38% (time in Backlog + Todo)
-```
-
-**Data sources**:
-- Issue creation timestamps (lead time start)
-- Board transition events via issue timeline API (cycle time)
-- Current board state via `gh project item-list`
-- Blocked label for impediment tracking
-
-**Comparison**: When `--since` spans multiple sprints, show trend:
-
-```
-SPRINT TRENDS
-  Sprint 5:  6 done, avg cycle 4.1d
-  Sprint 6:  7 done, avg cycle 3.8d
-  Sprint 7:  8 done, avg cycle 3.2d  ← improving
-```
+1. Remove the `blocked` label: `$PB_SCRIPT board unblock <N>`
+2. If step 1 succeeded, post the resolution: `$PB_SCRIPT issue comment <N> "Unblocked: <resolution>"`
 
 ### `propose`
 
@@ -940,7 +896,7 @@ if [ "$STATE" != "OPEN" ]; then
 fi
 ```
 
-All providers return equivalent JSON via the `issue view` contract.
+This parses GitHub-shaped JSON. Jira and YouTrack return their native issue JSON (see "Provider Capabilities"); read title, body, labels and state from those fields instead.
 
 **Extract acceptance criteria**: Parse checkbox items from the issue body:
 
@@ -1225,8 +1181,7 @@ Techniques: $TECHNIQUES"
 **Provider-specific formatting**:
 
 ```bash
-PB_PROVIDER=$(grep 'CC_BOARD_PROVIDER=' cognitive-core.conf 2>/dev/null | cut -d'"' -f2)
-PB_PROVIDER="${PB_PROVIDER:-github}"
+PB_PROVIDER=$($PB_SCRIPT provider info | jq -r '.provider')
 
 case "$PB_PROVIDER" in
   github)
@@ -1314,8 +1269,8 @@ Epic (parent issue)
 **Step 1 — Create sub-issues first** (they need issue numbers for the task list):
 
 ```bash
-gh issue create --title "scope(area): sub-task title" \
-  --label "enhancement,area:hooks,priority:p2-medium,size:M" \
+$PB_SCRIPT issue create "scope(area): sub-task title" \
+  --labels "enhancement,area:hooks,priority:p2-medium,size:M" \
   --body "## Context
 ...
 **Parent**: TBD (will be linked from epic)
@@ -1327,8 +1282,8 @@ gh issue create --title "scope(area): sub-task title" \
 **Step 2 — Create the epic** with a task list referencing sub-issues:
 
 ```bash
-gh issue create --title "epic(scope): high-level objective" \
-  --label "enhancement,priority:p2-medium,size:XL" \
+$PB_SCRIPT issue create "epic(scope): high-level objective" \
+  --labels "enhancement,priority:p2-medium,size:XL" \
   --body "## Objective
 ...
 
@@ -1353,12 +1308,12 @@ GitHub automatically tracks task list progress (checked/unchecked) and shows a p
 
 **Step 3 — Back-link sub-issues to parent**:
 
-Update each sub-issue body to replace `TBD` with the epic number:
+Update each sub-issue body to replace `TBD` with the epic number (GitHub only; on Jira/YouTrack `issue edit` is not supported, so report it and skip):
+
+Read the body with `$PB_SCRIPT issue view 101 --json body`, replace `**Parent**: TBD` with `**Parent**: #100`, then write it back:
 
 ```bash
-# Update sub-issue body to reference parent
-gh issue edit 101 --body "$(gh issue view 101 --json body -q .body | \
-  python3 -c "import sys; print(sys.stdin.read().replace('**Parent**: TBD', '**Parent**: #100'))")"
+$PB_SCRIPT issue edit 101 --body "<updated body>"
 ```
 
 ### Epic Rules
@@ -1382,11 +1337,12 @@ epic(certification): improve score from 913 to 950+ / 1000
 
 ## Error Handling
 
-- If `gh` commands fail with auth errors, suggest: `gh auth refresh -h github.com -s project`
+- GitHub provider: if a call fails with an auth or scope error, suggest `gh auth refresh -h github.com -s project`
+- Missing label (GitHub): `board blocked` exits `2`, `board approve` exits `1` without naming the label (#364); suggest "create the label (`setup.sh --sync`)"
 - If an issue number doesn't exist, report it clearly
 - Confirm destructive actions (close, cancel) when affecting more than 2 issues at once
 - If a move is blocked by transition rules, explain WHY and show allowed targets
-- **CRITICAL: Wrong project guard** — Before every GraphQL mutation, verify `projectId` matches `CC_PROJECT_ID`. If field IDs don't match the configured project, ABORT immediately. See "Project Guard" section above.
+- **Provider exit codes**: `1` = usage error, not found, or refused (report the message; fix the input or the blocking condition). `2` = backend failure (rate limit, auth, network): report gh's message verbatim and stop. Never retry by hand or work around it with raw API calls.
 
 ## CI Automation
 
