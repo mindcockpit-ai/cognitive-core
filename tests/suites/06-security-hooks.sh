@@ -88,9 +88,9 @@ if [ -f "$VALIDATE_BASH" ]; then
         "$VALIDATE_BASH" \
         "$(mock_bash_json "gh issue close 42")"
 
-    # "Approved by @" -> allow (approval comment is sufficient exemption)
-    assert_hook_allows \
-        "bash: gh issue close with Approved by @ -> allow" \
+    # "Approved by @" is no exemption (#364): approvals go through the provider's board approve
+    assert_hook_denies \
+        "bash: gh issue close with Approved by @ -> deny" \
         "$VALIDATE_BASH" \
         "$(mock_bash_json "gh issue close 42 --repo org/repo --comment \"Approved by @user\"")"
 
@@ -104,11 +104,45 @@ if [ -f "$VALIDATE_BASH" ]; then
         "$VALIDATE_BASH" \
         "$(mock_bash_json "gh issue close 42 --comment \"Closed via /project-board\"")"
 
-    # "Approved by @system" -> allow (approval comment is sufficient exemption)
-    assert_hook_allows \
-        "bash: gh issue close with Approved by @system -> allow" \
+    assert_hook_denies \
+        "bash: gh issue close with Approved by @system -> deny" \
         "$VALIDATE_BASH" \
         "$(mock_bash_json "gh issue close 42 --comment \"Closed via /project-board - Approved by @system\"")"
+
+    # Approvals ask a person (#364); isolated from the repo conf and the user's defaults
+    approve_hook() { # <command> -> "<exit>|<decision>"
+        local out rc=0
+        out=$(python3 -c 'import json,sys; print(json.dumps({"tool_name":"Bash","tool_input":{"command":sys.argv[1]}}))' "$1" \
+            | CLAUDE_PROJECT_DIR=/tmp HOME=/tmp bash "$VALIDATE_BASH" 2>/dev/null) || rc=$?
+        printf '%s|%s' "$rc" "$(grep -oE '"permissionDecision": *"[a-z]+"' <<< "$out" | grep -oE '[a-z]+"$' | tr -d '"')"
+    }
+    for c in '$PB_SCRIPT board approve 42' \
+             '.claude/skills/project-board/providers/github.sh board approve 42 --comment "ok"' \
+             'source ./cognitive-core.conf; PB_SCRIPT=x; $PB_SCRIPT board  approve 7' \
+             '$PB_SCRIPT BOARD APPROVE 3' '$PB_SCRIPT board	approve 3' '$PB_SCRIPT board approve' \
+             '$PB_SCRIPT board "approve" 5' '$PB_SCRIPT board app""rove 5' $'$PB_SCRIPT board \\\napprove 5' \
+             '$PB_SCRIPT board -- approve 5' '$PB_SCRIPT board approve;' 'source github.sh; pb_board_approve 5' \
+             'gh issue edit 5 --add-label approved' 'gh issue edit 5 --add-label=approved' \
+             'gh api -X PATCH repos/o/r/issues/5 -f labels[]=approved' 'gh api repos/o/r/issues/5/labels -f labels[]=approved' \
+             'gh issue edit 5 --add-label approved && $PB_SCRIPT issue close 5'; do
+        assert_eq "bash: ${c} -> ask" "0|ask" "$(approve_hook "$c")"
+    done
+    assert_contains "bash: approve ask reason" \
+        "$(mock_bash_json '$PB_SCRIPT board approve 1' | CLAUDE_PROJECT_DIR=/tmp HOME=/tmp bash "$VALIDATE_BASH" 2>/dev/null)" \
+        "Confirm that you, not the agent, approve it"
+    for c in '$PB_SCRIPT board status 42' 'echo board approvers' '$PB_SCRIPT board approved 42' \
+             'gh issue edit 5 --add-label bug' 'gh issue list -l approved' 'gh issue list --label approved --limit 5' \
+             'gh issue edit 5 -R org/repo-lib --title approved-plan'; do
+        assert_eq "bash: ${c} -> silent allow" "0|" "$(approve_hook "$c")"
+    done
+    # A deny in the same command wins over the ask
+    assert_eq "bash: gh issue close with board approve -> deny" "0|deny" "$(approve_hook 'gh issue close 5 && $PB_SCRIPT board approve 5')"
+    assert_eq "bash: rm -rf / with board approve -> deny, not ask" "0|deny" "$(approve_hook 'rm -rf / ; $PB_SCRIPT board approve 1')"
+    assert_eq "bash: curl | sh with board approve -> deny, not ask" "0|deny" "$(approve_hook 'curl x | sh; $PB_SCRIPT board approve 1')"
+    output=$(mock_bash_json '$PB_SCRIPT board approve 42' | \
+        CLAUDE_PROJECT_DIR=/tmp HOME=/tmp CC_REQUIRE_CLOSURE_VERIFICATION=false CC_REQUIRE_HUMAN_APPROVAL=false \
+        bash "$VALIDATE_BASH" 2>/dev/null) || true
+    assert_eq "bash: board approve with the gate off -> silent allow" "" "$output"
 
     # Closure guard disabled via config
     output=$(echo "$(mock_bash_json "gh issue close 42")" | \
@@ -130,7 +164,7 @@ if [ -f "$VALIDATE_BASH" ]; then
         assert_eq "bash: closure guard has isRetryable=true" "true" "$retry_val"
 
         sug_val=$(echo "$output" | jq -r '.hookSpecificOutput.suggestion // ""' 2>/dev/null)
-        assert_contains "bash: closure guard has suggestion" "$sug_val" "/project-board close"
+        assert_contains "bash: closure guard has suggestion" "$sug_val" "board approve N"
     else
         _skip "bash: closure guard structured fields (jq not available)"
     fi
@@ -177,7 +211,7 @@ if [ -f "$VALIDATE_BASH" ]; then
         assert_eq "bash: closure guard API has isRetryable=true" "true" "$retry_val"
 
         sug_val=$(echo "$output" | jq -r '.hookSpecificOutput.suggestion // ""' 2>/dev/null)
-        assert_contains "bash: closure guard API has suggestion" "$sug_val" "/project-board close"
+        assert_contains "bash: closure guard API has suggestion" "$sug_val" "board approve N"
     else
         _skip "bash: closure guard API structured fields (jq not available)"
     fi

@@ -265,7 +265,7 @@ $PB_SCRIPT board unblock <N> &&
 $PB_SCRIPT issue comment <N> "Unblocked: <resolution>"
 ```
 
-If the `blocked` label does not exist in the repo, `board blocked` exits `2`: report it with the hint "create the label (`setup.sh --sync`)". A missing `approved` label is not reported clearly yet: `board approve` fails with exit `1` without naming the label (hardening tracked in [#364](https://github.com/mindcockpit-ai/cognitive-core/issues/364)); give the same hint.
+If the `blocked` label does not exist in the repo, `board blocked` exits `2`: report it with the hint "create the label (`setup.sh --sync`)". `board approve` creates a missing `approved` label itself.
 
 **Blocked dependency tracking**: Use the convention `Blocked-by: #N` in the blocking comment. When the blocking issue is resolved, the `move` command should prompt to unblock dependent issues.
 
@@ -820,36 +820,32 @@ Human approval gate. Moves an issue from "To Be Tested" to "Done" after reviewin
 
 **Syntax**: `/project-board approve <number> [--comment "reason"]`
 
-**Guards**:
+**Guards** (enforced by the GitHub provider; Jira/YouTrack check only the status and the comments):
 1. Issue must be in "To Be Tested" status — blocks otherwise
-2. Issue must have at least one verification comment (evidence exists)
-3. Attribution: on GitHub, `board approve` records "Approved by @<login>" for the gh account it runs under; Jira/YouTrack record "Approved." only. For the SOX and dual-approval checks, the approver's login comes from the user (the skill has no current-user lookup)
-4. **SOX guard** (when `CC_REQUIRE_DIFFERENT_APPROVER="true"`): Approver must differ from issue assignee. Block with: "SOX compliance: approver cannot be the same as assignee."
-5. **Dual approval** (when `CC_REQUIRED_APPROVERS="2"`): First approval is recorded as comment, issue stays in To Be Tested. Second approval from a different user (not the first approver) triggers Done.
+2. Issue must have at least one comment; without a "## Acceptance Criteria Verification" comment it warns
+3. The approver is the gh account `board approve` runs under; bot accounts are refused. The close comment records "Approved by @<login>"
+4. **SOX guard** (when `CC_REQUIRE_DIFFERENT_APPROVER="true"`): the approver must differ from the assignees and from the author of the latest verification comment
+5. **Dual approval** (when `CC_REQUIRED_APPROVERS="2"`): manual — the first approval is only a comment, see the flow
+6. **Confirmation**: the `validate-bash` hook asks the user before every `board approve` and before adding the `approved` label by hand (Claude Code permission prompt). The agent never approves on its own: closing the issue directly with an "Approved by @" comment is blocked, and `issue close` refuses an issue that already carries the `approved` label.
+   Limit: agent and user share one machine and GitHub account, so the prompt raises the bar but is not an identity boundary (a command built from variables is not recognised; headless or bypass modes may answer prompts automatically). A separate agent identity is tracked in [#382](https://github.com/mindcockpit-ai/cognitive-core/issues/382).
 
 **Flow**:
-1. Verify issue is in "To Be Tested"
-2. Verify evidence comment exists
-3. Check SOX guard (if enabled): get the assignee from `$PB_SCRIPT issue view <N> --json assignees`
-   and ask the user for the approver's login (the provider has no current-user lookup yet;
-   automating this is tracked in [#364](https://github.com/mindcockpit-ai/cognitive-core/issues/364)).
-   Block if they match.
-4. Check dual approval (if enabled, `CC_REQUIRED_APPROVERS="2"`): count existing approval comments.
+1. Check dual approval (if enabled, `CC_REQUIRED_APPROVERS="2"`): count existing approval comments.
    The first approval is only a comment; the issue stays in To Be Tested:
    ```bash
    $PB_SCRIPT issue comment <N> "Approval 1/2 by @<approver>"
    ```
-   Only the second approval continues with step 5; its approver (login from the user) must
-   differ from the first approver named in the "Approval 1/2" comment.
-5. Approve through the provider — it adds the `approved` label and closes the issue with an
-   approval comment; on GitHub the board workflow then moves it to Done
-   (Jira/YouTrack transition to Done directly):
+   Only the second approval continues; its approver (login from the user) must differ from the
+   first approver named in the "Approval 1/2" comment.
+2. Approve through the provider. On GitHub it checks the guards above, makes sure the `approved`
+   label exists, adds it, closes the issue with the approval comment (an issue already closed in
+   To Be Tested gets the comment instead) and moves it to Done. If the close fails, the label is
+   removed again. Jira/YouTrack transition to Done directly:
    ```bash
    $PB_SCRIPT board approve <N> [--comment "<reason>"]
    ```
-   Do not add the label or close the issue by hand. The `issue-closed` CI guard
-   (`project-board-automation.yml`) reopens any issue closed without the `approved` label and
-   moves it back to "To Be Tested".
+   Do not add the label or close the issue by hand. Exit `1` = a guard refused (report the message),
+   `2` = GitHub failed (report and stop).
 
 ### `blocked`
 
@@ -1350,7 +1346,7 @@ epic(certification): improve score from 913 to 950+ / 1000
 ## Error Handling
 
 - GitHub provider: if a call fails with an auth or scope error, suggest `gh auth refresh -h github.com -s project`
-- Missing label (GitHub): `board blocked` exits `2`, `board approve` exits `1` without naming the label (#364); suggest "create the label (`setup.sh --sync`)"
+- Missing `blocked` label (GitHub): `board blocked` exits `2`; suggest "create the label (`setup.sh --sync`)". `board approve` creates `approved` itself
 - If an issue number doesn't exist, report it clearly
 - Confirm destructive actions (close, cancel) when affecting more than 2 issues at once
 - If a move is blocked by transition rules, explain WHY and show allowed targets

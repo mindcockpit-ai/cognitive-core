@@ -32,13 +32,17 @@ case "$line" in
         n="${8#n=}"; f="${STUB_FIX}/item-$n.json"
         if [ -f "$f" ]; then cat "$f"; else echo '{"data":{"repository":{"issueOrPullRequest":null}}}'; fi ;;
     "project field-list 9 --owner acme --format json --limit 100") fail "${STUB_FAIL_FIELDS:-}"; cat "${STUB_FIX}/${STUB_FIELDS:-fields.json}" ;;
-    "project item-edit --id ITEM_"[0-9]" --project-id PROJ_1 --field-id FIELD_1 --single-select-option-id OPT_"[A-Z_]*) fail "${STUB_FAIL_EDIT:-}" ;;
+    "project item-edit --id ITEM_"[0-9]*" --project-id PROJ_1 --field-id FIELD_1 --single-select-option-id OPT_"[A-Z_]*) fail "${STUB_FAIL_EDIT:-}" ;;
     "project item-list 9 --owner acme --format json --limit 500") fail "${STUB_FAIL_ITEMS:-}"; cat "${STUB_FIX}/items.json" ;;
+    "issue view "*" --repo acme/app --json state,assignees,comments,labels") cat "${STUB_FIX}/${STUB_ISSUE:-approve-ok.json}" ;;
+    "api user --jq .login + \" \" + .type") fail "${STUB_FAIL_USER:-}"; echo "${STUB_USER-peter User}" ;;
     "issue view "*" --repo acme/app --json number,title,body,state,labels,assignees,url")
-        printf '{"number":%s,"body":"no criteria","url":"u"}\n' "$3" ;;
+        printf '{"number":%s,"body":"no criteria","url":"u","labels":[%s]}\n' "$3" "${STUB_VIEW_LABELS:-}" ;;
     "issue close "*" --repo acme/app --comment "*) fail "${STUB_FAIL_CLOSE:-}" ;;
+    "issue edit "[0-9]*" --repo acme/app --add-label approved") fail "${STUB_FAIL_ADD_APPROVED:-}" ;;
     "issue comment "*" --repo acme/app --body "*) fail "${STUB_FAIL_COMMENT:-}" ;;
-    "issue edit "[0-9]" --repo acme/app --add-label "*|"issue edit "[0-9]" --repo acme/app --remove-label "*) fail "${STUB_FAIL_LABEL:-}" ;;
+    "issue reopen "[0-9]*" --repo acme/app") fail "${STUB_FAIL_REOPEN:-}" ;;
+    "issue edit "[0-9]*" --repo acme/app --add-label "*|"issue edit "[0-9]*" --repo acme/app --remove-label "*) fail "${STUB_FAIL_LABEL:-}" ;;
     "issue list --repo acme/app --state "*) echo '[]' ;;
     "project view 9 --owner acme --format json") fail "${STUB_FAIL_VIEW:-}"; echo '{"id":"PROJ_1","number":9,"title":"Board"}' ;;
     "label list --repo acme/app --json name --limit 1000")
@@ -83,6 +87,23 @@ printf 'Approved\nBLOCKED\n' > "${FIX}/labels-case.txt"
 python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); d["fields"]=[f for f in d["fields"] if f["name"]!="Status"]; print(json.dumps(d))' "${FIX}/fields.json" > "${FIX}/fields-nostatus.json"
 wf none active > "${FIX}/wf-missing.json"
 
+# approve fixtures: issue state, assignees, comments
+mk_issue() { # <file> <state> <assignee> <comments json> [labels json]
+    printf '{"state":"%s","assignees":[{"login":"%s"}],"comments":%s,"labels":%s}\n' "$2" "$3" "$4" "${5:-[]}" > "${FIX}/$1"
+}
+VERIF='[{"author":{"login":"bob"},"body":"## Acceptance Criteria Verification\n\nPASS"},{"author":{"login":"carol"},"body":"looks good"}]'
+mk_issue approve-ok.json OPEN ann "$VERIF"
+mk_issue approve-closed.json CLOSED ann "$VERIF"
+mk_issue approve-nocomments.json OPEN ann '[]'
+mk_issue approve-noverif.json OPEN ann '[{"author":{"login":"bob"},"body":"done"}]'
+printf 'bug\nblocked\n' > "${FIX}/labels-noapproved.txt"
+printf '{"state":"OPEN","assignees":[],"comments":[{"author":{"login":"bob"},"body":"done"}],"labels":[]}\n' > "${FIX}/approve-bare.json"
+mk_issue approve-labeled.json OPEN ann "$VERIF" '[{"name":"Approved"}]'
+mk_issue approve-two-verif.json OPEN ann '[{"author":{"login":"bob"},"body":"## Acceptance Criteria Verification\nold"},{"author":{"login":"dave"},"body":"Re-run:\n\n  ## Acceptance Criteria Verification\nnew"}]'
+printf '{"state":"OPEN","assignees":[{"login":"ann"},{"login":"eve"}],"comments":[{"author":{"login":"bob"},"body":"done"}],"labels":[]}\n' > "${FIX}/approve-two-assignees.json"
+mk_issue approve-mention.json OPEN ann '[{"author":{"login":"bob"},"body":"see the ## Acceptance Criteria Verification above"}]'
+printf '{"fields":[{"id":"FIELD_1","name":"Status","options":[{"id":"OPT_QA","name":"QA"},{"id":"OPT_DONE","name":"Done"}]}]}\n' > "${FIX}/fields-qa.json"
+
 # mk_item <n> <project id> <status> : GraphQL answer for issue n with one board item
 mk_item() {
     cat > "${FIX}/item-$1.json" << EOF
@@ -94,6 +115,7 @@ EOF
 mk_item 7 PROJ_1 "In Progress"
 mk_item 8 PROJ_OTHER "Todo"          # only on another board
 mk_item 9 PROJ_1 "To Be Tested"
+mk_item 10 PROJ_1 "QA"
 
 cat > "${FIX}/items.json" << 'EOF'
 {"items":[
@@ -249,7 +271,7 @@ issue close 7 --repo acme/app --comment Canceled: duplicate --reason not planned
 run_pb -- issue close 7 --comment "Shipped"
 assert_eq "${S}close: guard lookup and criteria check, no reason" "graphql item 7
 issue view 7 --repo acme/app --json number,title,body,state,labels,assignees,url
-issue close 7 --repo acme/app --comment Shipped - Closed via /project-board - Approved by @system" "$CALLS"
+issue close 7 --repo acme/app --comment Shipped - Closed via /project-board" "$CALLS"
 run_pb -- issue close 9 --comment "Shipped"
 assert_eq "${S}close from To Be Tested: refused by the gate, no close" "1|graphql item 9" "${RC}|${CALLS}"
 assert_contains "${S}close from To Be Tested: points to approve" "$ERR" "/project-board approve 9"
@@ -518,13 +540,144 @@ assert_eq "${S}sync, gh failure: exit 2, no label create" "2|" "${RC}|$(grep '^l
 rm -f "${FIX}/labels.created"
 }
 
+run_approve_cases() {
+local S="$1"
+EDIT9='project item-edit --id ITEM_9 --project-id PROJ_1 --field-id FIELD_1 --single-select-option-id OPT_DONE'
+PRE='graphql item 9
+issue view 9 --repo acme/app --json state,assignees,comments,labels
+api user --jq .login + " " + .type
+label list --repo acme/app --json name --limit 1000'
+conf 'CC_STATUS_DONE_ID="OPT_DONE"'
+rm -f "${FIX}/labels.created"
+
+run_pb -- board approve 9 --comment "verified on staging"
+assert_eq "${S}approve: exit 0, label -> close -> Done in this order" "0|${PRE}
+issue edit 9 --repo acme/app --add-label approved
+issue close 9 --repo acme/app --comment Approved by @peter: verified on staging
+${EDIT9}" "${RC}|${CALLS}"
+assert_eq "${S}approve: message" "Issue #9 approved by @peter, closed and moved to Done" "$(json_get "$OUT" message)"
+
+run_pb -- board approve 7
+assert_eq "${S}approve outside To Be Tested: refused, one lookup only" "1|graphql item 7" "${RC}|${CALLS}"
+assert_contains "${S}approve outside To Be Tested: message" "$ERR" "status is 'In Progress', expected 'To Be Tested'"
+
+for u in "ci-bot[bot] Bot" "renovate Bot" "github-actions[bot] User"; do
+    run_pb STUB_USER="$u" -- board approve 9
+    assert_eq "${S}approve by bot '${u%% *}': refused before any change" "1|" "${RC}|$(grep -E '^(issue (edit|close|comment)|project item-edit|label create)' <<< "$CALLS" || true)"
+    assert_contains "${S}approve by bot '${u%% *}': message" "$ERR" "is a bot"
+done
+run_pb STUB_USER="" -- board approve 9
+assert_eq "${S}approver lookup empty: exit 2, no change" "2|" "${RC}|$(grep -E '^(issue (edit|close)|project item-edit)' <<< "$CALLS" || true)"
+run_pb -- board approve 8
+assert_eq "${S}approve, not on this board: refused, one lookup" "1|graphql item 8" "${RC}|${CALLS}"
+run_pb -- board approve "9;x"
+assert_eq "${S}approve, invalid number: refused, no gh call" "1|" "${RC}|${CALLS}"
+run_pb -- board approve 9 --comment 'checked "staging" ok'
+assert_contains "${S}approve comment with quotes passed intact" "$CALLS" 'Approved by @peter: checked "staging" ok'
+run_pb STUB_LABELS=labels-case.txt -- board approve 9
+assert_eq "${S}label in other case: not created again" "0|" "${RC}|$(grep '^label create' <<< "$CALLS" || true)"
+
+run_pb STUB_ISSUE=approve-nocomments.json -- board approve 9
+assert_eq "${S}approve without comments: refused, no change" "1|" "${RC}|$(grep -E '^(issue (edit|close)|project item-edit)' <<< "$CALLS" || true)"
+assert_contains "${S}approve without comments: message" "$ERR" "no verification evidence found"
+run_pb STUB_ISSUE=approve-noverif.json -- board approve 9
+assert_eq "${S}approve without verification comment: warns, proceeds" "0" "$RC"
+assert_eq "${S}approve without verification comment: warning" \
+    'No "## Acceptance Criteria Verification" comment found; approving on the existing comments' "$(json_get "$ERR" warning)"
+
+run_pb STUB_ISSUE=approve-bare.json -- board approve 9
+assert_eq "${S}approve, no assignee and no verification comment: proceeds" "0" "$RC"
+
+# Different approver (SOX)
+conf 'CC_STATUS_DONE_ID="OPT_DONE"
+CC_REQUIRE_DIFFERENT_APPROVER="true"'
+run_pb STUB_USER="ann User" -- board approve 9
+assert_eq "${S}SOX: assignee refused" "1|" "${RC}|$(grep -E '^issue (edit|close)' <<< "$CALLS" || true)"
+assert_contains "${S}SOX: assignee message" "$ERR" "@ann is the assignee"
+run_pb STUB_USER="bob User" -- board approve 9
+assert_eq "${S}SOX: verifier refused" "1|" "${RC}|$(grep -E '^issue (edit|close)' <<< "$CALLS" || true)"
+assert_contains "${S}SOX: verifier message" "$ERR" "@bob posted the verification"
+run_pb STUB_USER="carol User" -- board approve 9
+assert_eq "${S}SOX: another person approves" "0" "$RC"
+run_pb STUB_ISSUE=approve-two-verif.json STUB_USER="dave User" -- board approve 9
+assert_eq "${S}SOX: latest verifier (heading not on the first line) refused" "1" "$RC"
+run_pb STUB_ISSUE=approve-two-verif.json STUB_USER="bob User" -- board approve 9
+assert_eq "${S}SOX: earlier verifier may approve" "0" "$RC"
+run_pb STUB_ISSUE=approve-two-assignees.json STUB_USER="eve User" -- board approve 9
+assert_eq "${S}SOX: second assignee refused" "1" "$RC"
+run_pb STUB_ISSUE=approve-mention.json STUB_USER="bob User" -- board approve 9
+assert_eq "${S}SOX: a mention of the heading is no verification" "0" "$RC"
+conf 'CC_STATUS_DONE_ID="OPT_DONE"'
+run_pb STUB_USER="ann User" -- board approve 9
+assert_eq "${S}no SOX: the assignee may approve" "0" "$RC"
+
+# Label
+rm -f "${FIX}/labels.created"
+run_pb STUB_LABELS=labels-noapproved.txt -- board approve 9
+assert_eq "${S}missing label: created before it is added" "0|label create approved --repo acme/app --color 0075CA --description Closure approved by reviewer
+issue edit 9 --repo acme/app --add-label approved" "${RC}|$(grep -E '^(label create|issue edit)' <<< "$CALLS")"
+rm -f "${FIX}/labels.created"
+run_pb STUB_LABELS=labels-noapproved.txt STUB_FAIL_LABEL_CREATE="HTTP 403" -- board approve 9
+assert_eq "${S}label cannot be created: exit 2, never closes" "2|" "${RC}|$(grep -E '^(issue (edit|close)|project item-edit)' <<< "$CALLS" || true)"
+run_pb STUB_FAIL_ADD_APPROVED="HTTP 422" -- board approve 9
+assert_eq "${S}label cannot be added: exit 2, never closes" "2|" "${RC}|$(grep -E '^(issue close|project item-edit)' <<< "$CALLS" || true)"
+
+# Close failure: label rolled back, no Done
+run_pb STUB_FAIL_CLOSE="HTTP 502" -- board approve 9
+assert_eq "${S}close fails: exit 2, label removed, no Done" "2|issue edit 9 --repo acme/app --add-label approved
+issue close 9 --repo acme/app --comment Approved by @peter.
+issue edit 9 --repo acme/app --remove-label approved" "${RC}|$(grep -E '^(issue (edit|close)|project item-edit)' <<< "$CALLS")"
+run_pb STUB_FAIL_CLOSE="HTTP 502" STUB_FAIL_LABEL="HTTP 502" -- board approve 9
+assert_eq "${S}close and rollback fail: still exit 2" "2" "$RC"
+run_pb STUB_ISSUE=approve-labeled.json STUB_FAIL_CLOSE="HTTP 502" -- board approve 9
+assert_eq "${S}close fails, label was already there: kept" "2|" "${RC}|$(grep -- '--remove-label' <<< "$CALLS" || true)"
+
+# Already closed in To Be Tested: approval as a comment, then Done
+run_pb STUB_ISSUE=approve-closed.json -- board approve 9
+assert_eq "${S}already closed: comment instead of close, Done" "0|issue comment 9 --repo acme/app --body Approved by @peter.
+${EDIT9}" "${RC}|$(grep -E '^(issue (close|comment)|project item-edit)' <<< "$CALLS")"
+
+# Done without a conf ID: live option
+conf
+run_pb -- board approve 9
+assert_eq "${S}Done from the live board" "0|project field-list 9 --owner acme --format json --limit 100|${EDIT9}" \
+    "${RC}|$(grep '^project field-list' <<< "$CALLS")|$(grep item-edit <<< "$CALLS")"
+conf 'CC_GITHUB_STATUS_MAP="testing=QA"'
+run_pb STUB_FIELDS=fields-qa.json -- board approve 10
+assert_eq "${S}renamed testing column (QA): approvable" "0" "$RC"
+run_pb STUB_FIELDS=fields-qa.json -- board approve 7
+assert_contains "${S}renamed testing column: message names it" "$ERR" "expected 'QA'"
+conf 'CC_STATUS_DONE_ID="OPT_DONE"'
+run_pb STUB_FAIL_EDIT="GraphQL: something" -- board approve 9
+assert_eq "${S}Done fails: exit 2 after the close, label kept" "2|issue close 9 --repo acme/app --comment Approved by @peter.|" \
+    "${RC}|$(grep '^issue close' <<< "$CALLS")|$(grep -- '--remove-label' <<< "$CALLS" || true)"
+assert_contains "${S}Done fails: says the close succeeded" "$ERR" "approved and closed, but the move to Done failed"
+run_pb STUB_FAIL_USER="HTTP 401: Bad credentials" -- board approve 9
+assert_eq "${S}approver lookup fails: exit 2, no change" "2|" "${RC}|$(grep -E '^(issue (edit|close)|project item-edit)' <<< "$CALLS" || true)"
+
+# A labelled issue is closed by board approve only
+run_pb STUB_VIEW_LABELS='{"name":"approved"}' -- issue close 7 --comment "done"
+assert_eq "${S}close of an approved-labelled issue: refused, no close" "1|" "${RC}|$(grep '^issue close' <<< "$CALLS" || true)"
+assert_contains "${S}close of an approved-labelled issue: message" "$ERR" "use board approve 7"
+run_pb -- issue reopen 7
+assert_eq "${S}reopen: removes the approved label" "0|issue reopen 7 --repo acme/app
+issue edit 7 --repo acme/app --remove-label approved" "${RC}|${CALLS}"
+run_pb STUB_FAIL_LABEL="label not on issue" -- issue reopen 7
+assert_eq "${S}reopen: label removal failure is ignored" "0" "$RC"
+run_pb STUB_VIEW_LABELS='{"name":"approved"}' -- issue close 7 --comment "Canceled: dup"
+assert_eq "${S}cancel of an approved-labelled issue: allowed" "0" "$RC"
+conf
+}
+
 SHELL_UNDER_TEST="$BASH"
 run_cases ""
 run_check_cases ""
+run_approve_cases ""
 if [ -x /bin/bash ] && [ "$(/bin/bash -c 'echo ${BASH_VERSINFO[0]}')" = "3" ]; then
     SHELL_UNDER_TEST=/bin/bash
     run_cases "bash 3.2: "
     run_check_cases "bash 3.2: "
+    run_approve_cases "bash 3.2: "
 else
     _skip "bash 3.2 not available (/bin/bash is not 3.x)"
 fi
@@ -539,6 +692,19 @@ assert_eq "alias: CC_BOARD_PROVIDER alone" "jira" "$(alias_of 'CC_BOARD_PROVIDER
 assert_eq "alias: canonical key wins" "youtrack" "$(alias_of 'CC_BOARD_PROVIDER="jira"
 CC_PROJECT_BOARD_PROVIDER="youtrack"')"
 assert_eq "alias: neither set" "" "$(alias_of 'CC_GITHUB_OWNER="acme"')"
+
+# Closure guard: an approved-labelled issue, in each provider's issue view shape
+guard_with() { # <issue view json> -> exit code of _pb_closure_guard
+    env -i PATH="$PATH" HOME="$WORK" VIEW="$1" "$BASH" -c '
+        source "$1/_provider-lib.sh"
+        pb_board_status() { echo "{\"status\":\"In Progress\"}"; }
+        pb_issue_view() { printf "%s" "$VIEW"; }
+        _pb_closure_guard 7 --comment done' -- "$PB" >/dev/null 2>&1 && echo 0 || echo $?
+}
+assert_eq "guard: GitHub labels" "1" "$(guard_with '{"labels":[{"name":"approved"}],"body":""}')"
+assert_eq "guard: YouTrack tags" "1" "$(guard_with '{"tags":[{"name":"Approved"}],"description":""}')"
+assert_eq "guard: Jira fields.labels" "1" "$(guard_with '{"fields":{"labels":["approved"]}}')"
+assert_eq "guard: no approved label" "0" "$(guard_with '{"labels":[{"name":"bug"}],"tags":[],"fields":{"labels":["x"]}}')"
 
 escaped=$(env -i PATH="$PATH" "$BASH" -c 'source "$1/_provider-lib.sh"; _pb_error "say \"hi\" \\ now
 next	tab"$'"'"'\r'"'"'end' -- "$PB" 2>&1)

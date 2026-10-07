@@ -186,16 +186,14 @@ if [ -z "$REASON" ] && [ "$_CLOSURE_GUARD" = "true" ]; then
     if echo "$CMD_LOWER" | grep -qE 'gh[[:space:]]+issue[[:space:]]+close'; then
         # Exempt legitimate skill paths
         _CLOSURE_EXEMPT="false"
+        # "Approved by @" is no exemption: approvals go through the provider's board approve (#364)
         if echo "$CMD" | grep -qF "Canceled:"; then
-            _CLOSURE_EXEMPT="true"
-        fi
-        if echo "$CMD" | grep -qF "Approved by @"; then
             _CLOSURE_EXEMPT="true"
         fi
         if [ "$_CLOSURE_EXEMPT" = "false" ]; then
             REASON="Blocked: direct gh issue close bypasses closure guard"
             _cc_security_log "DENY" "closure-guard" "${REASON} | cmd=${CMD}"
-            _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Use '/project-board approve N' for verified issues or '/project-board close N' for unverified"
+            _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Use the project-board provider: 'board approve N' for verified issues, 'issue close N' otherwise"
             exit 0
         fi
     fi
@@ -203,7 +201,7 @@ if [ -z "$REASON" ] && [ "$_CLOSURE_GUARD" = "true" ]; then
     # gh api state-change bypass: REST (state=closed) or GraphQL (CloseIssue mutation)
     # Uses CMD_LOWER (not _CMD_CHECK) because payloads are typically inside quotes
     # that CMD_STRIPPED removes - same rationale as gh issue close above.
-    # gh api state-change: always block (no exemptions - use gh issue close path with "Approved by @" or "Canceled:")
+    # gh api state-change: always block (no exemptions - use the project-board provider)
     if echo "$CMD_LOWER" | grep -qE 'gh[[:space:]]+api[[:space:]]' && \
        echo "$CMD_LOWER" | grep -qE 'state[^a-z]*closed|closeissue'; then
         _API_CLOSURE_EXEMPT="false"
@@ -213,7 +211,7 @@ if [ -z "$REASON" ] && [ "$_CLOSURE_GUARD" = "true" ]; then
         if [ "$_API_CLOSURE_EXEMPT" = "false" ]; then
             REASON="Blocked: gh api call attempts to close issue via REST/GraphQL, bypassing closure guard"
             _cc_security_log "DENY" "closure-guard-api" "${REASON} | cmd=${CMD}"
-            _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Use '/project-board approve N' for verified issues or '/project-board close N --comment \"Approved by @user\"' to close with exemption"
+            _cc_json_pretool_deny_structured "$REASON" "policy" "true" "Use the project-board provider: 'board approve N' for verified issues, 'issue close N' otherwise"
             exit 0
         fi
     fi
@@ -305,6 +303,21 @@ if [ -z "$REASON" ] && [ -n "${CC_BLOCKED_PATTERNS:-}" ]; then
             break
         fi
     done
+fi
+
+# --- Approval needs a person (#364) ---
+# board approve and adding the approved label always ask. Matched on a copy without quotes,
+# backslashes and line breaks, so "board" 'approve' or a continuation line still match.
+# This also asks for quoted text such as a commit message mentioning "board approve".
+if [ -z "$REASON" ] && [ "$_CLOSURE_GUARD" = "true" ]; then
+    _APPROVE_CHECK=$(printf '%s' "$CMD_LOWER" | tr -d "\"'\\\\" | tr '\n' ' ')
+    if echo "$_APPROVE_CHECK" | grep -qE '(board[[:space:]]+(--[[:space:]]+)?approve|pb_board_approve)([^a-z0-9_-]|$)' || \
+       { echo "$_APPROVE_CHECK" | grep -qE '(issue[[:space:]]+edit|/labels|gh[[:space:]]+api[[:space:]])' && \
+         echo "$_APPROVE_CHECK" | grep -qE '(add-label|--label|labels)[^;&|]*approved'; }; then
+        _cc_security_log "ASK" "approve-confirm" "cmd=${CMD}"
+        _cc_json_pretool_ask "This approves an issue (closes it into Done, or sets the approved label). Confirm that you, not the agent, approve it."
+        exit 0
+    fi
 fi
 
 # Output deny JSON if blocked, otherwise silent exit 0

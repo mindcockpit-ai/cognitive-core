@@ -1187,11 +1187,11 @@ else
     _pass "validate-bash: 'Closed via /project-board' standalone exemption removed"
 fi
 
-# "Approved by @" should still be exempt
-if grep -qF '"Approved by @"' "${ROOT_DIR}/core/hooks/validate-bash.sh" 2>/dev/null; then
-    _pass "validate-bash: 'Approved by @' exemption present"
+# "Approved by @" is no exemption any more (#364)
+if grep -n 'Approved by @' "${ROOT_DIR}/core/hooks/validate-bash.sh" | grep -v '^[0-9]*:[[:space:]]*#' | grep -q .; then
+    _fail "validate-bash: 'Approved by @' exemption still present"
 else
-    _fail "validate-bash: 'Approved by @' exemption missing"
+    _pass "validate-bash: no 'Approved by @' exemption"
 fi
 
 # "Canceled:" should still be exempt
@@ -1201,11 +1201,12 @@ else
     _fail "validate-bash: 'Canceled:' exemption missing"
 fi
 
-# GitHub pb_issue_close uses "Approved by @system" marker
-if grep -q 'Approved by @system' "${PROVIDERS_DIR}/github.sh" 2>/dev/null; then
-    _pass "github: pb_issue_close uses 'Approved by @system' marker"
+# GitHub pb_issue_close: neutral marker, no "Approved by @" (#364)
+if ! grep -q 'Approved by @system' "${PROVIDERS_DIR}/github.sh" 2>/dev/null && \
+   sed -n '/^pb_issue_close()/,/^}/p' "${PROVIDERS_DIR}/github.sh" | grep -qF 'local marker="Closed via /project-board"'; then
+    _pass "github: pb_issue_close uses the neutral 'Closed via /project-board' marker"
 else
-    _fail "github: pb_issue_close missing 'Approved by @system' marker"
+    _fail "github: pb_issue_close still writes 'Approved by @system' or lost its marker"
 fi
 
 # =============================================================================
@@ -1489,7 +1490,7 @@ fi
 # =============================================================================
 
 # GitHub pb_board_approve sets 'approved' label
-if grep -A 60 '^pb_board_approve()' "${PROVIDERS_DIR}/github.sh" | grep -q 'add-label.*approved'; then
+if sed -n '/^pb_board_approve()/,/^}/p' "${PROVIDERS_DIR}/github.sh" | grep -q 'add-label approved'; then
     _pass "github: pb_board_approve sets 'approved' label"
 else
     _fail "github: pb_board_approve missing 'approved' label"
