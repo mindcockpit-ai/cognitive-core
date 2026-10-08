@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.8.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.7.0...v1.8.0) (2026-10-08)
+
+
+### Features
+
+* **hooks:** Stop hook that blocks bare issue/PR references in replies ([#369](https://github.com/mindcockpit-ai/cognitive-core/issues/369)) ([d84a23f](https://github.com/mindcockpit-ai/cognitive-core/commit/d84a23ff17b6fcd39bc46ae30a4b97b200cb7393))
+
+
+### Bug Fixes
+
+* **cicd:** one approval gate for the project-board workflow ([#374](https://github.com/mindcockpit-ai/cognitive-core/issues/374)) ([bbdf887](https://github.com/mindcockpit-ai/cognitive-core/commit/bbdf887e3188e7a2c1608d82890bc71d1c31e395))
+* **hooks:** health-check exits silently at Hook Integrity on installed projects ([#352](https://github.com/mindcockpit-ai/cognitive-core/issues/352)) ([e0373c7](https://github.com/mindcockpit-ai/cognitive-core/commit/e0373c7df40a4a838b55378763e862d593c9a13e))
+* **install:** update.sh adds files missing from installed skills ([#370](https://github.com/mindcockpit-ai/cognitive-core/issues/370)) ([57c0ce2](https://github.com/mindcockpit-ai/cognitive-core/commit/57c0ce2b999467ed39d03fad889ae6ccfdb95833))
+* **skills:** harden project-board approve ([#383](https://github.com/mindcockpit-ai/cognitive-core/issues/383)) ([741cb9f](https://github.com/mindcockpit-ai/cognitive-core/commit/741cb9faef52a17965e5d1e36c743b236627d3a3))
+* **skills:** project-board provider moves by status key and reports backend failures ([#377](https://github.com/mindcockpit-ai/cognitive-core/issues/377)) ([9aae9e4](https://github.com/mindcockpit-ai/cognitive-core/commit/9aae9e4911e7ba74f5bc8b12a8005f7fb3f25880))
+* **skills:** project-board recipes use only provider calls ([#378](https://github.com/mindcockpit-ai/cognitive-core/issues/378)) ([2794ba8](https://github.com/mindcockpit-ai/cognitive-core/commit/2794ba88a0737b0f7502a1a58ca9176f69d6b71f))
+* **skills:** project-board setup checks and repairs an existing board ([#380](https://github.com/mindcockpit-ai/cognitive-core/issues/380)) ([58b658e](https://github.com/mindcockpit-ai/cognitive-core/commit/58b658e7d8e652048558bd1fa69467e6a1fdec65))
+
 ## [1.7.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.6.1...v1.7.0) (2026-09-25)
 
 
