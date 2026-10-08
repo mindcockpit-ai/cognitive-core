@@ -248,6 +248,17 @@ except Exception:
     if [[ "$is_cancel" == "false" ]]; then
         local issue_json unchecked
         issue_json=$(pb_issue_view "$number" 2>/dev/null) || true
+        # An issue carrying the approved label is closed by board approve only (#364)
+        if [[ -n "$issue_json" ]] && python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+# GitHub: labels; YouTrack: tags; Jira: fields.labels (strings)
+labels = d.get("labels") or d.get("tags") or (d.get("fields") or {}).get("labels") or []
+names = [(l.get("name") if isinstance(l, dict) else l) or "" for l in labels]
+sys.exit(0 if any(n.lower() == "approved" for n in names) else 1)
+' <<< "$issue_json" 2>/dev/null; then
+            _pb_die "Cannot close #$number - it carries the approved label; use board approve $number (from To Be Tested)"
+        fi
         if [[ -n "$issue_json" ]]; then
             unchecked=$(echo "$issue_json" | python3 -c "
 import json, sys, re

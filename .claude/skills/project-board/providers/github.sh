@@ -265,11 +265,8 @@ pb_issue_close() {
         esac
     done
 
-    # Closure marker for validate-bash hook exemption.
-    # Uses "Approved by @system" when CC_REQUIRE_HUMAN_APPROVAL=false,
-    # or "Canceled:" prefix (already in comment from cancel path).
-    # When approval is required, pb_board_approve handles closure directly.
-    local marker="Closed via /project-board - Approved by @system"
+    # Neutral marker: only pb_board_approve writes "Approved by @<login>"
+    local marker="Closed via /project-board"
     if [[ -n "$comment" ]]; then
         # Cancel path already has "Canceled:" prefix - keep it as-is for hook exemption
         if [[ "$comment" != Canceled:* ]]; then
@@ -290,6 +287,8 @@ pb_issue_close() {
 pb_issue_reopen() {
     local number="${1:?Issue number required}"
     _gh issue reopen "$number" --repo "$CC_GITHUB_REPO" >/dev/null
+    # A reopened issue is no longer approved (the board workflow does the same on the event)
+    gh issue edit "$number" --repo "$CC_GITHUB_REPO" --remove-label approved >/dev/null 2>&1 || true
     _pb_success "Issue #$number reopened"
 }
 
@@ -462,60 +461,110 @@ pb_board_add() {
     echo "{\"item_id\":\"$item_id\",\"number\":$number}"
 }
 
+# Approve a verified issue: To Be Tested only, a human approver (not the assignee or the
+# verifier when CC_REQUIRE_DIFFERENT_APPROVER=true), then label -> close -> Done.
+# The close comment "Approved by @<login>" records who approved.
 pb_board_approve() {
     local number="${1:?Issue number required}"
     shift
     local comment=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --comment) comment="$2"; shift 2 ;;
+            --comment) comment="${2:?Comment required}"; shift 2 ;;
             *)         shift ;;
         esac
     done
+    _gh_validate_number "$number"
 
-    # Verify issue is in "To Be Tested" status
-    local items item_id current_status
-    items=$(_gh_get_items) || exit $?
-    item_id=$(echo "$items" | python3 -c "
-import json, sys
-for item in json.load(sys.stdin).get('items', []):
-    if item.get('content', {}).get('number') == $number:
-        print(item['id']); break
-" 2>/dev/null) || _pb_die "Issue #$number not found on board"
-
-    current_status=$(echo "$items" | python3 -c "
-import json, sys
-for item in json.load(sys.stdin).get('items', []):
-    if item.get('content', {}).get('number') == $number:
-        print(item.get('status', '')); break
-" 2>/dev/null)
-
-    if [[ "$current_status" != "To Be Tested" && "$current_status" != "In Review" ]]; then
-        _pb_die "Cannot approve #$number - current status is '$current_status', expected 'To Be Tested'"
+    # 1. Board status: To Be Tested only
+    local item rc=0 status
+    item=$(_gh_item "$number") || rc=$?
+    [[ $rc -eq 1 ]] && _pb_die "Issue #$number not found on board"
+    [[ $rc -ne 0 ]] && exit "$rc"
+    status=$(python3 -c 'import json, sys; print(json.load(sys.stdin)["status"])' <<< "$item")
+    if [[ "$(_pb_canonical_status "$status")" != "testing" ]]; then
+        _pb_die "Cannot approve #$number - status is '${status:-none}', expected '$(_pb_status_name_for_key testing "${CC_GITHUB_STATUS_MAP:-}")'"
     fi
 
-    # Verify evidence exists (at least one comment on the issue)
-    local comment_count
-    comment_count=$(gh issue view "$number" --repo "$CC_GITHUB_REPO" --json comments --jq '.comments | length')
-    if [[ "$comment_count" -eq 0 ]]; then
-        _pb_die "Cannot approve #$number - no verification evidence found (0 comments)"
+    # 2. Evidence, assignees, verifier (author of the latest verification comment)
+    local issue facts
+    issue=$(_gh issue view "$number" --repo "$CC_GITHUB_REPO" --json state,assignees,comments,labels) || exit $?
+    # The verifier is the author of the latest comment with a "## Acceptance Criteria Verification" heading
+    facts=$(python3 -c '
+import json, re, sys
+d = json.load(sys.stdin)
+comments = d.get("comments") or []
+verifier = ""
+for c in comments:
+    if re.search(r"(?m)^[ \t]*##[ \t]+Acceptance Criteria Verification", c.get("body") or ""):
+        verifier = (c.get("author") or {}).get("login", "")
+print(d.get("state", ""))
+print(len(comments))
+print("yes" if any((l.get("name") or "").lower() == "approved" for l in d.get("labels") or []) else "no")
+print(" ".join(a.get("login", "") for a in d.get("assignees") or []))
+print(verifier)
+' <<< "$issue")
+    local state count had_label assignees verifier
+    # $(...) drops trailing empty lines: a missing line reads as empty
+    { read -r state || true; read -r count || true; read -r had_label || true
+      read -r assignees || true; read -r verifier || true; } <<< "$facts"
+    [[ "$count" -gt 0 ]] || _pb_die "Cannot approve #$number - no verification evidence found (0 comments)"
+    [[ -n "$verifier" ]] || echo '{"warning":"No \"## Acceptance Criteria Verification\" comment found; approving on the existing comments"}' >&2
+
+    # 3. Approver: the gh account; bots never approve
+    local who approver type
+    who=$(_gh api user --jq '.login + " " + .type') || exit $?
+    approver="${who% *}"
+    type="${who##* }"
+    [[ "$who" == *" "* && -n "$approver" ]] || _pb_fail "Cannot approve #$number - could not read the approver's login (gh api user)"
+    if [[ "$type" == "Bot" || "$approver" == *"[bot]" ]]; then
+        _pb_die "Cannot approve #$number - @$approver is a bot; a person must approve"
+    fi
+    if [[ "${CC_REQUIRE_DIFFERENT_APPROVER:-false}" == "true" ]]; then
+        local a
+        for a in $assignees; do
+            [[ "$a" == "$approver" ]] && _pb_die "Cannot approve #$number - @$approver is the assignee (CC_REQUIRE_DIFFERENT_APPROVER=true); a different person must approve"
+        done
+        [[ -n "$verifier" && "$verifier" == "$approver" ]] && \
+            _pb_die "Cannot approve #$number - @$approver posted the verification (CC_REQUIRE_DIFFERENT_APPROVER=true); a different person must approve"
     fi
 
-    # Get current user for attribution
-    local approver
-    approver=$(gh api user --jq '.login' 2>/dev/null || echo "unknown")
+    # 4. Label (created when missing); the close below never happens without it
+    local labels
+    labels=$(_gh label list --repo "$CC_GITHUB_REPO" --json name --limit 1000) || exit $?
+    if ! python3 -c 'import json, sys; sys.exit(0 if any(l["name"].lower() == "approved" for l in json.load(sys.stdin)) else 1)' <<< "$labels"; then
+        _gh label create approved --repo "$CC_GITHUB_REPO" --color 0075CA --description "Closure approved by reviewer" >/dev/null || exit $?
+    fi
+    _gh issue edit "$number" --repo "$CC_GITHUB_REPO" --add-label approved >/dev/null || exit $?
 
-    # Set approved label atomically before closing (CI checks this label)
-    gh issue edit "$number" --repo "$CC_GITHUB_REPO" --add-label "approved" >/dev/null 2>&1
-
-    # Close the issue
+    # 5. Close (an issue already closed in To Be Tested gets the approval as a comment)
     local approval_comment="Approved by @${approver}."
     [[ -n "$comment" ]] && approval_comment="Approved by @${approver}: ${comment}"
-    gh issue close "$number" --repo "$CC_GITHUB_REPO" --comment "$approval_comment" >/dev/null 2>&1
+    if [[ "$state" == "OPEN" ]]; then
+        if ! (_gh issue close "$number" --repo "$CC_GITHUB_REPO" --comment "$approval_comment" >/dev/null); then
+            # Undo only what this run did
+            [[ "$had_label" == "yes" ]] || \
+                gh issue edit "$number" --repo "$CC_GITHUB_REPO" --remove-label approved >/dev/null 2>&1 || true
+            exit 2
+        fi
+    else
+        _gh issue comment "$number" --repo "$CC_GITHUB_REPO" --body "$approval_comment" >/dev/null || exit $?
+    fi
 
-    # Board move to Done is handled by CI workflow (issue-closed event)
+    # 6. Done, without waiting for the board workflow (which does the same on the close event)
+    local option_id
+    local moved=0
+    option_id=$(_gh_option_id "done") || moved=$?
+    if [[ $moved -eq 0 ]]; then
+        (_gh project item-edit --id "$(_gh_item_id "$item")" \
+            --project-id "$CC_PROJECT_ID" --field-id "$CC_STATUS_FIELD_ID" \
+            --single-select-option-id "$option_id" >/dev/null) || moved=$?
+    fi
+    if [[ $moved -ne 0 ]]; then
+        _pb_fail "Issue #$number approved and closed, but the move to Done failed; the board workflow moves it on the close event, or run: board move $number done"
+    fi
 
-    _pb_success "Issue #$number approved and moved to Done by @$approver"
+    _pb_success "Issue #$number approved by @$approver, closed and moved to Done"
 }
 
 # =============================================================================
