@@ -213,7 +213,7 @@ assert_eq "file: non-executable update.sh rejected" "1" "$(_exit_code "$out")"
 # SUID update.sh - may fail on some filesystems that strip suid bits
 SUID_ROOT=$(_make_valid_root)
 if chmod 4755 "${SUID_ROOT}/update.sh" 2>/dev/null; then
-    perms=$(stat -f %p "${SUID_ROOT}/update.sh" 2>/dev/null || stat -c %a "${SUID_ROOT}/update.sh")
+    perms=$(stat -c %a "${SUID_ROOT}/update.sh" 2>/dev/null || stat -f %Mp%Lp "${SUID_ROOT}/update.sh")
     # Check the setuid bit actually stuck (digit at position length-3 is 4/5/6/7)
     plen=${#perms}
     if [ "$plen" -ge 4 ]; then
@@ -237,7 +237,7 @@ fi
 # SETGID update.sh
 SGID_ROOT=$(_make_valid_root)
 if chmod 2755 "${SGID_ROOT}/update.sh" 2>/dev/null; then
-    perms=$(stat -f %p "${SGID_ROOT}/update.sh" 2>/dev/null || stat -c %a "${SGID_ROOT}/update.sh")
+    perms=$(stat -c %a "${SGID_ROOT}/update.sh" 2>/dev/null || stat -f %Mp%Lp "${SGID_ROOT}/update.sh")
     plen=${#perms}
     if [ "$plen" -ge 4 ]; then
         spc=$(printf '%s' "$perms" | cut -c$((plen - 3)))
