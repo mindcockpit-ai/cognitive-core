@@ -33,8 +33,9 @@ used=$(git ls-files '.github/workflows/*.yml' 'cicd/workflows/*.yml' '.github/ac
     | sed -E 's/^uses: *//' | LC_ALL=C sort -u)
 
 # Every versioned action reference in tracked docs, as "file:owner/repo@vN"
-refs=$(git ls-files '*.md' | grep -v '^CHANGELOG\.md$' \
-    | xargs grep -oE '[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@v[0-9]+' 2>/dev/null \
+# (mention a deliberately old version without the @vN form)
+refs=$(git ls-files -z '*.md' ':!CHANGELOG.md' \
+    | xargs -0 grep -HoE '[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@v[0-9]+' 2>/dev/null \
     | LC_ALL=C sort -u || true)
 
 checked=0
@@ -43,13 +44,13 @@ while IFS= read -r ref; do
     file="${ref%%:*}"
     action="${ref#*:}"
     # Only actions the workflows use; others have no version to compare with
-    printf '%s\n' "$used" | grep -q "^${action%@*}@" || continue
+    printf '%s\n' "$used" | grep -qF "${action%@*}@" || continue
     checked=$((checked + 1))
     if printf '%s\n' "$used" | grep -qxF "$action"; then
         _pass "action version in ${file}: ${action}"
     else
         _fail "action version in ${file}: ${action}" \
-            "workflows use $(printf '%s\n' "$used" | grep "^${action%@*}@" | tr '\n' ' ')"
+            "workflows use $(printf '%s\n' "$used" | grep -F "${action%@*}@" | tr '\n' ' ')"
     fi
 done <<EOF
 $refs
@@ -60,5 +61,31 @@ if [ "$checked" -gt 0 ]; then
 else
     _fail "action versions: doc references compared" "none found, the pattern no longer matches"
 fi
+
+# ---- Docs-touch rule (tests/lib/docs-touch.sh) ----
+repo=$(create_test_dir)
+git -C "$repo" init --quiet
+git -C "$repo" -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m base
+base=$(git -C "$repo" rev-parse HEAD)
+_touch_case() {  # <files to add, space separated> -> head sha
+    local f
+    git -C "$repo" checkout --quiet "$base"
+    for f in $1; do mkdir -p "$repo/$(dirname "$f")"; echo x >> "$repo/$f"; done
+    git -C "$repo" add -A
+    git -C "$repo" -c user.name=t -c user.email=t@t commit --quiet -m case
+    git -C "$repo" rev-parse HEAD
+}
+_touch_rc() {  # <head> <body>
+    (cd "$repo" && BODY="$2" bash "${ROOT_DIR}/tests/lib/docs-touch.sh" "$base" "$1" >/dev/null 2>&1) && echo 0 || echo 1
+}
+hook_only=$(_touch_case "core/hooks/x.sh")
+assert_eq "docs-touch: hook change without docs fails" "1" "$(_touch_rc "$hook_only" "")"
+assert_eq "docs-touch: 'docs: n/a' line passes" "0" "$(_touch_rc "$hook_only" "Fix.
+docs: n/a, internal")"
+assert_eq "docs-touch: checkbox mention does not count" "1" "$(_touch_rc "$hook_only" "- [ ] docs: n/a")"
+assert_eq "docs-touch: hook change with docs/ passes" "0" "$(_touch_rc "$(_touch_case "core/hooks/x.sh docs/x.md")" "")"
+assert_eq "docs-touch: helper (_lib.sh) is not behaviour" "0" "$(_touch_rc "$(_touch_case "core/hooks/_lib.sh")" "")"
+assert_eq "docs-touch: utility change without docs fails" "1" "$(_touch_rc "$(_touch_case "core/utilities/x.sh")" "")"
+rm -rf "$repo"
 
 suite_end
