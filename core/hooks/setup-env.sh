@@ -57,7 +57,8 @@ if [ -n "$_TOFU_CONF" ] && ! grep -qE '^CC_FRAMEWORK_ROOT=' "$_TOFU_CONF" 2>/dev
                     if [ -L "$_TOFU_UP" ] || [ ! -f "$_TOFU_UP" ] || [ ! -x "$_TOFU_UP" ]; then
                         _TOFU_OK=false
                     else
-                        _TOFU_OWNER=$(stat -f %u "$_TOFU_UP" 2>/dev/null || stat -c %u "$_TOFU_UP" 2>/dev/null || echo "")
+                        # GNU first: GNU `stat -f` means filesystem mode and prints even when it fails
+                        _TOFU_OWNER=$(stat -c %u "$_TOFU_UP" 2>/dev/null || stat -f %u "$_TOFU_UP" 2>/dev/null || echo "")
                         if [ -n "$_TOFU_OWNER" ] && [ "$_TOFU_OWNER" != "$(id -u)" ]; then
                             _TOFU_OK=false
                         fi
