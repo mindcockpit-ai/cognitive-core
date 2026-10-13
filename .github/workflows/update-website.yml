@@ -9,6 +9,8 @@ on:
 
 jobs:
   update-health-data:
+    # pre-releases are not shown on the site
+    if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     env:
       # Step-level env is not visible to that step's own `if`, and `secrets`
@@ -97,7 +99,7 @@ jobs:
           path: website
           token: ${{ env.MULTIVAC_PAT || secrets.MULTIVAC_PAT }}
           commit-message: "chore: update framework health data"
-          title: "chore: framework health data for cognitive-core ${{ github.event.release.tag_name || github.sha }}"
+          title: "chore: framework health data for cognitive-core ${{ github.event.release.tag_name || 'manual run' }}"
           body: |
             Automated update from the cognitive-core test suite.
 
