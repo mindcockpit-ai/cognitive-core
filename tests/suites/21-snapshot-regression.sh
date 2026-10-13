@@ -96,11 +96,16 @@ _capture_snapshot() {
     local dir="$1" platform="$2"
     # Find all installed files (exclude .git, cognitive-core.conf, version.json timestamps)
     cd "$dir"
+    # Every spelling of the install dir: physical (/private/var on macOS),
+    # logical (TMPDIR's trailing slash gives "//" in $dir), raw
+    local phys logical
+    phys="$(pwd -P)"
+    logical="$(pwd)"
     find . -type f \
         -not -path './.git/*' \
         -not -name 'cognitive-core.conf' \
         -not -name '.gitignore' \
-    | sort | while read -r f; do
+    | LC_ALL=C sort | while read -r f; do
         # Normalize dynamic content before checksumming
         _bn="$(basename "$f")"
         case "$_bn" in
@@ -111,12 +116,10 @@ _capture_snapshot() {
                     "$f" | _portable_md5 | awk '{print $1}'
                 ;;
             mcp-config.json|CLAUDE.md|DEVOXXGENIE.md|.devoxxgenie.yaml)
-                # These contain generated paths/content that vary per install dir
-                # Normalize: strip absolute paths, sort deterministic sections
-                sed -e "s|${dir}|PROJECT_DIR|g" \
-                    -e 's|/private/var/[^ ]*|TMPDIR|g' \
-                    -e 's|/var/[^ ]*|TMPDIR|g' \
-                    -e 's|/tmp/[^ ]*|TMPDIR|g' \
+                # These contain the install dir: replace it the same way on every OS
+                sed -e "s|${phys}|PROJECT_DIR|g" \
+                    -e "s|${logical}|PROJECT_DIR|g" \
+                    -e "s|${dir}|PROJECT_DIR|g" \
                     "$f" | _portable_md5 | awk '{print $1}'
                 ;;
             *)
@@ -124,7 +127,7 @@ _capture_snapshot() {
                 ;;
         esac
         printf '%s\n' "$f"
-    done | paste - - | sort -k2
+    done | paste - - | LC_ALL=C sort -k2
     cd - >/dev/null
 }
 

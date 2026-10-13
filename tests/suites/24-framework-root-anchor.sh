@@ -199,33 +199,32 @@ rm -rf "$test_dir"
 # Section D - TOFU migration (synthetic pre-#260 install)
 # =============================================================================
 
-test_dir=$(create_test_dir)
-git -C "$test_dir" init --quiet 2>/dev/null
-
-# Pre-#260 conf: no CC_FRAMEWORK_ROOT line
-cat > "${test_dir}/cognitive-core.conf" <<'EOF'
+# Pre-#260 project: conf without CC_FRAMEWORK_ROOT, version.json pointing at the framework
+_tofu_project() {
+    local test_dir="$1"
+    git -C "$test_dir" init --quiet 2>/dev/null
+    cat > "${test_dir}/cognitive-core.conf" <<'EOF'
 #!/bin/false
 CC_PROJECT_NAME="tofu-project"
 CC_LANGUAGE="python"
 CC_ENV_VARS=""
 EOF
-
-# Pre-#260 version.json pointing at real framework source
-mkdir -p "${test_dir}/.claude/cognitive-core"
-cat > "${test_dir}/.claude/cognitive-core/version.json" <<JSON
+    mkdir -p "${test_dir}/.claude/cognitive-core" "${test_dir}/.claude/hooks"
+    cat > "${test_dir}/.claude/cognitive-core/version.json" <<JSON
 {
   "version": "1.4.0",
   "source": "${ROOT_DIR}",
   "platform": "claude"
 }
 JSON
+    # The framework's current _lib.sh + setup-env.sh
+    cp "${ROOT_DIR}/core/hooks/_lib.sh" "${test_dir}/.claude/hooks/_lib.sh"
+    cp "${ROOT_DIR}/core/hooks/setup-env.sh" "${test_dir}/.claude/hooks/setup-env.sh"
+    chmod +x "${test_dir}/.claude/hooks/setup-env.sh"
+}
 
-# Drop the framework's current _lib.sh + setup-env.sh into the project
-mkdir -p "${test_dir}/.claude/hooks"
-cp "${ROOT_DIR}/core/hooks/_lib.sh" "${test_dir}/.claude/hooks/_lib.sh"
-cp "${ROOT_DIR}/core/hooks/setup-env.sh" "${test_dir}/.claude/hooks/setup-env.sh"
-chmod +x "${test_dir}/.claude/hooks/setup-env.sh"
-
+test_dir=$(create_test_dir)
+_tofu_project "$test_dir"
 CLAUDE_PROJECT_DIR="$test_dir" bash "${test_dir}/.claude/hooks/setup-env.sh" >/dev/null 2>&1 || true
 
 TOFU_CONF="${test_dir}/cognitive-core.conf"
@@ -270,6 +269,37 @@ assert_eq "TOFU idempotency: md5 unchanged on second run" "$md5_first" "$md5_sec
 COUNT=$(grep -cE '^CC_FRAMEWORK_ROOT=' "$TOFU_CONF")
 assert_eq "TOFU idempotency: CC_FRAMEWORK_ROOT appears exactly once" "1" "$COUNT"
 
+rm -rf "$test_dir"
+
+# TOFU with GNU stat: there `stat -f` is filesystem mode and prints output even
+# when it fails, so the owner check must not concatenate both stat forms.
+test_dir=$(create_test_dir)
+_tofu_project "$test_dir"
+mkdir -p "${test_dir}/gnubin"
+cat > "${test_dir}/gnubin/stat" <<STAT
+#!/bin/sh
+# Mimics GNU coreutils stat for the forms the hooks use
+real="$(command -v stat)"
+case "\$1" in
+    -f) printf '  File: "%s"\n    ID: 0 Namelen: 255 Type: ext2/ext3\n' "\$3"
+        echo "stat: cannot read file system information for '\$2'" >&2
+        exit 1 ;;
+    -c) if "\$real" -c %u / >/dev/null 2>&1; then exec "\$real" "\$@"; fi
+        case "\$2" in
+            %u) exec "\$real" -f %u "\$3" ;;
+            %a) exec "\$real" -f %Lp "\$3" ;;
+        esac ;;
+esac
+exec "\$real" "\$@"
+STAT
+chmod +x "${test_dir}/gnubin/stat"
+PATH="${test_dir}/gnubin:$PATH" CLAUDE_PROJECT_DIR="$test_dir" \
+    bash "${test_dir}/.claude/hooks/setup-env.sh" >/dev/null 2>&1 || true
+if grep -qE '^CC_FRAMEWORK_ROOT=' "${test_dir}/cognitive-core.conf"; then
+    _pass "TOFU with GNU stat: CC_FRAMEWORK_ROOT appended"
+else
+    _fail "TOFU with GNU stat: CC_FRAMEWORK_ROOT appended" "owner check refused the source"
+fi
 rm -rf "$test_dir"
 
 # =============================================================================
