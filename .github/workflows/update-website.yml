@@ -1,8 +1,11 @@
 name: Update Website Health Data
 
+# Once per release, so the site shows the tested state of a published version.
+# Releases come from the App token (release-please.yml), so this event fires.
 on:
-  push:
-    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
 
 jobs:
   update-health-data:
@@ -87,18 +90,32 @@ jobs:
         run: cp framework-health.json website/src/data/framework-health.json
 
       - name: Create Pull Request
+        id: cpr
         if: steps.check-token.outputs.has_token == 'true'
         uses: peter-evans/create-pull-request@v8
         with:
           path: website
           token: ${{ env.MULTIVAC_PAT || secrets.MULTIVAC_PAT }}
           commit-message: "chore: update framework health data"
-          title: "chore: update framework health data from cognitive-core"
+          title: "chore: framework health data for cognitive-core ${{ github.event.release.tag_name || github.sha }}"
           body: |
-            Automated update from cognitive-core test suite.
+            Automated update from the cognitive-core test suite.
 
+            - Release: ${{ github.event.release.tag_name || 'manual run' }}
             - Commit: ${{ github.sha }}
             - Tests: see `src/data/framework-health.json`
           branch: auto/framework-health-update
           labels: automated
           delete-branch: true
+
+      # Merges once the site's required build check passes; a broken update stays open
+      - name: Enable auto-merge
+        if: steps.cpr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ env.MULTIVAC_PAT || secrets.MULTIVAC_PAT }}
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+        run: |
+          if ! gh pr merge "$PR_NUMBER" --repo mindcockpit-ai/multivac42.ai --auto --squash; then
+            echo "::error::Could not enable auto-merge on multivac42.ai#${PR_NUMBER}. Enable 'Allow auto-merge' in the repo settings and require the build check on main."
+            exit 1
+          fi

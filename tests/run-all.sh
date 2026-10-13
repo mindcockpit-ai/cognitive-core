@@ -251,7 +251,9 @@ fi
 # ---- JSON mode ----
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 COMMIT=$(cd "${ROOT_DIR}" && git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-VERSION=$(cat "${ROOT_DIR}/VERSION" 2>/dev/null || echo "0.0.0")
+# version.txt is release-please's source of truth
+VERSION=$(tr -d '[:space:]' < "${ROOT_DIR}/version.txt" 2>/dev/null || true)
+VERSION="${VERSION:-0.0.0}"
 
 SUITES_TOTAL=0
 SUITES_PASSED=0
