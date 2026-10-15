@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.8.1](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.8.0...v1.8.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **install:** escape config values used as sed replacements ([#237](https://github.com/mindcockpit-ai/cognitive-core/issues/237)) ([#392](https://github.com/mindcockpit-ai/cognitive-core/issues/392)) ([449ae2f](https://github.com/mindcockpit-ai/cognitive-core/commit/449ae2fadc7ef3dec69bf5a8b15f65c65a324910))
+* **skills:** board status reports the status key; stale-ID hint on failed moves ([#414](https://github.com/mindcockpit-ai/cognitive-core/issues/414)) ([9f59127](https://github.com/mindcockpit-ai/cognitive-core/commit/9f59127446485d9afda74b17b70a8bec777fcc3e))
+* **skills:** grep -c fallback leftovers; snapshot baselines ignore the version ([#411](https://github.com/mindcockpit-ai/cognitive-core/issues/411)) ([26f48bf](https://github.com/mindcockpit-ai/cognitive-core/commit/26f48bf877c51414080fa649ffab3c50edcc0fa2))
+
 ## [1.8.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.7.0...v1.8.0) (2026-10-13)
 
 
