@@ -324,6 +324,7 @@ Live test results and component inventory from the latest build, visible at [mul
 |------|-------|---------|
 | `setup-env.sh` | SessionStart | Sets environment variables, verifies hook integrity, prints branch status |
 | `validate-bash.sh` | PreToolUse (Bash) | Blocks dangerous commands (rm -rf /, force push to main, exfiltration) |
+| `validate-git-remote-secret.sh` | SessionStart + PreToolUse (Bash) | Blocks git commands that would store a token or `user:secret@` in a remote URL; at session start warns about remotes and `.gitmodules` that already carry one |
 | `validate-read.sh` | PreToolUse (Read) | Prevents reading sensitive system files (SSH keys, /etc/shadow) |
 | `validate-fetch.sh` | PreToolUse (WebFetch/WebSearch) | Audits URLs, domain filtering, security logging |
 | `validate-write.sh` | PostToolUse (Write/Edit) | Scans for hardcoded secrets (AWS keys, PEM, API tokens) |

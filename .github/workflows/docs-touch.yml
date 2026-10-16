@@ -1,0 +1,28 @@
+name: Docs Touch
+
+# A PR that changes behaviour (hooks, installer, updater, adapters) also
+# updates README.md or docs/, or says "docs: n/a" in its description.
+# Facts (hook table, action versions) are checked by suite 32; prose cannot be.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  docs-touch:
+    name: Docs Touch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: 'Behaviour changes come with docs or "docs: n/a"'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: bash tests/lib/docs-touch.sh "$BASE" "$HEAD"

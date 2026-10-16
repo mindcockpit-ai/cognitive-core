@@ -50,6 +50,7 @@ suite_pretty_name() {
         29-self-install-parity.sh) echo "Self-Install Parity" ;;
         30-board-automation.sh) echo "Board Automation" ;;
         31-board-provider.sh) echo "Board Provider" ;;
+        32-docs-consistency.sh) echo "Docs Consistency" ;;
         *) echo "$1" ;;
     esac
 }
