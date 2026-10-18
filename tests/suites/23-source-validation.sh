@@ -365,6 +365,15 @@ hc_denies=0
 [ -f "$hc_log" ] && hc_denies=$(grep -c 'DENY' "$hc_log" || true)
 assert_eq "health-check: unpinned anchor logs no DENY" "0" "$hc_denies"
 
+# Zero counts print one value each (grep -c prints 0 and exits 1, #351)
+mkdir -p "$(dirname "$hc_log")"
+printf '%s\n' "2026-10-13T00:00:00Z [WARN] test: only a warning" > "$hc_log"
+hc_out=$(cd "$HC_PROJECT" && env -u CLAUDE_PROJECT_DIR -u CC_PROJECT_DIR -u CC_FRAMEWORK_ROOT \
+    bash .claude/cognitive-core/health-check.sh 2>&1) || true
+assert_eq "health-check: zero DENY count is a single 0" "  DENY events:  0|  WARN events:  1" \
+    "$(printf '%s\n' "$hc_out" | grep -A1 'DENY events:' | paste -sd'|' -)"
+assert_not_contains "health-check: zero counts raise no shell error" "$hc_out" "integer expression"
+
 # ----------------------------------------------------------------------
 # TOCTOU - known limitation, documented, not deterministically testable
 # ----------------------------------------------------------------------

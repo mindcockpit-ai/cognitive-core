@@ -17,8 +17,8 @@ _cc_fitness_init
 add_check() { _cc_fitness_check "$@"; }
 
 # --- Check 1: Type hints in function definitions ---
-FUNC_COUNT=$(_cc_rg -n 'def ' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | wc -l | tr -d ' ')
-TYPED_COUNT=$(_cc_rg -n 'def .*->.*:' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | wc -l | tr -d ' ')
+FUNC_COUNT=$(_cc_rg -n 'def ' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | wc -l | tr -d ' ') || FUNC_COUNT=0
+TYPED_COUNT=$(_cc_rg -n 'def .*->.*:' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | wc -l | tr -d ' ') || TYPED_COUNT=0
 if [ "$FUNC_COUNT" -gt 0 ]; then
     RATIO=$(( (TYPED_COUNT * 100) / FUNC_COUNT ))
     add_check "Type hints on functions" "$( [ "$RATIO" -ge 70 ] && echo 1 || echo 0 )" "${TYPED_COUNT}/${FUNC_COUNT} typed (${RATIO}%)"
@@ -27,26 +27,26 @@ else
 fi
 
 # --- Check 2: No bare except ---
-BARE_EXCEPT=$(_cc_rg -n 'except:' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | wc -l | tr -d ' ')
+BARE_EXCEPT=$(_cc_rg -n 'except:' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | wc -l | tr -d ' ') || BARE_EXCEPT=0
 add_check "No bare except" "$( [ "$BARE_EXCEPT" -eq 0 ] && echo 1 || echo 0 )" "${BARE_EXCEPT} bare except blocks"
 
 # --- Check 3: No os.path usage (prefer pathlib) ---
-OSPATH_COUNT=$(_cc_rg -n 'os\.path\.' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | wc -l | tr -d ' ')
+OSPATH_COUNT=$(_cc_rg -n 'os\.path\.' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | wc -l | tr -d ' ') || OSPATH_COUNT=0
 add_check "Pathlib over os.path" "$( [ "$OSPATH_COUNT" -eq 0 ] && echo 1 || echo 0 )" "${OSPATH_COUNT} os.path usages"
 
 # --- Check 4: No mutable default arguments ---
-MUTABLE_DEFAULTS=$(_cc_rg -n 'def .*=\s*\[\]\|def .*=\s*{}\|def .*=\s*set()' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | wc -l | tr -d ' ')
+MUTABLE_DEFAULTS=$(_cc_rg -n 'def .*=\s*\[\]\|def .*=\s*{}\|def .*=\s*set()' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | wc -l | tr -d ' ') || MUTABLE_DEFAULTS=0
 add_check "No mutable default args" "$( [ "$MUTABLE_DEFAULTS" -eq 0 ] && echo 1 || echo 0 )" "${MUTABLE_DEFAULTS} mutable defaults"
 
 # --- Check 5: Import ordering (ruff isort) ---
 IMPORT_ISSUES=0
 if command -v ruff &>/dev/null; then
-    IMPORT_ISSUES=$(ruff check --select I "$SRC_DIR" 2>/dev/null | wc -l | tr -d ' ')
+    IMPORT_ISSUES=$(ruff check --select I "$SRC_DIR" 2>/dev/null | wc -l | tr -d ' ') || IMPORT_ISSUES=0
 fi
 add_check "Import ordering (isort)" "$( [ "$IMPORT_ISSUES" -eq 0 ] && echo 1 || echo 0 )" "${IMPORT_ISSUES} import issues"
 
 # --- Check 6: Pydantic v2 style (no class Config:) ---
-OLD_PYDANTIC=$(_cc_rg -n 'class Config:' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | grep -v 'pydantic_settings\|BaseSettings' | wc -l | tr -d ' ')
+OLD_PYDANTIC=$(_cc_rg -n 'class Config:' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | grep -v 'pydantic_settings\|BaseSettings' | wc -l | tr -d ' ') || OLD_PYDANTIC=0
 add_check "Pydantic v2 ConfigDict" "$( [ "$OLD_PYDANTIC" -eq 0 ] && echo 1 || echo 0 )" "${OLD_PYDANTIC} old-style class Config"
 
 # --- Check 7: No sync I/O in async functions ---
@@ -54,18 +54,18 @@ add_check "Pydantic v2 ConfigDict" "$( [ "$OLD_PYDANTIC" -eq 0 ] && echo 1 || ec
 SYNC_IN_ASYNC=0
 if [ "$FUNC_COUNT" -gt 0 ]; then
     # Look for requests.get/post, time.sleep, open() near async def
-    SYNC_IN_ASYNC=$(_cc_rg -n 'requests\.\(get\|post\|put\|delete\|patch\)\|time\.sleep\b' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | grep -v '^.*#' | wc -l | tr -d ' ')
+    SYNC_IN_ASYNC=$(_cc_rg -n 'requests\.\(get\|post\|put\|delete\|patch\)\|time\.sleep\b' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | grep -v '^.*#' | wc -l | tr -d ' ') || SYNC_IN_ASYNC=0
 fi
 add_check "No sync I/O patterns" "$( [ "$SYNC_IN_ASYNC" -eq 0 ] && echo 1 || echo 0 )" "${SYNC_IN_ASYNC} sync I/O calls"
 
 # --- Check 8: No Optional[] (prefer X | None) ---
-OLD_OPTIONAL=$(_cc_rg -n 'Optional\[' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | grep -v 'TYPE_CHECKING' | wc -l | tr -d ' ')
+OLD_OPTIONAL=$(_cc_rg -n 'Optional\[' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | grep -v 'TYPE_CHECKING' | wc -l | tr -d ' ') || OLD_OPTIONAL=0
 add_check "Modern union syntax (X | None)" "$( [ "$OLD_OPTIONAL" -le 3 ] && echo 1 || echo 0 )" "${OLD_OPTIONAL} Optional[] usages"
 
 # --- Check 9: Async context managers for DB sessions ---
 # Check for proper 'async with' usage (good sign of resource management)
-ASYNC_WITH=$(_cc_rg -n 'async with' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | wc -l | tr -d ' ')
-ASYNC_FUNCS=$(_cc_rg -n 'async def' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | wc -l | tr -d ' ')
+ASYNC_WITH=$(_cc_rg -n 'async with' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | wc -l | tr -d ' ') || ASYNC_WITH=0
+ASYNC_FUNCS=$(_cc_rg -n 'async def' "$SRC_DIR" --include="*.py" 2>/dev/null | grep -v '__pycache__' | wc -l | tr -d ' ') || ASYNC_FUNCS=0
 if [ "$ASYNC_FUNCS" -gt 5 ]; then
     add_check "Async context managers" "$( [ "$ASYNC_WITH" -gt 0 ] && echo 1 || echo 0 )" "${ASYNC_WITH} async with blocks"
 else

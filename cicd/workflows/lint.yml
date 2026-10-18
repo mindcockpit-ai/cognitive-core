@@ -129,12 +129,12 @@ jobs:
           echo "has_docker=$( [ -n "$DOCKER" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
 
           echo "::group::Changed file summary"
-          echo "Perl:   $(echo "$PERL" | grep -c . || echo 0) files"
-          echo "JS/TS:  $(echo "$JS" | grep -c . || echo 0) files"
-          echo "Python: $(echo "$PYTHON" | grep -c . || echo 0) files"
-          echo "Shell:  $(echo "$SHELL" | grep -c . || echo 0) files"
-          echo "YAML:   $(echo "$YAML" | grep -c . || echo 0) files"
-          echo "Docker: $(echo "$DOCKER" | grep -c . || echo 0) files"
+          echo "Perl:   $(echo "$PERL" | grep -c . || true) files"
+          echo "JS/TS:  $(echo "$JS" | grep -c . || true) files"
+          echo "Python: $(echo "$PYTHON" | grep -c . || true) files"
+          echo "Shell:  $(echo "$SHELL" | grep -c . || true) files"
+          echo "YAML:   $(echo "$YAML" | grep -c . || true) files"
+          echo "Docker: $(echo "$DOCKER" | grep -c . || true) files"
           echo "::endgroup::"
 
   # ---------------------------------------------------------------------------

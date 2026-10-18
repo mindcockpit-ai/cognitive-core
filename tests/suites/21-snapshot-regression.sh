@@ -110,7 +110,8 @@ _capture_snapshot() {
         _bn="$(basename "$f")"
         case "$_bn" in
             version.json)
-                sed -e 's/"installed_at":[^,]*/"installed_at":"STRIPPED"/' \
+                sed -e 's/"version":[^,]*/"version":"STRIPPED"/' \
+                    -e 's/"installed_at":[^,]*/"installed_at":"STRIPPED"/' \
                     -e 's/"updated_at":[^,]*/"updated_at":"STRIPPED"/' \
                     -e 's/"source":[^,]*/"source":"STRIPPED"/' \
                     "$f" | _portable_md5 | awk '{print $1}'

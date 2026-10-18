@@ -143,7 +143,7 @@ fi
 
 # Gather project status
 BRANCH=$(git -C "$CC_PROJECT_DIR" branch --show-current 2>/dev/null || echo "unknown")
-DIRTY_COUNT=$(git -C "$CC_PROJECT_DIR" status --porcelain 2>/dev/null | grep -c '.' || echo "0")
+DIRTY_COUNT=$(git -C "$CC_PROJECT_DIR" status --porcelain 2>/dev/null | grep -c '.') || DIRTY_COUNT=0
 
 STATUS="${CC_PROJECT_NAME:-Project} session initialized on branch '${BRANCH}'."
 if [ "$DIRTY_COUNT" -gt 0 ]; then

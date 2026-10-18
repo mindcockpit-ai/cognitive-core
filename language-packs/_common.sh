@@ -16,8 +16,50 @@ if [ -z "${_CC_HAS_RG+x}" ]; then
     command -v rg &>/dev/null && _CC_HAS_RG=1 || _CC_HAS_RG=0
 fi
 
+# Convert a grep BRE to rg (Rust) regex syntax: \( \) \{ \} \| \+ \? become
+# operators, while bare ( ) { } | + ? are literals and get escaped. Bracket
+# expressions such as [[:space:]] are copied unchanged.
+_cc_bre_to_rg() {
+    local s="$1" out="" c n i=0 len=${#1}
+    while [ "$i" -lt "$len" ]; do
+        c="${s:i:1}"
+        if [ "$c" = "\\" ] && [ $((i + 1)) -lt "$len" ]; then
+            n="${s:i+1:1}"
+            case "$n" in
+                '('|')'|'{'|'}'|'|'|'+'|'?') out="${out}${n}" ;;
+                *) out="${out}\\${n}" ;;
+            esac
+            i=$((i + 2))
+        elif [ "$c" = "[" ]; then
+            # Copy up to the closing ]; a ] right after [ or [^ is a literal
+            out="${out}["; i=$((i + 1))
+            [ "${s:i:1}" = "^" ] && { out="${out}^"; i=$((i + 1)); }
+            [ "${s:i:1}" = "]" ] && { out="${out}]"; i=$((i + 1)); }
+            while [ "$i" -lt "$len" ] && [ "${s:i:1}" != "]" ]; do
+                if [ "${s:i:2}" = "[:" ]; then
+                    # POSIX class like [:space:]: copy through its :]
+                    while [ "$i" -lt "$len" ] && [ "${s:i:2}" != ":]" ]; do
+                        out="${out}${s:i:1}"; i=$((i + 1))
+                    done
+                    out="${out}${s:i:2}"; i=$((i + 2))
+                else
+                    out="${out}${s:i:1}"; i=$((i + 1))
+                fi
+            done
+            out="${out}${s:i:1}"; i=$((i + 1))
+        else
+            case "$c" in
+                '('|')'|'{'|'}'|'|'|'+'|'?') out="${out}\\${c}" ;;
+                *) out="${out}${c}" ;;
+            esac
+            i=$((i + 1))
+        fi
+    done
+    printf '%s' "$out"
+}
+
 _cc_rg() {
-    local use_no_ignore=false
+    local use_no_ignore=false ere=false pattern_seen=false
     local rg_args=("--no-heading" "--color=never")
     local grep_args=()
 
@@ -25,27 +67,29 @@ _cc_rg() {
         case "$1" in
             --all)       use_no_ignore=true; shift ;;
             -r|-R)       grep_args+=("$1"); shift ;;
-            -E)          grep_args+=("$1"); shift ;;
+            -E)          ere=true; grep_args+=("$1"); shift ;;
             --include=*) rg_args+=("-g" "${1#--include=}"); grep_args+=("$1"); shift ;;
             --include)   shift; rg_args+=("-g" "$1"); grep_args+=("--include=$1"); shift ;;
             --exclude=*) rg_args+=("-g" "!${1#--exclude=}"); grep_args+=("$1"); shift ;;
             --exclude)   shift; rg_args+=("-g" "!$1"); grep_args+=("--exclude=$1"); shift ;;
-            *)           rg_args+=("$1"); grep_args+=("$1"); shift ;;
+            # Options taking a separate value (-e, -m, -A) are not supported
+            -*)          rg_args+=("$1"); grep_args+=("$1"); shift ;;
+            *)
+                # The first operand is the pattern (BRE unless -E); the rest are paths
+                if [ "$pattern_seen" = false ] && [ "$ere" = false ]; then
+                    rg_args+=("$(_cc_bre_to_rg "$1")")
+                else
+                    rg_args+=("$1")
+                fi
+                pattern_seen=true
+                grep_args+=("$1"); shift ;;
         esac
     done
 
     [ "$use_no_ignore" = true ] && rg_args+=("--no-ignore")
 
     if [ "$_CC_HAS_RG" -eq 1 ]; then
-        # Translate BRE escapes to ERE/Rust regex: \| -> |, \( -> (, \) -> )
-        local translated=()
-        for arg in "${rg_args[@]}"; do
-            arg="${arg//\\|/|}"
-            arg="${arg//\\(/(}"
-            arg="${arg//\\)/)}"
-            translated+=("$arg")
-        done
-        rg "${translated[@]}"
+        rg "${rg_args[@]}"
     else
         grep -r "${grep_args[@]}"
     fi

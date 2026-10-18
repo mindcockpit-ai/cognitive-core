@@ -116,6 +116,7 @@ mk_item 7 PROJ_1 "In Progress"
 mk_item 8 PROJ_OTHER "Todo"          # only on another board
 mk_item 9 PROJ_1 "To Be Tested"
 mk_item 10 PROJ_1 "QA"
+mk_item 11 PROJ_1 ""                 # on the board without a status
 
 cat > "${FIX}/items.json" << 'EOF'
 {"items":[
@@ -252,6 +253,10 @@ conf 'CC_STATUS_TESTING_ID="OPT_STALE"'
 run_pb STUB_FAIL_EDIT='GraphQL: The single select option Id does not belong to the field' -- board move 7 testing
 assert_eq "${S}edit failure: exit 2" "2" "$RC"
 assert_contains "${S}edit failure: gh message" "$ERR" "does not belong to the field"
+assert_contains "${S}edit failure: points to setup.sh --check" "$ERR" "Check with setup.sh --check, fix with setup.sh --sync"
+run_pb STUB_FAIL_GQL="HTTP 502: Bad Gateway" -- board move 7 testing
+assert_eq "${S}lookup failure: exit 2" "2" "$RC"
+assert_not_contains "${S}lookup failure: no stale-ID hint" "$ERR" "stale board IDs"
 
 # ---- Status ----
 run_pb -- board status 7
@@ -259,6 +264,16 @@ assert_eq "${S}status: exit 0, one call" "0|graphql item 7" "${RC}|${CALLS}"
 assert_eq "${S}status: this board's item" \
     "In Progress|ITEM_7|Sprint 4|['ann']|https://github.com/acme/app/issues/7" \
     "$(python3 -c 'import json,sys; d=json.loads(sys.argv[1]); print("|".join(str(d[k]) for k in ("status","item_id","sprint","assignees","url")))' "$OUT" 2>&1)"
+key_of() { python3 -c 'import json,sys; print(json.loads(sys.argv[1])["status_key"])' "$1" 2>&1; }
+assert_eq "${S}status: status_key of the column" "progress" "$(key_of "$OUT")"
+conf 'CC_GITHUB_STATUS_MAP="testing=QA"'
+run_pb -- board status 10
+assert_eq "${S}status, renamed column via map: status_key" "0|QA|testing" "${RC}|$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["status"])' "$OUT" 2>&1)|$(key_of "$OUT")"
+conf
+run_pb -- board status 10
+assert_eq "${S}status, column without a key: status_key null" "0|None" "${RC}|$(key_of "$OUT")"
+run_pb -- board status 11
+assert_eq "${S}status, no status set: Unknown, status_key null" "0|None" "${RC}|$(key_of "$OUT")"
 run_pb -- board status 8
 assert_eq "${S}status, other board only: exit 1" "1" "$RC"
 assert_contains "${S}status, other board only: not found" "$ERR" "not found on board"
@@ -652,6 +667,7 @@ run_pb STUB_FAIL_EDIT="GraphQL: something" -- board approve 9
 assert_eq "${S}Done fails: exit 2 after the close, label kept" "2|issue close 9 --repo acme/app --comment Approved by @peter.|" \
     "${RC}|$(grep '^issue close' <<< "$CALLS")|$(grep -- '--remove-label' <<< "$CALLS" || true)"
 assert_contains "${S}Done fails: says the close succeeded" "$ERR" "approved and closed, but the move to Done failed"
+assert_contains "${S}Done fails: points to setup.sh --check" "$ERR" "(if that fails too, check the board IDs with setup.sh --check)"
 run_pb STUB_FAIL_USER="HTTP 401: Bad credentials" -- board approve 9
 assert_eq "${S}approver lookup fails: exit 2, no change" "2|" "${RC}|$(grep -E '^(issue (edit|close)|project item-edit)' <<< "$CALLS" || true)"
 

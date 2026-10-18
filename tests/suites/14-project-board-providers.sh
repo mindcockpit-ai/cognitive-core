@@ -1485,6 +1485,45 @@ else
     _fail "ADF: safe URLs blocked - got: $adf_out"
 fi
 
+# T26: every taskList/taskItem localId is a distinct UUID v4 (#230)
+adf_out=$(_test_adf '- [ ] one
+- [x] two
+text
+- [ ] three')
+if echo "$adf_out" | python3 -c "
+import json,sys,re; d=json.load(sys.stdin)
+ids=[]
+def walk(n):
+    if isinstance(n,dict):
+        if 'localId' in n.get('attrs',{}): ids.append(n['attrs']['localId'])
+        for c in n.get('content',[]): walk(c)
+walk(d)
+v4=re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+assert len(ids)==5 and len(set(ids))==5, f'got {ids}'
+assert all(v4.match(i) for i in ids), f'not UUID v4: {ids}'
+"; then
+    _pass "ADF: taskList/taskItem localIds are distinct UUID v4"
+else
+    _fail "ADF: localId not distinct UUID v4 - got: $adf_out"
+fi
+
+# T27: an ADF document as input passes through unchanged (#230)
+adf_in='{"type":"doc","version":1,"content":[{"type":"taskList","attrs":{"localId":"keep-list"},"content":[{"type":"taskItem","attrs":{"localId":"keep-item","state":"DONE"},"content":[{"type":"text","text":"done"}]}]}]}'
+adf_out=$(_test_adf "$adf_in")
+if python3 -c "import json,sys; assert json.loads(sys.argv[1])==json.loads(sys.argv[2])" "$adf_in" "$adf_out"; then
+    _pass "ADF: existing ADF document passes through unchanged"
+else
+    _fail "ADF: ADF input was converted again - got: $adf_out"
+fi
+
+# T28: JSON that is not an ADF doc is still treated as text (#230)
+adf_out=$(_test_adf '{"type":"note","text":"x"}')
+if echo "$adf_out" | python3 -c "import json,sys; d=json.load(sys.stdin); c=d['content'][0]; assert d['type']=='doc' and c['type']=='paragraph', f'got {c}'"; then
+    _pass "ADF: non-ADF JSON input is converted as text"
+else
+    _fail "ADF: non-ADF JSON input mishandled - got: $adf_out"
+fi
+
 # =============================================================================
 # Section 39: Approval uses label-based signal (#188)
 # =============================================================================

@@ -31,13 +31,13 @@ _cc_session_hygiene() {
             # DD-HH:MM:SS format
             _days=$(echo "$_etime" | cut -d'-' -f1)
             _hours=$(echo "$_etime" | cut -d'-' -f2 | cut -d':' -f1)
-            _total_hours=$(( _days * 24 + _hours ))
+            _total_hours=$(( 10#$_days * 24 + 10#$_hours ))
         else
             _colons=$(echo "$_etime" | tr -cd ':' | wc -c | tr -d ' ')
             if [ "$_colons" -ge 2 ] 2>/dev/null; then
                 # HH:MM:SS format
                 _hours=$(echo "$_etime" | cut -d':' -f1)
-                _total_hours=$(( _hours ))
+                _total_hours=$(( 10#$_hours ))
             fi
             # MM:SS = 0 hours, skip
         fi
@@ -149,18 +149,18 @@ _cc_check_agent_health() {
             _days=$(echo "$_etime" | cut -d'-' -f1)
             _hours=$(echo "$_etime" | cut -d'-' -f2 | cut -d':' -f1)
             _mins=$(echo "$_etime" | cut -d'-' -f2 | cut -d':' -f2)
-            _total_minutes=$(( _days * 1440 + _hours * 60 + _mins ))
+            _total_minutes=$(( 10#$_days * 1440 + 10#$_hours * 60 + 10#$_mins ))
         else
             _colons=$(echo "$_etime" | tr -cd ':' | wc -c | tr -d ' ')
             if [ "$_colons" -ge 2 ] 2>/dev/null; then
                 # HH:MM:SS format
                 _hours=$(echo "$_etime" | cut -d':' -f1)
                 _mins=$(echo "$_etime" | cut -d':' -f2)
-                _total_minutes=$(( _hours * 60 + _mins ))
+                _total_minutes=$(( 10#$_hours * 60 + 10#$_mins ))
             else
                 # MM:SS format
                 _mins=$(echo "$_etime" | cut -d':' -f1)
-                _total_minutes=$(( _mins ))
+                _total_minutes=$(( 10#$_mins ))
             fi
         fi
 
@@ -264,18 +264,18 @@ _cc_check_orphaned_subprocesses() {
             _days=$(echo "$_etime" | cut -d'-' -f1)
             _hours=$(echo "$_etime" | cut -d'-' -f2 | cut -d':' -f1)
             _mins=$(echo "$_etime" | cut -d'-' -f2 | cut -d':' -f2)
-            _total_minutes=$(( _days * 1440 + _hours * 60 + _mins ))
+            _total_minutes=$(( 10#$_days * 1440 + 10#$_hours * 60 + 10#$_mins ))
         else
             _colons=$(echo "$_etime" | tr -cd ':' | wc -c | tr -d ' ')
             if [ "$_colons" -ge 2 ] 2>/dev/null; then
                 # HH:MM:SS format
                 _hours=$(echo "$_etime" | cut -d':' -f1)
                 _mins=$(echo "$_etime" | cut -d':' -f2)
-                _total_minutes=$(( _hours * 60 + _mins ))
+                _total_minutes=$(( 10#$_hours * 60 + 10#$_mins ))
             else
                 # MM:SS format
                 _mins=$(echo "$_etime" | cut -d':' -f1)
-                _total_minutes=$(( _mins ))
+                _total_minutes=$(( 10#$_mins ))
             fi
         fi
 

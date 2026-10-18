@@ -54,7 +54,10 @@ echo "JUnit 4:"; grep -rn 'import org.junit.Test\|import org.junit.Before' src/t
 echo "JUnit 5:"; grep -rn 'import org.junit.jupiter' src/test --include="*.java" 2>/dev/null | wc -l
 
 # Dependencies count
-echo "Total dependencies:"; grep -c '<dependency>' pom.xml 2>/dev/null || grep -c "implementation\|testImplementation" build.gradle 2>/dev/null || echo "unknown"
+echo "Total dependencies:"
+if [ -f pom.xml ]; then grep -c '<dependency>' pom.xml || true
+elif [ -f build.gradle ]; then grep -cE 'implementation|testImplementation' build.gradle || true
+else echo "unknown"; fi
 ```
 
 ### Output: Migration Readiness Matrix

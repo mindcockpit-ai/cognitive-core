@@ -560,7 +560,7 @@ else
     # Verify log entries show killed=true
     if [ -f "$_orphan_log" ]; then
         _killed_entries=0
-        _killed_entries=$(grep -c "killed=true" "$_orphan_log" 2>/dev/null || echo "0")
+        _killed_entries=$(grep -c "killed=true" "$_orphan_log" 2>/dev/null) || _killed_entries=0
         # At least some should have killed=true (race condition: some may have died already)
         _has_killed=false
         if [ "$_killed_entries" -gt 0 ] 2>/dev/null; then
@@ -613,5 +613,22 @@ while read -r _pid; do
 done < "$_SIM_SLEEP_PIDS"
 assert_eq "cleanup: sleep PID of every fake process recorded" "$_SIM_SCRIPTS" "$_recorded_sleeps"
 assert_eq "cleanup: no fake sleep outlived its script" "0" "$_live_sleeps"
+
+
+# ---- etime fields with a leading zero (08, 09) are decimal, not octal ----
+_fake_dir=$(create_test_dir)
+cat > "${_fake_dir}/ps" <<'PS'
+#!/bin/sh
+case "$*" in
+    *pid,etime,command*) printf '%s\n' "4242 09:05:07 /usr/local/bin/claude" "4343 1-08:09:00 claude" ;;
+    *pid,ppid,tty,etime,command*) echo "  PID  PPID TTY ELAPSED COMMAND" ;;
+    *) exit 1 ;;
+esac
+PS
+chmod +x "${_fake_dir}/ps"
+_hyg_out=$(PATH="${_fake_dir}:$PATH" bash -c "source '$HYGIENE_SH'; _cc_session_hygiene '$_fake_dir'" 2>"${_fake_dir}/err") || true
+assert_not_contains "hygiene: etime 09/08 parsed without error" "$(cat "${_fake_dir}/err")" "value too great"
+assert_contains "hygiene: 9h and 32h processes reported as stale" "$_hyg_out" "2 Claude process(es) >8h (PIDs: 4242, 4343)"
+rm -rf "$_fake_dir"
 
 suite_end
