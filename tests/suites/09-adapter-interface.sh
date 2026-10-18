@@ -206,4 +206,34 @@ assert_contains "install output: shows platform" "$install_output" "Platform:"
 
 rm -rf "$test_dir"
 
+# ---- Test _sed_escape_replacement (#237) ----
+_esc_output=$(bash -c "
+    source '${ROOT_DIR}/adapters/_adapter-lib.sh'
+    _sed_escape_replacement 'cmd1 || cmd2 | grep foo'
+" 2>&1)
+assert_eq "sed escape: pipes escaped" 'cmd1 \|\| cmd2 \| grep foo' "$_esc_output"
+
+_esc_output2=$(bash -c "
+    source '${ROOT_DIR}/adapters/_adapter-lib.sh'
+    _sed_escape_replacement 'simple-value'
+" 2>&1)
+assert_eq "sed escape: simple value unchanged" "simple-value" "$_esc_output2"
+
+_esc_output3=$(bash -c "
+    source '${ROOT_DIR}/adapters/_adapter-lib.sh'
+    _sed_escape_replacement 'path/to/file & more'
+" 2>&1)
+assert_eq "sed escape: slash and ampersand escaped" 'path\/to\/file \& more' "$_esc_output3"
+
+# Verify escaped value works in actual sed substitution
+_sed_result=$(bash -c "
+    source '${ROOT_DIR}/adapters/_adapter-lib.sh'
+    VAL='./mvnw check -q 2>/dev/null || mvn check -q || echo no-lint'
+    ESC=\$(_sed_escape_replacement \"\$VAL\")
+    echo '{{PLACEHOLDER}}' | sed \"s|{{PLACEHOLDER}}|\${ESC}|g\"
+" 2>&1)
+assert_eq "sed escape: end-to-end substitution" \
+    './mvnw check -q 2>/dev/null || mvn check -q || echo no-lint' \
+    "$_sed_result"
+
 suite_end

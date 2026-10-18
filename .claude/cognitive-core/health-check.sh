@@ -251,9 +251,9 @@ SECURITY_LOG="$CC_DIR/security.log"
 if [ -f "$SECURITY_LOG" ]; then
     LOG_SIZE=$(du -sh "$SECURITY_LOG" 2>/dev/null | cut -f1)
     LOG_LINES=$(wc -l < "$SECURITY_LOG" | tr -d ' ')
-    DENY_COUNT=$(grep -c '\[DENY\]' "$SECURITY_LOG" 2>/dev/null || echo "0")
-    WARN_COUNT=$(grep -c '\[WARN\]' "$SECURITY_LOG" 2>/dev/null || echo "0")
-    ERROR_COUNT=$(grep -c '\[ERROR\]' "$SECURITY_LOG" 2>/dev/null || echo "0")
+    DENY_COUNT=$(grep -c '\[DENY\]' "$SECURITY_LOG" 2>/dev/null) || DENY_COUNT=0
+    WARN_COUNT=$(grep -c '\[WARN\]' "$SECURITY_LOG" 2>/dev/null) || WARN_COUNT=0
+    ERROR_COUNT=$(grep -c '\[ERROR\]' "$SECURITY_LOG" 2>/dev/null) || ERROR_COUNT=0
 
     echo -e "  Size: $LOG_SIZE ($LOG_LINES entries)"
     echo -e "  DENY events:  $DENY_COUNT"

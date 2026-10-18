@@ -813,8 +813,9 @@ if [ "${CC_ENABLE_CICD:-false}" = "true" ]; then
     ENV_TMPL="${PROJECT_DIR}/cicd/monitoring/.env.template"
     if [ -f "${SCRIPT_DIR}/cicd/monitoring/.env.template" ] && [ ! -f "$ENV_TMPL" ]; then
         cp "${SCRIPT_DIR}/cicd/monitoring/.env.template" "$ENV_TMPL"
-        sed -i.bak "s|PROJECT_NAME=myproject|PROJECT_NAME=${CC_PROJECT_NAME}|g" "$ENV_TMPL" 2>/dev/null || \
-            sed -i '' "s|PROJECT_NAME=myproject|PROJECT_NAME=${CC_PROJECT_NAME}|g" "$ENV_TMPL"
+        _esc_pname=$(_sed_escape_replacement "${CC_PROJECT_NAME}")
+        sed -i.bak "s|PROJECT_NAME=myproject|PROJECT_NAME=${_esc_pname}|g" "$ENV_TMPL" 2>/dev/null || \
+            sed -i '' "s|PROJECT_NAME=myproject|PROJECT_NAME=${_esc_pname}|g" "$ENV_TMPL"
         rm -f "${ENV_TMPL}.bak"
         info "Generated .env.template with project name."
     fi

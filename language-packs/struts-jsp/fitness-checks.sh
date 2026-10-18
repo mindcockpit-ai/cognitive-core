@@ -35,11 +35,11 @@ done
 
 # Check for raw types (Map, List without generics)
 if [ -n "$SRC_DIR" ] && [ -d "$SRC_DIR" ]; then
-    raw_types=$(_cc_rg -n 'Map[[:space:]]*[a-z]' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -v 'Map<' | grep -cv '^\s*//' || echo "0")
+    raw_types=$(_cc_rg -n 'Map[[:space:]]*[a-z]' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -v 'Map<' | grep -cv '^\s*//') || raw_types=0
     add_check "No raw Map types" "$([ "$raw_types" -lt 5 ] && echo 1 || echo 0)" "${raw_types} raw Map usages"
 
     # Check for Object parameters
-    obj_params=$(_cc_rg -n 'Object[[:space:]]\+[a-z]' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -cv '^\s*//' || echo "0")
+    obj_params=$(_cc_rg -n 'Object[[:space:]]\+[a-z]' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -cv '^\s*//') || obj_params=0
     add_check "Minimal Object params" "$([ "$obj_params" -lt 10 ] && echo 1 || echo 0)" "${obj_params} Object params"
 
     # Check for @SuppressWarnings abuse
@@ -89,17 +89,17 @@ done
 
 if [ -n "$STRUTS1_CONFIG" ]; then
     # Check for validate=false actions (skips form validation)
-    no_validate=$(grep -c 'validate="false"' "$STRUTS1_CONFIG" 2>/dev/null || echo "0")
+    no_validate=$(grep -c 'validate="false"' "$STRUTS1_CONFIG" 2>/dev/null) || no_validate=0
     add_check "Struts1: validation enabled" "$([ "$no_validate" -lt 5 ] && echo 1 || echo 0)" "${no_validate} unvalidated actions"
 fi
 
 if [ -n "$STRUTS2_CONFIG" ]; then
     # Check for devMode (must be false in production)
-    dev_mode=$(grep -c 'devMode.*true' "$STRUTS2_CONFIG" 2>/dev/null || echo "0")
+    dev_mode=$(grep -c 'devMode.*true' "$STRUTS2_CONFIG" 2>/dev/null) || dev_mode=0
     add_check "Struts2: devMode disabled" "$([ "$dev_mode" -eq 0 ] && echo 1 || echo 0)" "devMode is enabled"
 
     # Check for OGNL in redirects (security risk)
-    ognl_redirect=$(grep -c 'redirectAction.*\$' "$STRUTS2_CONFIG" 2>/dev/null || echo "0")
+    ognl_redirect=$(grep -c 'redirectAction.*\$' "$STRUTS2_CONFIG" 2>/dev/null) || ognl_redirect=0
     add_check "Struts2: no OGNL in redirects" "$([ "$ognl_redirect" -eq 0 ] && echo 1 || echo 0)" "${ognl_redirect} OGNL redirects"
 fi
 
@@ -107,11 +107,11 @@ fi
 
 if [ -n "$SRC_DIR" ] && [ -d "$SRC_DIR" ]; then
     # Check for SQL injection patterns (string concat in queries)
-    sql_concat=$(_cc_rg -n 'createQuery\|createSQLQuery\|prepareStatement\|executeQuery' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -c '+' || echo "0")
+    sql_concat=$(_cc_rg -n 'createQuery\|createSQLQuery\|prepareStatement\|executeQuery' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -c '+') || sql_concat=0
     add_check "No SQL string concatenation" "$([ "$sql_concat" -eq 0 ] && echo 1 || echo 0)" "${sql_concat} potential SQL injections"
 
     # Check for hardcoded credentials
-    hardcoded_creds=$(_cc_rg -n -i 'password\s*=\s*"[^"]\+"\|passwd\s*=\s*"' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -cv '^\s*//' || echo "0")
+    hardcoded_creds=$(_cc_rg -n -i 'password\s*=\s*"[^"]\+"\|passwd\s*=\s*"' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -cv '^\s*//') || hardcoded_creds=0
     add_check "No hardcoded credentials" "$([ "$hardcoded_creds" -eq 0 ] && echo 1 || echo 0)" "${hardcoded_creds} hardcoded credentials"
 
     # Check for System.out (should use logging)
@@ -119,7 +119,7 @@ if [ -n "$SRC_DIR" ] && [ -d "$SRC_DIR" ]; then
     add_check "No System.out (use logger)" "$([ "$sysout" -lt 10 ] && echo 1 || echo 0)" "${sysout} System.out calls"
 
     # Check for exception swallowing
-    empty_catch=$(_cc_rg -n 'catch.*{' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -c '{}' || echo "0")
+    empty_catch=$(_cc_rg -n 'catch.*{' "$SRC_DIR" --include="*.java" 2>/dev/null | grep -c '{}') || empty_catch=0
     add_check "No empty catch blocks" "$([ "$empty_catch" -eq 0 ] && echo 1 || echo 0)" "${empty_catch} empty catches"
 fi
 

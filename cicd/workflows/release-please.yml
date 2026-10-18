@@ -8,6 +8,9 @@
 #   - release-please-config.json in repo root
 #   - .release-please-manifest.json in repo root
 #   - version.txt as source of truth (for release-type: simple)
+#   - Optional GitHub App (secrets REVIEWER_APP_ID, REVIEWER_APP_PRIVATE_KEY)
+#     with Contents, Pull requests and Issues read/write on this repo, so the
+#     release PR runs CI and a published release triggers `release` workflows
 #
 # Customize:
 #   - target-branch: your default branch (main, master, develop, development)
@@ -27,9 +30,25 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    env:
+      # secrets are not usable in `if`, so expose presence as a job-level flag
+      HAS_APP: ${{ secrets.REVIEWER_APP_ID != '' }}
     steps:
+      # Events from GITHUB_TOKEN start no workflows: a release PR opened with it
+      # gets no CI and a release triggers no `release` workflows. A GitHub App
+      # token avoids both; without the App secrets GITHUB_TOKEN is used as before.
+      - name: App token
+        id: app
+        if: env.HAS_APP == 'true'
+        continue-on-error: true  # an unusable App falls back to GITHUB_TOKEN
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.REVIEWER_APP_ID }}  # the App ID works as client-id
+          private-key: ${{ secrets.REVIEWER_APP_PRIVATE_KEY }}
+
       - uses: googleapis/release-please-action@v5
         with:
+          token: ${{ steps.app.outputs.token || github.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           target-branch: main    # Change to your default branch

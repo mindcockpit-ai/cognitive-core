@@ -190,6 +190,10 @@ out2=$(bash "${ROOT_DIR}/update.sh" "$test_dir" 2>&1) && rc2=0 || rc2=$?
 assert_eq "second update exits 0" "0" "$rc2"
 assert_eq "second update leaves the skill tree unchanged" "$after" "$(skill_tree)"
 assert_eq "second update reports no skill files" "0" "$(printf '%s\n' "$out2" | grep -c 'NEW (skill file)' || true)"
+# A preserved file keeps its old manifest baseline, so the second run must not
+# mistake the edit for the original and overwrite it (#326)
+assert_contains "second update still preserves the edited SKILL.md" "$out2" "MODIFIED (preserved): .claude/skills/project-board/SKILL.md"
+assert_eq "edited SKILL.md survives a second update" "$edited_sha" "$(sha256_of "${skills}/project-board/SKILL.md")"
 
 # ---- skills/ itself a symlink: nothing added ----
 real_skills="${HOME_DIR}/real-skills"
