@@ -67,7 +67,7 @@ A portable, vendor-agnostic AI-augmented development framework that governs the 
 | release-please | Automated semantic versioning from conventional commits |
 | CI pipeline | 8 jobs incl. the full test suite, cross-platform (macOS + Ubuntu), JUnit reports |
 | AI moderator | GitHub spam/slop detection on issues and comments |
-| Website auto-update | framework-health.json pushed from CI to multivac42.ai |
+| Website auto-update | framework-health.json published per release to multivac42.ai (auto-merged PR) |
 
 ---
 
