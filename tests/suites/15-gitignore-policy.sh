@@ -260,18 +260,18 @@ assert_contains "merged: version.json" "$gi_content" ".claude/cognitive-core/ver
 bash "${ROOT_DIR}/install.sh" "$test_dir" >/dev/null 2>&1 || true
 
 # Count occurrences of .DS_Store - should be exactly 1
-ds_count=$(grep -cxF ".DS_Store" "${test_dir}/.gitignore" || echo 0)
+ds_count=$(grep -cxF ".DS_Store" "${test_dir}/.gitignore") || ds_count=0
 assert_eq "dedup: .DS_Store appears exactly once" "1" "$ds_count"
 
 # Count occurrences of __pycache__/ - should be exactly 1
-pycache_count=$(grep -cxF "__pycache__/" "${test_dir}/.gitignore" || echo 0)
+pycache_count=$(grep -cxF "__pycache__/" "${test_dir}/.gitignore") || pycache_count=0
 assert_eq "dedup: __pycache__/ appears exactly once" "1" "$pycache_count"
 
 # Count section headers - should be exactly 1 each
-base_header_count=$(grep -cF "# ---- base (cognitive-core) ----" "${test_dir}/.gitignore" || echo 0)
+base_header_count=$(grep -cF "# ---- base (cognitive-core) ----" "${test_dir}/.gitignore") || base_header_count=0
 assert_eq "dedup: base section header appears once" "1" "$base_header_count"
 
-python_header_count=$(grep -cF "# ---- python (cognitive-core) ----" "${test_dir}/.gitignore" || echo 0)
+python_header_count=$(grep -cF "# ---- python (cognitive-core) ----" "${test_dir}/.gitignore") || python_header_count=0
 assert_eq "dedup: python section header appears once" "1" "$python_header_count"
 
 # ============================================================================

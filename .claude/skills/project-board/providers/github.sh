@@ -36,6 +36,9 @@ _gh_require_config() {
 
 # ---- Helper: run gh; a failure exits 2 with gh's own message ----
 
+# Hint for failed board writes: stale IDs in the conf are the usual cause
+_GH_STALE_ID_HINT="stale board IDs in cognitive-core.conf? Check with setup.sh --check, fix with setup.sh --sync"
+
 _gh() {
     local err out rc=0
     err=$(mktemp)
@@ -46,7 +49,8 @@ _gh() {
         rm -f "$err"
         # _GH_NOT_FOUND: gh message that means "does not exist": exit 1, the caller reports it
         [[ -n "${_GH_NOT_FOUND:-}" && "$msg" == *"$_GH_NOT_FOUND"* ]] && exit 1
-        _pb_fail "gh $1 $2 failed: ${msg:-exit $rc}"
+        # _GH_HINT: what to check when this call fails, appended to the error
+        _pb_fail "gh $1 $2 failed: ${msg:-exit $rc}${_GH_HINT:+ ($_GH_HINT)}"
     fi
     rm -f "$err"
     printf '%s\n' "$out"
@@ -359,11 +363,15 @@ pb_board_status() {
     item=$(_gh_item "$number") || rc=$?
     [[ $rc -eq 1 ]] && _pb_die "Issue #$number not found on board"
     [[ $rc -ne 0 ]] && exit "$rc"
-    _CC_REPO="$CC_GITHUB_REPO" _CC_NUM="$number" python3 -c '
+    local key=""
+    key=$(_pb_canonical_status "$(python3 -c 'import json, sys; print(json.load(sys.stdin)["status"] or "")' <<< "$item")")
+    _pb_valid_status_key "$key" || key=""
+    _CC_REPO="$CC_GITHUB_REPO" _CC_NUM="$number" _CC_KEY="$key" python3 -c '
 import json, os, sys
 item = json.load(sys.stdin)
 number = int(os.environ["_CC_NUM"])
-json.dump({"number": number, "status": item["status"] or "Unknown", "item_id": item["id"],
+json.dump({"number": number, "status": item["status"] or "Unknown", "status_key": os.environ["_CC_KEY"] or None,
+           "item_id": item["id"],
            "sprint": item["sprint"], "assignees": item["assignees"],
            "url": "https://github.com/%s/issues/%d" % (os.environ["_CC_REPO"], number)}, sys.stdout, indent=2)
 ' <<< "$item"
@@ -381,7 +389,7 @@ pb_board_move() {
     [[ $rc -eq 1 ]] && _pb_die "Issue #$number not found on project board"
     [[ $rc -ne 0 ]] && exit "$rc"
 
-    _gh project item-edit --id "$(_gh_item_id "$item")" \
+    _GH_HINT="$_GH_STALE_ID_HINT" _gh project item-edit --id "$(_gh_item_id "$item")" \
         --project-id "$CC_PROJECT_ID" --field-id "$CC_STATUS_FIELD_ID" \
         --single-select-option-id "$option_id" >/dev/null
     _pb_success "Issue #$number moved to $(_pb_status_display_name "$status_key")"
@@ -556,12 +564,12 @@ print(verifier)
     local moved=0
     option_id=$(_gh_option_id "done") || moved=$?
     if [[ $moved -eq 0 ]]; then
-        (_gh project item-edit --id "$(_gh_item_id "$item")" \
+        (_GH_HINT="$_GH_STALE_ID_HINT" _gh project item-edit --id "$(_gh_item_id "$item")" \
             --project-id "$CC_PROJECT_ID" --field-id "$CC_STATUS_FIELD_ID" \
             --single-select-option-id "$option_id" >/dev/null) || moved=$?
     fi
     if [[ $moved -ne 0 ]]; then
-        _pb_fail "Issue #$number approved and closed, but the move to Done failed; the board workflow moves it on the close event, or run: board move $number done"
+        _pb_fail "Issue #$number approved and closed, but the move to Done failed; the board workflow moves it on the close event, or run: board move $number done (if that fails too, check the board IDs with setup.sh --check)"
     fi
 
     _pb_success "Issue #$number approved by @$approver, closed and moved to Done"

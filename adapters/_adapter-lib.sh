@@ -133,6 +133,13 @@ _adapter_install_mcp_server() {
 }
 
 
+# ---- sed escaping helper ----
+# Escape a string for safe use as a sed replacement value with | delimiter.
+# Handles: | & \ / and newlines. POSIX-compatible (BSD + GNU sed).
+_sed_escape_replacement() {
+    printf '%s' "$1" | sed -e 's/[|&\\/]/\\&/g'
+}
+
 # ---- Contract validation ----
 
 _adapter_validate() {

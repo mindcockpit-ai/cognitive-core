@@ -39,14 +39,22 @@ _adapter_generate_settings() {
     local settings_file="${CC_INSTALL_DIR}/settings.json"
 
     if [ -f "${SCRIPT_DIR}/core/templates/settings.json.tmpl" ]; then
+        local _esc_name _esc_lang _esc_arch _esc_branch _esc_lint _esc_test _esc_teams
+        _esc_name=$(_sed_escape_replacement "${CC_PROJECT_NAME:-project}")
+        _esc_lang=$(_sed_escape_replacement "${CC_LANGUAGE:-none}")
+        _esc_arch=$(_sed_escape_replacement "${CC_ARCHITECTURE:-none}")
+        _esc_branch=$(_sed_escape_replacement "${CC_MAIN_BRANCH:-main}")
+        _esc_lint=$(_sed_escape_replacement "${CC_LINT_COMMAND:-echo no-lint}")
+        _esc_test=$(_sed_escape_replacement "${CC_TEST_COMMAND:-echo no-tests}")
+        _esc_teams=$(_sed_escape_replacement "${CC_AGENT_TEAMS:-false}")
         sed \
-            -e "s|{{CC_PROJECT_NAME}}|${CC_PROJECT_NAME:-project}|g" \
-            -e "s|{{CC_LANGUAGE}}|${CC_LANGUAGE:-none}|g" \
-            -e "s|{{CC_ARCHITECTURE}}|${CC_ARCHITECTURE:-none}|g" \
-            -e "s|{{CC_MAIN_BRANCH}}|${CC_MAIN_BRANCH:-main}|g" \
-            -e "s|{{CC_LINT_COMMAND}}|${CC_LINT_COMMAND:-echo no-lint}|g" \
-            -e "s|{{CC_TEST_COMMAND}}|${CC_TEST_COMMAND:-echo no-tests}|g" \
-            -e "s|{{CC_AGENT_TEAMS}}|${CC_AGENT_TEAMS:-false}|g" \
+            -e "s|{{CC_PROJECT_NAME}}|${_esc_name}|g" \
+            -e "s|{{CC_LANGUAGE}}|${_esc_lang}|g" \
+            -e "s|{{CC_ARCHITECTURE}}|${_esc_arch}|g" \
+            -e "s|{{CC_MAIN_BRANCH}}|${_esc_branch}|g" \
+            -e "s|{{CC_LINT_COMMAND}}|${_esc_lint}|g" \
+            -e "s|{{CC_TEST_COMMAND}}|${_esc_test}|g" \
+            -e "s|{{CC_AGENT_TEAMS}}|${_esc_teams}|g" \
             "${SCRIPT_DIR}/core/templates/settings.json.tmpl" > "$settings_file"
         info "Generated settings.json from template."
     else

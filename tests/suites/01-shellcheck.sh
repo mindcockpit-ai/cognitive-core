@@ -111,4 +111,10 @@ for rel in "${files[@]}"; do
 done
 assert_eq "shellcheck: no unattributed output" "" "$unattributed"
 
+# grep -c prints its count AND exits 1 when nothing matches, so `|| echo 0`
+# adds a second 0 ("0<newline>0", #351). Use `VAR=$(... | grep -c X) || VAR=0`.
+grep_c_fallback=$(cd "$ROOT_DIR" && git grep -nE 'grep -[a-zA-Z]*c[a-zA-Z]* .*[|][|] *(echo|printf)' \
+    -- ':!docs/sessions' ':!CHANGELOG.md' ':!tests/suites/01-shellcheck.sh' || true)
+assert_eq "no 'grep -c ... || echo' fallback anywhere" "" "$grep_c_fallback"
+
 suite_end

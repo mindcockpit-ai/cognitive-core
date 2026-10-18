@@ -78,7 +78,7 @@ jobs:
             FILES=$(git diff --name-only --diff-filter=ACMR "$BASE" HEAD 2>/dev/null || echo "")
           fi
           { echo "files<<EOF"; echo "$FILES"; echo "EOF"; } >> "$GITHUB_OUTPUT"
-          echo "count=$(echo "$FILES" | grep -c . || echo 0)" >> "$GITHUB_OUTPUT"
+          echo "count=$(echo "$FILES" | grep -c . || true)" >> "$GITHUB_OUTPUT"
 
       # CC2: Detect project language for gating
       - name: Detect project language (CC2)

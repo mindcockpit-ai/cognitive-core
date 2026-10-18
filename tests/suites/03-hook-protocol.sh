@@ -80,7 +80,10 @@ if [ -f "$SETUP_ENV" ]; then
     git -C "$test_dir" init --quiet 2>/dev/null || true
 
     output=$(CC_PROJECT_DIR="$test_dir" CLAUDE_PROJECT_DIR="$test_dir" \
-        bash "$SETUP_ENV" 2>/dev/null) || true
+        bash "$SETUP_ENV" 2>"${test_dir}.err") || true
+    # Clean tree: grep -c prints 0 and exits 1; the fallback must not add a second 0
+    assert_not_contains "setup-env: clean tree, no shell error" "$(cat "${test_dir}.err")" "integer expression"
+    assert_not_contains "setup-env: clean tree, no dirty-file notice" "$output" "uncommitted"
 
     if [ -n "$output" ]; then
         if command -v jq &>/dev/null; then
@@ -93,7 +96,12 @@ if [ -f "$SETUP_ENV" ]; then
         _fail "setup-env: produced no output"
     fi
 
-    rm -rf "$test_dir"
+    touch "${test_dir}/a" "${test_dir}/b"
+    output=$(CC_PROJECT_DIR="$test_dir" CLAUDE_PROJECT_DIR="$test_dir" \
+        bash "$SETUP_ENV" 2>/dev/null) || true
+    assert_contains "setup-env: dirty tree counts files" "$output" "uncommitted file(s)"
+
+    rm -rf "$test_dir" "${test_dir}.err"
 else
     _skip "setup-env.sh not found"
 fi

@@ -103,7 +103,7 @@ _jira_md_to_adf() {
 import json, sys, re, uuid
 
 def local_id():
-    return uuid.uuid4().hex[:12]
+    return str(uuid.uuid4())
 
 # --- Code block extraction (BEFORE any inline processing) ---
 CODE_BLOCKS = []
@@ -172,6 +172,15 @@ def parse_inline(text):
     return nodes if nodes else [{'type': 'text', 'text': text}]
 
 text = sys.stdin.read()
+
+# Already an ADF document: pass it through unchanged (no double conversion)
+try:
+    parsed = json.loads(text)
+except ValueError:
+    parsed = None
+if isinstance(parsed, dict) and parsed.get('type') == 'doc' and isinstance(parsed.get('content'), list):
+    print(json.dumps(parsed))
+    sys.exit(0)
 
 # Step 1: Extract code blocks before line processing
 text = extract_code_blocks(text)

@@ -299,7 +299,7 @@ several modules need adequate refactoring
 
 output=$(echo "$MULTI_WARN" | bash "$VP_SCRIPT" 2>/dev/null) || true
 # Should have multiple WARN lines
-warn_lines=$(echo "$output" | grep -c 'WARN' || echo "0")
+warn_lines=$(echo "$output" | grep -c 'WARN') || warn_lines=0
 if [ "$warn_lines" -ge 3 ]; then
     _pass "accumulation: 3+ warnings detected ($warn_lines)"
 else

@@ -89,7 +89,7 @@ Provider output is JSON for consistent parsing, except `branch list` and GitHub'
 Output differences the recipes depend on:
 - **Issue IDs**: GitHub uses numbers; Jira and YouTrack use keys (`PROJ-12`) wherever a recipe says `<N>`.
 - **`issue create`**: GitHub `{number, url, on_board}`; Jira `{key, id, url}`; YouTrack `{id, url}`.
-- **`board status`**: GitHub `{number, status, item_id, sprint, assignees}`; Jira `{key, status, status_category, assignee}`; YouTrack `{id, status, assignee}`.
+- **`board status`**: GitHub `{number, status, status_key, item_id, sprint, assignees, url}` (`status_key`: the canonical key of the column, also for columns renamed via `CC_GITHUB_STATUS_MAP`; `null` when the column matches no key); Jira `{key, status, status_category, assignee}`; YouTrack `{id, status, assignee}`.
 - **`sprint list`**: GitHub `[{id, title, startDate, duration}]`; Jira `{values: [{id, name, state, startDate, endDate}]}`; YouTrack `[{id, name, start, finish}]`.
 - **`issue view`**: GitHub returns the requested `--json` fields; Jira and YouTrack return their native issue JSON.
 
@@ -630,7 +630,7 @@ Pass the status key to `board move`; the provider resolves the option ID.
 **Before moving, check the transition is allowed** (run the steps after the discovery lines; `|| exit` stops at the first failure):
 
 ```bash
-# 1. Get current status ({number, status, item_id, sprint, assignees, url})
+# 1. Get current status ({number, status, status_key, item_id, sprint, assignees, url})
 STATUS_JSON=$($PB_SCRIPT board status <N>) || exit
 CURRENT=$(echo "$STATUS_JSON" | jq -r '.status')
 TARGET="<target_status>"   # column name, e.g. "In Progress"
@@ -936,7 +936,7 @@ AFFECTED_FILES=$(grep -rl "<keyword>" --include="*.md" --include="*.sh" --includ
 # grep -rl --no-ignore "<keyword>" . 2>/dev/null
 
 # Count affected files for complexity adjustment
-FILE_COUNT=$(echo "$AFFECTED_FILES" | grep -c '.' || echo 0)
+FILE_COUNT=$(echo "$AFFECTED_FILES" | grep -c '.') || FILE_COUNT=0
 ```
 
 If `FILE_COUNT > 10` AND complexity is not already Complex, upgrade to Complex (L).
