@@ -84,4 +84,29 @@ zsh_out=$(in_shell zsh "$probe")
 assert_eq "bash: functions behave as specified" "$expected" "$bash_out"
 assert_eq "zsh: functions behave as in bash" "$expected" "$zsh_out"
 
+# Validation guard rejects in zsh as in bash; the log names the caller
+mkdir -p "${W}/fwx" "${W}/fw/sub"
+ln -s "${W}/fw/update.sh" "${W}/fwx/update.sh"
+ln -s "${W}/fwx" "${W}/fw/out"
+guard='. .claude/hooks/_lib.sh; _cc_load_config
+r=""; for p in "$CC_FRAMEWORK_ROOT/fw" "$CC_FRAMEWORK_ROOT/fw/sub/../sub" "$CC_FRAMEWORK_ROOT/fw/out" "${CC_FRAMEWORK_ROOT}x" relative ""; do
+    _cc_validate_framework_source "$p"; r="$r$?"
+done; echo "guard=$r"
+probe_fn() { _cc_validate_framework_source relative; }; probe_fn
+tail -1 .claude/cognitive-core/security.log | sed "s/.*caller=/caller=/"'
+for sh in bash zsh; do
+    assert_eq "${sh}: validation guard accepts one, rejects the rest; caller logged" \
+        "guard=011111
+caller=probe_fn" "$(in_shell "$sh" "$guard")"
+done
+
+# No overrides configured; sourcing survives nounset, CDPATH and a printing chpwd hook
+plain='. .claude/hooks/_lib.sh; _cc_load_config; CC_LOCAL_OVERRIDES=""
+_cc_is_local_override agents/b.md; a=$?; _cc_has_local_override_under skills/; echo "empty=$a$?"'
+for sh in bash zsh; do
+    assert_eq "${sh}: empty CC_LOCAL_OVERRIDES lists nothing" "empty=11" "$(in_shell "$sh" "$plain")"
+done
+assert_eq "zsh: nounset, CDPATH and chpwd do not change CC_PROJECT_DIR" "${proj}" \
+    "$(in_shell zsh 'setopt nounset; CDPATH=/; chpwd() { echo noise; }; . .claude/hooks/_lib.sh; cd "$CC_PROJECT_DIR" >/dev/null 2>&1 && pwd -P')"
+
 suite_end

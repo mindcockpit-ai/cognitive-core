@@ -4,7 +4,7 @@
 # Sourced by all hook scripts for config loading and JSON output helpers
 
 # CRLF self-heal: strip carriage returns if sourced from a CRLF environment (Windows Git Bash)
-if [[ "${BASH_SOURCE[0]}" == *$'\r'* ]] 2>/dev/null; then
+if [[ "${BASH_SOURCE[0]:-}" == *$'\r'* ]] 2>/dev/null; then
     _cc_self="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_lib.sh"
     sed -i.bak 's/\r$//' "$_cc_self" 2>/dev/null && rm -f "${_cc_self}.bak"
 fi
@@ -15,7 +15,8 @@ _cc_lib_file="${BASH_SOURCE[0]:-}"
 if [ -z "$_cc_lib_file" ] && [ -n "${ZSH_VERSION:-}" ]; then
     eval '_cc_lib_file="${(%):-%x}"'
 fi
-CC_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$_cc_lib_file")/../.." && pwd)}"
+# CDPATH and a zsh chpwd hook could print from cd and end up in the result
+CC_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(CDPATH='' cd -- "$(dirname "$_cc_lib_file")/../.." >/dev/null 2>&1 && pwd)}"
 
 # Load configuration (resolution order: project root > .claude/ > user defaults > env)
 _cc_load_config() {
@@ -56,6 +57,7 @@ _cc_override_needs_pin() {
 # (security hook without pin, or pin mismatch).
 _cc_is_local_override() {
     local rel="${1#.claude/}" file="${2:-}" entry entry_path pin rc=1
+    [ -n "${CC_LOCAL_OVERRIDES:-}" ] || return 1
     rel="${rel#.cognitive-core/}"
     while IFS= read -r entry; do
         [ -n "$entry" ] || continue
@@ -92,9 +94,11 @@ _cc_local_override_entries() {
 # True if a directory, or any file below it, is listed (pins not checked).
 _cc_has_local_override_under() {
     local dir="$1" entry
+    [ -n "${CC_LOCAL_OVERRIDES:-}" ] || return 1
     _cc_is_local_override "$dir" && return 0
     while IFS= read -r entry; do
-        case "${entry%%@*}" in "$dir"*) [ -n "$entry" ] && return 0 ;; esac
+        [ -n "$entry" ] || continue
+        case "${entry%%@*}" in "$dir"*) return 0 ;; esac
     done <<EOF
 $(_cc_local_override_entries)
 EOF
@@ -449,7 +453,9 @@ _cc_realpath() {
 # returns 1 without touching CC_VALIDATED_SOURCE.
 _cc_validate_framework_source() {
     local src_path="${1:-}"
-    local caller="${FUNCNAME[1]:-top-level}"
+    # zsh has no FUNCNAME; its funcstack is 1-based (#429)
+    # shellcheck disable=SC2154
+    local caller="${FUNCNAME[1]:-${funcstack[2]:-top-level}}"
     local reason=""
 
     # Anchor must be set

@@ -4,12 +4,12 @@ aa948735fa6bd0d3582abff1323285af	./.claude/AGENTS_README.md
 17f2dcdc65b30b218d94fc794dcbc43e	./.claude/cognitive-core/check-update.sh
 2fc08fe8f49e21e94118f1a82877a374	./.claude/cognitive-core/context-cleanup.sh
 a5afaa60a4328f9bf51d34a6b228d6b4	./.claude/cognitive-core/health-check.sh
-1bfa6d94900350fdb3c01df63fb3d992	./.claude/cognitive-core/version.json
+e4ed9e85db17fc35ba0a0b8deb0d09b6	./.claude/cognitive-core/version.json
 47b561a9cb3594c789ecad8b6b8e6766	./.claude/compact-rules.md
 59572ce3152ae50bf90a0a9404b84dd9	./.claude/fitness-checks.sh
 93a614f0d620a8305b6f7ed86bf2ad36	./.claude/gitattributes-lang
 c3e0c99f2107171af0da02169a507681	./.claude/gitignore
-b16d49bdcef6b464daa582d02133e062	./.claude/hooks/_lib.sh
+d25531ac843fda2daaf7414620538f21	./.claude/hooks/_lib.sh
 7b0227d861fc3c751be711aea14abf9d	./.claude/hooks/setup-env.sh
 3e61a67ccf38b1c9e206cf38ce14487b	./.claude/hooks/validate-bash.sh
 6fc129bd500c4592b008a31178751125	./.claude/lint-config.sh
