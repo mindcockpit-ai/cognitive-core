@@ -189,7 +189,10 @@ from the pull request itself, so a PR can change `runs-on` to the trusted labels
 honest jobs apart; the trusted runner is protected only by settings outside the workflow:
 
 - Put the trusted runner in a runner group (organization setting) that allows only selected
-  workflows on your default branch, e.g. `owner/repo/.github/workflows/evolutionary-cicd.yml@refs/heads/main`.
+  workflows on the refs you trust, e.g. `owner/repo/.github/workflows/evolutionary-cicd.yml@refs/heads/main`
+  and the same for `lint.yml`. Trusted jobs from refs the group does not allow (pushes to `feature/**`,
+  `develop`, `release/**`, a dispatch on another branch) then wait for a runner until you allow those
+  refs or cancel them. A group used by a public repository also needs "Allow public repositories".
   A runner registered directly to a repository cannot be restricted this way.
 - Require approval before workflows run for outside contributors, and read workflow changes in PRs.
 - Prefer ephemeral runners (`config.sh --ephemeral`) for the PR level, so nothing persists between jobs.
