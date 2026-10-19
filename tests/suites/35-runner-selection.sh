@@ -40,6 +40,9 @@ done
 # ---- B) Expression ----
 # Translates the GitHub expression to Python: && / || return an operand and
 # unset variables are '' in both, so the result is the label list GitHub uses.
+# Repository variables are always strings, so 'false' and '0' are truthy in both
+# (GitHub only treats false, 0, -0, null, NaN and '' as falsy). Syntax and types
+# of the real expression are checked by actionlint where it is installed.
 eval_expr() { # <expression> <event> [NAME=value ...]
     python3 -I - "$@" << 'PY'
 import json, re, sys
@@ -95,18 +98,29 @@ if command -v python3 &>/dev/null; then
     FW="${WORK}/framework"
     mkdir -p "$FW"
     (cd "$ROOT_DIR" && git ls-files -z -co --exclude-standard | xargs -0 tar -cf - 2>/dev/null) | tar -xf - -C "$FW"
-    # The shipped list matches the last release, when its history is available
-    if git -C "$ROOT_DIR" rev-parse -q --verify v1.8.1 >/dev/null; then
+    # The shipped list is pinned here (CI checks out without history or tags):
+    # 5 versions per template, the last one being the v1.8.1 template
+    list="${FW}/cicd/legacy-workflows.sha256"
+    for wf in $WFS; do
+        assert_eq "legacy list: 5 shipped versions of ${wf}" "5" "$(grep -c "  ${wf}\$" "$list" || true)"
+    done
+    assert_contains "legacy list: v1.8.1 lint.yml" "$(cat "$list")" "13b3ad8a6475d1424da8c8ce3966799c137b6eb66ef2a46e001ce5d2195de712  lint.yml"
+    assert_contains "legacy list: v1.8.1 evolutionary-cicd.yml" "$(cat "$list")" "8edcd6426848cf22aa8b2c1c4f19028eeb1ca42787b0eda09014d06563ee508d  evolutionary-cicd.yml"
+    # With history: every pre-marker version of the templates is listed
+    if [ "$(git -C "$ROOT_DIR" rev-list --count HEAD 2>/dev/null || echo 1)" -gt 1 ]; then
         for wf in $WFS; do
-            s=$(git -C "$ROOT_DIR" show "v1.8.1:cicd/workflows/${wf}" | shasum -a 256 | cut -d' ' -f1)
-            if grep -qxF "${s}  ${wf}" "${FW}/cicd/legacy-workflows.sha256"; then
-                _pass "legacy list has the v1.8.1 ${wf}"
-            else
-                _fail "legacy list has the v1.8.1 ${wf}" "missing ${s}"
-            fi
+            for c in $(git -C "$ROOT_DIR" log --format=%H -- "cicd/workflows/${wf}"); do
+                git -C "$ROOT_DIR" show "${c}:cicd/workflows/${wf}" | head -1 | grep -q '^# cc-managed: ' && continue
+                s=$(git -C "$ROOT_DIR" show "${c}:cicd/workflows/${wf}" | shasum -a 256 | cut -d' ' -f1)
+                if grep -qxF "${s}  ${wf}" "$list"; then
+                    _pass "legacy list has ${wf}@${c:0:7}"
+                else
+                    _fail "legacy list has ${wf}@${c:0:7}" "missing ${s}"
+                fi
+            done
         done
     else
-        _skip "tag v1.8.1 not fetched (legacy list check)"
+        _skip "shallow checkout (legacy list history check)"
     fi
     proj="${WORK}/install"
     mkdir -p "$proj" && git -C "$proj" init --quiet
@@ -149,7 +163,8 @@ EOF
     sha() { shasum -a 256 "$1" | cut -d' ' -f1; }
     recorded() { python3 -c 'import json,sys;print(" ".join(sorted(e["path"] for e in json.load(open(sys.argv[1]))["files"] if e["path"].startswith(".github/"))))' "$manifest"; }
     old_form() { # <template> -> the pre-#427 single-label form of it, without marker
-        sed -e '1d' -e 's/^    runs-on: .*/    runs-on: ${{ vars.RUNNER_LABEL || '"'"'ubuntu-latest'"'"' }}/' "$1"
+        sed -e '1d' -e 's/^    runs-on: .*/    runs-on: ${{ vars.RUNNER_LABEL || '"'"'ubuntu-latest'"'"' }}/' \
+            -e 's/vars\.RUNNER_NEEDS_CHOWN == '"'"'true'"'"'/vars.RUNNER_LABEL != '"'"''"'"'/' "$1"
     }
     if env -i PATH="$PATH" HOME="$WORK" bash "${FW}/install.sh" "$proj" >/dev/null 2>&1; then
         _pass "install with CI/CD"
@@ -174,6 +189,8 @@ EOF
         printf '%s  evolutionary-cicd.yml\n' "$(sha "$evo")" >> "${FW}/cicd/legacy-workflows.sha256"
         out=$(upd); upd_ok "$out"
         assert_contains "unedited legacy replaced" "$out" "REPLACED (unedited legacy workflow): .github/workflows/evolutionary-cicd.yml"
+        assert_contains "replaced legacy: chown opt-in announced" "$out" "set the repository variable RUNNER_NEEDS_CHOWN=true"
+        assert_contains "replaced legacy: shared runner announced" "$out" "a set RUNNER_LABEL still runs PR and trusted jobs on one runner"
         if cmp -s "$tpl_evo" "$evo"; then _pass "replaced copy equals the template"; else _fail "replaced copy equals the template" "differs"; fi
         assert_contains "replaced legacy recorded" "$(recorded)" ".github/workflows/evolutionary-cicd.yml"
         # Locally edited legacy copy of the single-label form: kept and reported

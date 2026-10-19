@@ -58,9 +58,9 @@ The pipeline reads configuration from GitHub repository variables (Settings > Se
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `RUNNER_LABELS_PR` | `["ubuntu-latest"]` | JSON label array for `pull_request` jobs (untrusted code); see [Trust levels](#trust-levels-pr-vs-trusted-runners) |
-| `RUNNER_LABELS_TRUSTED` | `["ubuntu-latest"]` | JSON label array for all other events (push, schedule, dispatch) |
+| `RUNNER_LABELS_TRUSTED` | `["ubuntu-latest"]` | JSON label array for all other events (`push`, `workflow_dispatch`) |
 | `CI_RUNNER_FAILOVER` | unset | Any value (even `false`) runs every job on GitHub-hosted runners; delete it to switch back |
-| `RUNNER_NEEDS_CHOWN` | unset | `true` runs `sudo -n chown` on the workspace before each gate (only for runners with passwordless sudo) |
+| `RUNNER_NEEDS_CHOWN` | unset | `true` runs `sudo -n chown` on the workspace before each gate (only for runners with passwordless sudo; applies to both trust levels) |
 | `RUNNER_LABEL` | unset | **Deprecated.** One label for both trust levels; used only while neither `RUNNER_LABELS_*` is set |
 | `GATE_TEST_MIN_PASS_RATE` | `95` | Minimum test pass rate percentage |
 | `GATE_MERGE_FITNESS_THRESHOLD` | `70` | Minimum fitness score for merge gate |
@@ -165,7 +165,7 @@ bash cicd/scripts/setup-runner.sh \
 | Event | Variable | Runs |
 |-------|----------|------|
 | `pull_request` | `RUNNER_LABELS_PR` | Code from any contributor branch, fork or Dependabot, including its build and install scripts |
-| `push`, `schedule`, `workflow_dispatch` | `RUNNER_LABELS_TRUSTED` | Code that is already on your branches; the deploy gate uses secrets |
+| `push`, `workflow_dispatch` | `RUNNER_LABELS_TRUSTED` | Code pushed by anyone with write access (including unreviewed `feature/**` branches); the deploy gate uses secrets |
 
 A pull request can change the code that CI runs. A self-hosted runner is not reset between jobs:
 whatever a PR job leaves behind (a modified tool cache, a background process, a changed
@@ -184,6 +184,23 @@ Register the runners with matching labels (`setup-runner.sh --labels self-hosted
 A variable that is not set means GitHub-hosted for that trust level, so you can move one level at a
 time; with only `RUNNER_LABELS_TRUSTED` set, PR jobs stay on GitHub-hosted runners.
 
+**Labels route jobs, they do not isolate them.** For `pull_request`, GitHub reads the workflow file
+from the pull request itself, so a PR can change `runs-on` to the trusted labels. The split keeps
+honest jobs apart; the trusted runner is protected only by settings outside the workflow:
+
+- Put the trusted runner in a runner group (organization setting) that allows only selected
+  workflows on your default branch, e.g. `owner/repo/.github/workflows/evolutionary-cicd.yml@refs/heads/main`.
+  A runner registered directly to a repository cannot be restricted this way.
+- Require approval before workflows run for outside contributors, and read workflow changes in PRs.
+- Prefer ephemeral runners (`config.sh --ephemeral`) for the PR level, so nothing persists between jobs.
+- Give the PR runner no sudo and no credentials. In a public repository that accepts fork pull
+  requests, do not register the trusted runner to that repository at all; GitHub recommends against
+  self-hosted runners for public-repository PRs.
+
+"Trusted" means "pushed by someone with write access", not "reviewed": a push to a `feature/**`
+branch runs on the trusted runner. The workflows only route `pull_request` to the PR level; if you add
+events that run PR code (`pull_request_target`, `issue_comment`, `merge_group`), route them yourself.
+
 **Failover**: when a self-hosted runner is down, set `CI_RUNNER_FAILOVER` (any value) and every job
 runs on `ubuntu-latest`. Delete the variable to go back.
 
@@ -194,8 +211,10 @@ variables, then delete `RUNNER_LABEL`.
 
 **Workspace ownership**: the gates no longer run `sudo` by default; runner users without sudo work as
 they are. A runner where container jobs leave root-owned files in the workspace can opt in with
-`RUNNER_NEEDS_CHOWN=true` (needs passwordless sudo, logs a warning without it). Before #427 this step
-ran whenever `RUNNER_LABEL` was set.
+`RUNNER_NEEDS_CHOWN=true` (needs passwordless sudo, logs a warning without it). The variable applies to
+both trust levels, and passwordless sudo on the PR runner gives PR code root there: prefer fixing
+ownership in the container jobs. Before #427 this step ran whenever `RUNNER_LABEL` was set; `update.sh`
+says so when it replaces such a copy.
 
 `update.sh` keeps both workflows current (they carry a `# cc-managed:` marker), see
 [Configuration](CONFIGURATION.md#framework-synchronization) for local edits and older copies.

@@ -724,6 +724,14 @@ for wf in project-board-automation.yml project-board-reconcile.yml lint.yml evol
         fi
     elif [ "${wf#project-board-}" = "$wf" ]; then
         if grep -qxF "$(compute_sha256 "$dest")  ${wf}" "${FRAMEWORK_DIR}/cicd/legacy-workflows.sha256" 2>/dev/null; then
+            if grep -qF "vars.RUNNER_LABEL != ''" "$dest"; then
+                warn "  ${rel}: the sudo chown step is now opt-in. If this runner leaves root-owned"
+                warn "    files in the workspace, set the repository variable RUNNER_NEEDS_CHOWN=true."
+            fi
+            if grep -qF 'vars.RUNNER_LABEL' "$dest"; then
+                warn "  ${rel}: a set RUNNER_LABEL still runs PR and trusted jobs on one runner until"
+                warn "    RUNNER_LABELS_PR and RUNNER_LABELS_TRUSTED are set (docs/CICD_GUIDE.md, trust levels)."
+            fi
             _cc_install_workflow "$src" "$dest" "REPLACED (unedited legacy workflow)"
             MANAGED_WORKFLOWS="${MANAGED_WORKFLOWS}${dest}"$'\n'
         else
