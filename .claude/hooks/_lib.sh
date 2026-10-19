@@ -9,8 +9,13 @@ if [[ "${BASH_SOURCE[0]}" == *$'\r'* ]] 2>/dev/null; then
     sed -i.bak 's/\r$//' "$_cc_self" 2>/dev/null && rm -f "${_cc_self}.bak"
 fi
 
-# Resolve project directory
-CC_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+# Resolve project directory. zsh has no BASH_SOURCE: skill snippets source this
+# file into the user's shell (#429); eval keeps the zsh syntax away from bash
+_cc_lib_file="${BASH_SOURCE[0]:-}"
+if [ -z "$_cc_lib_file" ] && [ -n "${ZSH_VERSION:-}" ]; then
+    eval '_cc_lib_file="${(%):-%x}"'
+fi
+CC_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$_cc_lib_file")/../.." && pwd)}"
 
 # Load configuration (resolution order: project root > .claude/ > user defaults > env)
 _cc_load_config() {
@@ -50,41 +55,49 @@ _cc_override_needs_pin() {
 # Returns 0 = honoured, 1 = not listed, 2 = listed but not honoured
 # (security hook without pin, or pin mismatch).
 _cc_is_local_override() {
-    local rel="${1#.claude/}" file="${2:-}" entry path pin rc=1
-    local -a entries
+    local rel="${1#.claude/}" file="${2:-}" entry entry_path pin rc=1
     rel="${rel#.cognitive-core/}"
-    read -r -a entries <<< "${CC_LOCAL_OVERRIDES:-}"
-    for entry in ${entries[@]+"${entries[@]}"}; do
-        path="${entry%%@*}"
+    while IFS= read -r entry; do
+        [ -n "$entry" ] || continue
+        entry_path="${entry%%@*}"
         pin=""
-        [ "$path" = "$entry" ] || pin="${entry#*@}"
-        case "$path" in
-            */) case "$rel" in "$path"*) ;; *) continue ;; esac ;;
-            *)  [ "$rel" = "$path" ] || continue ;;
+        [ "$entry_path" = "$entry" ] || pin="${entry#*@}"
+        case "$entry_path" in
+            */) case "$rel" in "$entry_path"*) ;; *) continue ;; esac ;;
+            *)  [ "$rel" = "$entry_path" ] || continue ;;
         esac
         if [ -z "$pin" ]; then
             _cc_override_needs_pin "$rel" && { rc=2; continue; }
             return 0
         fi
         # Pins apply to single files only
-        case "$path" in */) rc=2; continue ;; esac
+        case "$entry_path" in */) rc=2; continue ;; esac
         if [ -z "$file" ] || [ "$(_cc_compute_sha256 "$file")" = "$pin" ]; then
             return 0
         fi
         rc=2
-    done
+    done <<EOF
+$(_cc_local_override_entries)
+EOF
     return "$rc"
+}
+
+# CC_LOCAL_OVERRIDES entries, one per line: the first line of the value, split
+# on blanks, never globbed. Works when sourced into zsh, which has no read -a
+# and does not split unquoted variables (#429).
+_cc_local_override_entries() {
+    printf '%s\n' "${CC_LOCAL_OVERRIDES:-}" | head -1 | tr -s ' \t' '\n\n'
 }
 
 # True if a directory, or any file below it, is listed (pins not checked).
 _cc_has_local_override_under() {
     local dir="$1" entry
-    local -a entries
     _cc_is_local_override "$dir" && return 0
-    read -r -a entries <<< "${CC_LOCAL_OVERRIDES:-}"
-    for entry in ${entries[@]+"${entries[@]}"}; do
-        case "${entry%%@*}" in "$dir"*) return 0 ;; esac
-    done
+    while IFS= read -r entry; do
+        case "${entry%%@*}" in "$dir"*) [ -n "$entry" ] && return 0 ;; esac
+    done <<EOF
+$(_cc_local_override_entries)
+EOF
     return 1
 }
 
@@ -435,28 +448,28 @@ _cc_realpath() {
 # On deny: emits _cc_security_log DENY with {reason, path, caller} and
 # returns 1 without touching CC_VALIDATED_SOURCE.
 _cc_validate_framework_source() {
-    local path="${1:-}"
+    local src_path="${1:-}"
     local caller="${FUNCNAME[1]:-top-level}"
     local reason=""
 
     # Anchor must be set
     if [ -z "${CC_FRAMEWORK_ROOT:-}" ]; then
         reason="CC_FRAMEWORK_ROOT unset"
-        _cc_security_log "DENY" "source-validation" "${reason} path=${path} caller=${caller}"
+        _cc_security_log "DENY" "source-validation" "${reason} path=${src_path} caller=${caller}"
         return 1
     fi
 
     # Non-empty, absolute
-    if [ -z "$path" ]; then
+    if [ -z "$src_path" ]; then
         reason="empty path"
         _cc_security_log "DENY" "source-validation" "${reason} caller=${caller}"
         return 1
     fi
-    case "$path" in
+    case "$src_path" in
         /*) ;;
         *)
             reason="path not absolute"
-            _cc_security_log "DENY" "source-validation" "${reason} path=${path} caller=${caller}"
+            _cc_security_log "DENY" "source-validation" "${reason} path=${src_path} caller=${caller}"
             return 1
             ;;
     esac
@@ -465,26 +478,26 @@ _cc_validate_framework_source() {
     # cannot actually hold a literal NUL byte (POSIX exec boundary strips it),
     # but we reject every other control byte defensively - a path containing
     # a newline would break logging and argv parsing in callers.
-    if LC_ALL=C printf '%s' "$path" | LC_ALL=C grep -q '[[:cntrl:]]'; then
+    if LC_ALL=C printf '%s' "$src_path" | LC_ALL=C grep -q '[[:cntrl:]]'; then
         reason="path contains control character"
         _cc_security_log "DENY" "source-validation" "path=<redacted> caller=${caller}"
         return 1
     fi
 
     # No `..` segments (reject before resolution so we see the original intent)
-    case "$path" in
+    case "$src_path" in
         */../*|*/..|../*|..)
             reason="path contains .. segment"
-            _cc_security_log "DENY" "source-validation" "${reason} path=${path} caller=${caller}"
+            _cc_security_log "DENY" "source-validation" "${reason} path=${src_path} caller=${caller}"
             return 1
             ;;
     esac
 
     # Canonicalize both sides
     local canon_path canon_root
-    canon_path=$(_cc_realpath "$path") || {
+    canon_path=$(_cc_realpath "$src_path") || {
         reason="realpath failed"
-        _cc_security_log "DENY" "source-validation" "${reason} path=${path} caller=${caller}"
+        _cc_security_log "DENY" "source-validation" "${reason} path=${src_path} caller=${caller}"
         return 1
     }
     canon_root=$(_cc_realpath "$CC_FRAMEWORK_ROOT") || {
@@ -589,13 +602,13 @@ _cc_validate_framework_source() {
 # Extract field from stdin JSON
 # Usage: echo "$JSON" | _cc_json_get ".tool_input.command"
 _cc_json_get() {
-    local path="$1"
+    local json_path="$1"
     if command -v jq &>/dev/null; then
-        jq -r "${path} // \"\"" 2>/dev/null
+        jq -r "${json_path} // \"\"" 2>/dev/null
     else
         # Basic fallback: extract simple string fields
         local key
-        key=$(echo "$path" | sed 's/.*\.//')
+        key=$(echo "$json_path" | sed 's/.*\.//')
         grep -o "\"${key}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | head -1 | sed 's/.*: *"//;s/"$//'
     fi
 }
