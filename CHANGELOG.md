@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.9.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.8.1...v1.9.0) (2026-10-19)
+
+
+### Features
+
+* **cicd:** split self-hosted runner selection by trust level ([#428](https://github.com/mindcockpit-ai/cognitive-core/issues/428)) ([de99591](https://github.com/mindcockpit-ai/cognitive-core/commit/de9959188c5122586a31725e18a2285a1db35e4e))
+* **skills:** pr-guard.sh evaluates PR lifecycle rules ([#419](https://github.com/mindcockpit-ai/cognitive-core/issues/419)) ([4915f5e](https://github.com/mindcockpit-ai/cognitive-core/commit/4915f5e770dd89c494ca7cce5cb7a1b4008f1e94))
+
 ## [1.8.1](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.8.0...v1.8.1) (2026-10-18)
 
 
