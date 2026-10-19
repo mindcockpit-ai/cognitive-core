@@ -42,13 +42,15 @@ CC_RUNNER_NODES="3"
 CC_RUNNER_LABELS="self-hosted,linux,docker"
 ```
 
-The workflow file (`evolutionary-cicd.yml`) uses runner labels to target self-hosted runners:
+The workflows (`lint.yml`, `evolutionary-cicd.yml`) pick runners by trust level from two repository
+variables, both JSON label arrays: `RUNNER_LABELS_PR` for pull-request jobs and `RUNNER_LABELS_TRUSTED`
+for everything else. Keep the nodes that run PR jobs separate from the nodes that hold deploy secrets,
+see [Trust levels](CICD_GUIDE.md#trust-levels-pr-vs-trusted-runners).
 
-```yaml
-runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+```bash
+RUNNER_LABELS_PR='["self-hosted", "ci-pr"]'
+RUNNER_LABELS_TRUSTED='["self-hosted", "ci-trusted"]'
 ```
-
-Set `RUNNER_LABEL` in your GitHub repository variables to match your runner labels (e.g., `self-hosted`).
 
 ## Node Setup
 

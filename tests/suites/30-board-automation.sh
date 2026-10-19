@@ -508,7 +508,7 @@ EOF
     if env -i PATH="$PATH" HOME="$WORK" bash "${FW}/install.sh" "$proj" >/dev/null 2>&1; then
         _pass "install with CI/CD"
         assert_eq "install records only the managed workflows" \
-            ".github/workflows/project-board-automation.yml .github/workflows/project-board-reconcile.yml" "$(recorded)"
+            ".github/workflows/evolutionary-cicd.yml .github/workflows/lint.yml .github/workflows/project-board-automation.yml .github/workflows/project-board-reconcile.yml" "$(recorded)"
         out=$(upd)
         upd_ok "$out"
         assert_eq "unchanged update: no workflow action" "0" "$(grep -cE '(UPDATED|NEW|MODIFIED|REPLACED|LEGACY).*workflow' <<< "$out" || true)"

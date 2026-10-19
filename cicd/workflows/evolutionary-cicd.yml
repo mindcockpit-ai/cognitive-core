@@ -1,3 +1,4 @@
+# cc-managed: evolutionary-cicd v1
 # =============================================================================
 # Evolutionary CI/CD Pipeline - cognitive-core framework
 # =============================================================================
@@ -5,6 +6,13 @@
 #   #2=self-hosted permissions, #3=continue-on-error syntax, #5=mkdir -p logs,
 #   #13=changed-files-only, #19=single-pass tests, #20=semgrep scan
 # All thresholds configurable via repository variables.
+#
+# Runner selection (every job), see docs/CICD_GUIDE.md "Self-hosted runners":
+#   pull_request jobs -> RUNNER_LABELS_PR      (JSON array; runner without secrets)
+#   all other events  -> RUNNER_LABELS_TRUSTED (JSON array)
+#   CI_RUNNER_FAILOVER (any value) -> GitHub-hosted for all jobs
+#   Deprecated: RUNNER_LABEL (one label for both), used only while neither
+#   RUNNER_LABELS_* variable is set. Nothing set -> ubuntu-latest.
 # =============================================================================
 name: Evolutionary CI/CD Pipeline
 
@@ -41,7 +49,7 @@ jobs:
   # =========================================================================
   gate-1-lint:
     name: "Gate 1: Lint"
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_FAILOVER && '["ubuntu-latest"]' || github.event_name == 'pull_request' && (vars.RUNNER_LABELS_PR || !vars.RUNNER_LABELS_TRUSTED && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]') || (vars.RUNNER_LABELS_TRUSTED || !vars.RUNNER_LABELS_PR && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]')) }}
     outputs:
       changed_files: ${{ steps.diff.outputs.files }}
       file_count: ${{ steps.diff.outputs.count }}
@@ -50,10 +58,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Finding #2: Fix workspace permissions on self-hosted runners
+      # Finding #2: root-owned files on self-hosted runners (opt-in RUNNER_NEEDS_CHOWN=true)
       - name: Fix workspace permissions (Finding #2)
-        if: ${{ vars.RUNNER_LABEL != '' && vars.RUNNER_LABEL != 'ubuntu-latest' }}
-        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+        if: ${{ vars.RUNNER_NEEDS_CHOWN == 'true' }}
+        run: sudo -n chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || echo "::warning::RUNNER_NEEDS_CHOWN is set but passwordless sudo is not available"
 
       # Finding #5: Ensure logs directory exists before checks
       - name: Prepare directories (Finding #5)
@@ -160,14 +168,14 @@ jobs:
   gate-2-commit:
     name: "Gate 2: Commit Validation"
     needs: gate-1-lint
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_FAILOVER && '["ubuntu-latest"]' || github.event_name == 'pull_request' && (vars.RUNNER_LABELS_PR || !vars.RUNNER_LABELS_TRUSTED && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]') || (vars.RUNNER_LABELS_TRUSTED || !vars.RUNNER_LABELS_PR && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]')) }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Fix workspace permissions (Finding #2)
-        if: ${{ vars.RUNNER_LABEL != '' && vars.RUNNER_LABEL != 'ubuntu-latest' }}
-        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+        if: ${{ vars.RUNNER_NEEDS_CHOWN == 'true' }}
+        run: sudo -n chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || echo "::warning::RUNNER_NEEDS_CHOWN is set but passwordless sudo is not available"
       - name: Prepare directories (Finding #5)
         run: mkdir -p logs artifacts
 
@@ -208,15 +216,15 @@ jobs:
   gate-3-test:
     name: "Gate 3: Test"
     needs: gate-2-commit
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_FAILOVER && '["ubuntu-latest"]' || github.event_name == 'pull_request' && (vars.RUNNER_LABELS_PR || !vars.RUNNER_LABELS_TRUSTED && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]') || (vars.RUNNER_LABELS_TRUSTED || !vars.RUNNER_LABELS_PR && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]')) }}
     outputs:
       test_pass_rate: ${{ steps.results.outputs.pass_rate }}
       fitness_score: ${{ steps.fitness.outputs.score }}
     steps:
       - uses: actions/checkout@v5
       - name: Fix workspace permissions (Finding #2)
-        if: ${{ vars.RUNNER_LABEL != '' && vars.RUNNER_LABEL != 'ubuntu-latest' }}
-        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+        if: ${{ vars.RUNNER_NEEDS_CHOWN == 'true' }}
+        run: sudo -n chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || echo "::warning::RUNNER_NEEDS_CHOWN is set but passwordless sudo is not available"
       - name: Prepare directories (Finding #5)
         run: mkdir -p logs artifacts test-results
 
@@ -354,7 +362,7 @@ jobs:
     name: "Gate 4: Merge Readiness"
     needs: [gate-1-lint, gate-3-test]
     if: github.event_name == 'pull_request'
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_FAILOVER && '["ubuntu-latest"]' || github.event_name == 'pull_request' && (vars.RUNNER_LABELS_PR || !vars.RUNNER_LABELS_TRUSTED && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]') || (vars.RUNNER_LABELS_TRUSTED || !vars.RUNNER_LABELS_PR && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]')) }}
     steps:
       - name: Evaluate merge readiness
         run: |
@@ -385,15 +393,15 @@ jobs:
       github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') &&
       inputs.skip_deploy != true
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_FAILOVER && '["ubuntu-latest"]' || github.event_name == 'pull_request' && (vars.RUNNER_LABELS_PR || !vars.RUNNER_LABELS_TRUSTED && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]') || (vars.RUNNER_LABELS_TRUSTED || !vars.RUNNER_LABELS_PR && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]')) }}
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v5
       - name: Fix workspace permissions (Finding #2)
-        if: ${{ vars.RUNNER_LABEL != '' && vars.RUNNER_LABEL != 'ubuntu-latest' }}
-        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || true
+        if: ${{ vars.RUNNER_NEEDS_CHOWN == 'true' }}
+        run: sudo -n chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" || echo "::warning::RUNNER_NEEDS_CHOWN is set but passwordless sudo is not available"
 
       - name: Check deploy fitness threshold
         run: |
@@ -436,7 +444,7 @@ jobs:
     name: Pipeline Summary
     needs: [gate-1-lint, gate-2-commit, gate-3-test]
     if: always()
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_FAILOVER && '["ubuntu-latest"]' || github.event_name == 'pull_request' && (vars.RUNNER_LABELS_PR || !vars.RUNNER_LABELS_TRUSTED && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]') || (vars.RUNNER_LABELS_TRUSTED || !vars.RUNNER_LABELS_PR && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]')) }}
     steps:
       - name: Pipeline outcome
         run: |

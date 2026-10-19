@@ -1,0 +1,13 @@
+# sha256 of every shipped version of the CI workflow templates before they
+# carried a "# cc-managed:" marker (#427). update.sh replaces an unmarked copy
+# only when it matches one of these, i.e. it was never edited locally.
+13b3ad8a6475d1424da8c8ce3966799c137b6eb66ef2a46e001ce5d2195de712  lint.yml
+a1d8a2db2d5657ca7f5d9dcc8544d7ccad4849119372c3356e24c7720d20015d  lint.yml
+8349e002d475988b049c27723e8bf9d5d2620b24082f5818fabbc18ae17b4aae  lint.yml
+d7f4dab618b801db33e067cf3d50870f25e2208c922109a367b16d391d44df3d  lint.yml
+9a2f2d0217503b9a83fd1c07738b6b7a70e8358b8a11757025e51b37c64fa92f  lint.yml
+8edcd6426848cf22aa8b2c1c4f19028eeb1ca42787b0eda09014d06563ee508d  evolutionary-cicd.yml
+3be234915deaf3ee7a5295181174145d8ad56bb1bf35d8db31f1f3e4dfd02d55  evolutionary-cicd.yml
+1fcf78e92571fc95b31f28de586e209c48cd61f309dfb4cf3cc4e0d7e9bcec19  evolutionary-cicd.yml
+34e001462b598082208a82d5b6c199c224d5d291459b08e5a17cfe7f8e5274b9  evolutionary-cicd.yml
+c2070f0c9e21953e692b61f37f843ec9a574f4caf184dc6c8b2cb87e9c865171  evolutionary-cicd.yml

@@ -435,8 +435,8 @@ process_file() {
     local original_sha="$2"
     local installed_file="${PROJECT_DIR}/${rel_path}"
 
-    # Managed board workflows have their own block below (#362)
-    case "$rel_path" in .github/workflows/project-board-*.yml) return ;; esac
+    # Managed workflows have their own block below (#362, #427)
+    case "$rel_path" in .github/workflows/*) return ;; esac
 
     # Project-owned override: never compared, never overwritten (#328)
     local override_rc=0
@@ -656,12 +656,14 @@ if [ "$PRUNE" = true ]; then
     fi
 fi
 
-# ---- Board workflows ----
-header "Board workflows"
+# ---- Managed workflows ----
+header "Managed workflows"
 
-# Managed board workflows (#362) carry a "# cc-managed:" marker and are
-# tracked in the manifest. Unmodified ones are replaced, modified ones kept.
-# Legacy copies (no marker) are only replaced while still unconfigured.
+# Managed workflows (board #362, CI #427) carry a "# cc-managed:" marker and
+# are tracked in the manifest. Unmodified ones are replaced, modified ones kept.
+# Legacy copies (no marker) are only replaced while provably unedited: board
+# workflows while unconfigured, CI workflows when they match a shipped version.
+# A missing CI workflow is not added (the project removed it or has no CI/CD).
 MANAGED_WORKFLOWS=""
 WF_DIR="${PROJECT_DIR}/.github/workflows"
 _cc_recorded_sha() {
@@ -678,7 +680,7 @@ _cc_install_workflow() { # <src> <dest> <label>
     info "  ${3}: ${2#"${PROJECT_DIR}/"}"
     NEW_FILES=$((NEW_FILES + 1))
 }
-for wf in project-board-automation.yml project-board-reconcile.yml; do
+for wf in project-board-automation.yml project-board-reconcile.yml lint.yml evolutionary-cicd.yml; do
     src="${FRAMEWORK_DIR}/cicd/workflows/${wf}"
     dest="${WF_DIR}/${wf}"
     rel=".github/workflows/${wf}"
@@ -719,6 +721,19 @@ for wf in project-board-automation.yml project-board-reconcile.yml; do
                 PRESERVED_PATHS="${PRESERVED_PATHS}${rel}"$'\n'
                 MANAGED_WORKFLOWS="${MANAGED_WORKFLOWS}${dest}"$'\n'
             fi
+        fi
+    elif [ "${wf#project-board-}" = "$wf" ]; then
+        if grep -qxF "$(compute_sha256 "$dest")  ${wf}" "${FRAMEWORK_DIR}/cicd/legacy-workflows.sha256" 2>/dev/null; then
+            _cc_install_workflow "$src" "$dest" "REPLACED (unedited legacy workflow)"
+            MANAGED_WORKFLOWS="${MANAGED_WORKFLOWS}${dest}"$'\n'
+        else
+            warn "  LEGACY: ${rel} has no cc-managed marker and differs from every shipped template; not changed."
+            if grep -qF 'vars.RUNNER_LABEL ||' "$dest"; then
+                warn "    It runs pull-request jobs on the same runner as trusted jobs (single RUNNER_LABEL)."
+            fi
+            warn "    Review: diff ${dest} ${src}"
+            warn "    To take the framework copy (runner variables: docs/CICD_GUIDE.md): cp ${src} ${dest}"
+            warn "    To keep it as your own: list ${rel} in CC_LOCAL_OVERRIDES"
         fi
     elif grep -qE 'PROJECT_ID:[[:space:]]*"PVT_xxx"' "$dest"; then
         _cc_install_workflow "$src" "$dest" "REPLACED (unconfigured legacy workflow)"

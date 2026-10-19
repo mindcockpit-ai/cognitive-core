@@ -1,3 +1,4 @@
+# cc-managed: lint v1
 # =============================================================================
 # Code Quality Lint Workflow - cognitive-core framework
 # =============================================================================
@@ -8,6 +9,13 @@
 #          avoiding full-repo scans on every push.
 #
 # All thresholds and tool versions are configurable via repository variables.
+#
+# Runner selection (every job), see docs/CICD_GUIDE.md "Self-hosted runners":
+#   pull_request jobs -> RUNNER_LABELS_PR      (JSON array; runner without secrets)
+#   all other events  -> RUNNER_LABELS_TRUSTED (JSON array)
+#   CI_RUNNER_FAILOVER (any value) -> GitHub-hosted for all jobs
+#   Deprecated: RUNNER_LABEL (one label for both), used only while neither
+#   RUNNER_LABELS_* variable is set. Nothing set -> ubuntu-latest.
 # =============================================================================
 
 name: Code Quality Lint
@@ -53,7 +61,7 @@ jobs:
   # ---------------------------------------------------------------------------
   detect-changes:
     name: Detect Changed Files
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_FAILOVER && '["ubuntu-latest"]' || github.event_name == 'pull_request' && (vars.RUNNER_LABELS_PR || !vars.RUNNER_LABELS_TRUSTED && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]') || (vars.RUNNER_LABELS_TRUSTED || !vars.RUNNER_LABELS_PR && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]')) }}
     outputs:
       perl_files: ${{ steps.changes.outputs.perl_files }}
       js_files: ${{ steps.changes.outputs.js_files }}
@@ -144,7 +152,7 @@ jobs:
     name: Lint Perl
     needs: detect-changes
     if: needs.detect-changes.outputs.has_perl == 'true'
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_FAILOVER && '["ubuntu-latest"]' || github.event_name == 'pull_request' && (vars.RUNNER_LABELS_PR || !vars.RUNNER_LABELS_TRUSTED && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]') || (vars.RUNNER_LABELS_TRUSTED || !vars.RUNNER_LABELS_PR && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]')) }}
     steps:
       - uses: actions/checkout@v5
 
@@ -185,7 +193,7 @@ jobs:
     name: Lint JavaScript/TypeScript
     needs: detect-changes
     if: needs.detect-changes.outputs.has_js == 'true'
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_FAILOVER && '["ubuntu-latest"]' || github.event_name == 'pull_request' && (vars.RUNNER_LABELS_PR || !vars.RUNNER_LABELS_TRUSTED && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]') || (vars.RUNNER_LABELS_TRUSTED || !vars.RUNNER_LABELS_PR && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]')) }}
     steps:
       - uses: actions/checkout@v5
 
@@ -221,7 +229,7 @@ jobs:
     name: Lint Python
     needs: detect-changes
     if: needs.detect-changes.outputs.has_python == 'true'
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_FAILOVER && '["ubuntu-latest"]' || github.event_name == 'pull_request' && (vars.RUNNER_LABELS_PR || !vars.RUNNER_LABELS_TRUSTED && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]') || (vars.RUNNER_LABELS_TRUSTED || !vars.RUNNER_LABELS_PR && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]')) }}
     steps:
       - uses: actions/checkout@v5
 
@@ -249,7 +257,7 @@ jobs:
     name: Lint Shell Scripts
     needs: detect-changes
     if: needs.detect-changes.outputs.has_shell == 'true'
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_FAILOVER && '["ubuntu-latest"]' || github.event_name == 'pull_request' && (vars.RUNNER_LABELS_PR || !vars.RUNNER_LABELS_TRUSTED && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]') || (vars.RUNNER_LABELS_TRUSTED || !vars.RUNNER_LABELS_PR && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]')) }}
     steps:
       - uses: actions/checkout@v5
 
@@ -271,7 +279,7 @@ jobs:
     name: Lint YAML
     needs: detect-changes
     if: needs.detect-changes.outputs.has_yaml == 'true'
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_FAILOVER && '["ubuntu-latest"]' || github.event_name == 'pull_request' && (vars.RUNNER_LABELS_PR || !vars.RUNNER_LABELS_TRUSTED && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]') || (vars.RUNNER_LABELS_TRUSTED || !vars.RUNNER_LABELS_PR && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]')) }}
     steps:
       - uses: actions/checkout@v5
 
@@ -294,7 +302,7 @@ jobs:
     name: Lint Dockerfiles
     needs: detect-changes
     if: needs.detect-changes.outputs.has_docker == 'true'
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_FAILOVER && '["ubuntu-latest"]' || github.event_name == 'pull_request' && (vars.RUNNER_LABELS_PR || !vars.RUNNER_LABELS_TRUSTED && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]') || (vars.RUNNER_LABELS_TRUSTED || !vars.RUNNER_LABELS_PR && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]')) }}
     steps:
       - uses: actions/checkout@v5
 
@@ -311,7 +319,7 @@ jobs:
     name: Lint Status
     needs: [lint-perl, lint-js, lint-python, lint-shell, lint-yaml, lint-docker]
     if: always()
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_FAILOVER && '["ubuntu-latest"]' || github.event_name == 'pull_request' && (vars.RUNNER_LABELS_PR || !vars.RUNNER_LABELS_TRUSTED && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]') || (vars.RUNNER_LABELS_TRUSTED || !vars.RUNNER_LABELS_PR && vars.RUNNER_LABEL && format('[{0}]', toJSON(vars.RUNNER_LABEL)) || '["ubuntu-latest"]')) }}
     steps:
       - name: Check lint results
         run: |

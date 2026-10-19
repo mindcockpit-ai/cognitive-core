@@ -57,7 +57,11 @@ The pipeline reads configuration from GitHub repository variables (Settings > Se
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `RUNNER_LABEL` | `ubuntu-latest` | Runner label (set to your self-hosted label for self-hosted runners; needs runner >= 2.327.1 for the Node 24 actions) |
+| `RUNNER_LABELS_PR` | `["ubuntu-latest"]` | JSON label array for `pull_request` jobs (untrusted code); see [Trust levels](#trust-levels-pr-vs-trusted-runners) |
+| `RUNNER_LABELS_TRUSTED` | `["ubuntu-latest"]` | JSON label array for all other events (push, schedule, dispatch) |
+| `CI_RUNNER_FAILOVER` | unset | Any value (even `false`) runs every job on GitHub-hosted runners; delete it to switch back |
+| `RUNNER_NEEDS_CHOWN` | unset | `true` runs `sudo -n chown` on the workspace before each gate (only for runners with passwordless sudo) |
+| `RUNNER_LABEL` | unset | **Deprecated.** One label for both trust levels; used only while neither `RUNNER_LABELS_*` is set |
 | `GATE_TEST_MIN_PASS_RATE` | `95` | Minimum test pass rate percentage |
 | `GATE_MERGE_FITNESS_THRESHOLD` | `70` | Minimum fitness score for merge gate |
 | `GATE_DEPLOY_FITNESS_THRESHOLD` | `80` | Minimum fitness score for deploy gate |
@@ -153,6 +157,48 @@ bash cicd/scripts/setup-runner.sh \
   --node-id 2 \
   --service
 ```
+
+### Trust levels: PR vs trusted runners
+
+`lint.yml` and `evolutionary-cicd.yml` pick the runner of every job by trust level:
+
+| Event | Variable | Runs |
+|-------|----------|------|
+| `pull_request` | `RUNNER_LABELS_PR` | Code from any contributor branch, fork or Dependabot, including its build and install scripts |
+| `push`, `schedule`, `workflow_dispatch` | `RUNNER_LABELS_TRUSTED` | Code that is already on your branches; the deploy gate uses secrets |
+
+A pull request can change the code that CI runs. A self-hosted runner is not reset between jobs:
+whatever a PR job leaves behind (a modified tool cache, a background process, a changed
+`~/.npmrc`) runs again in the next job on that machine. If that next job is a push or deploy job, the
+PR has reached its secrets. So **never give a runner that PR jobs use access to deploy secrets,
+registry credentials or production networks**. Run two runners (separate machines or users,
+separate runner groups) and give each its own labels:
+
+```bash
+# Repository (or organization) variables, values are JSON arrays
+RUNNER_LABELS_PR='["self-hosted", "ci-pr"]'
+RUNNER_LABELS_TRUSTED='["self-hosted", "ci-trusted"]'
+```
+
+Register the runners with matching labels (`setup-runner.sh --labels self-hosted,linux,x64,ci-pr`).
+A variable that is not set means GitHub-hosted for that trust level, so you can move one level at a
+time; with only `RUNNER_LABELS_TRUSTED` set, PR jobs stay on GitHub-hosted runners.
+
+**Failover**: when a self-hosted runner is down, set `CI_RUNNER_FAILOVER` (any value) and every job
+runs on `ubuntu-latest`. Delete the variable to go back.
+
+**Migrating from `RUNNER_LABEL`** (deprecated): a project that sets only `RUNNER_LABEL` keeps running
+both trust levels on that label, as before. As soon as either `RUNNER_LABELS_*` variable is set,
+`RUNNER_LABEL` is ignored, so a leftover value can never route PR jobs to the old runner. Set both new
+variables, then delete `RUNNER_LABEL`.
+
+**Workspace ownership**: the gates no longer run `sudo` by default; runner users without sudo work as
+they are. A runner where container jobs leave root-owned files in the workspace can opt in with
+`RUNNER_NEEDS_CHOWN=true` (needs passwordless sudo, logs a warning without it). Before #427 this step
+ran whenever `RUNNER_LABEL` was set.
+
+`update.sh` keeps both workflows current (they carry a `# cc-managed:` marker), see
+[Configuration](CONFIGURATION.md#framework-synchronization) for local edits and older copies.
 
 ### Docker-Based Runners
 
