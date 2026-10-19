@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.1](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.9.0...v1.9.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* **hooks:** _lib.sh works when sourced into zsh ([#430](https://github.com/mindcockpit-ai/cognitive-core/issues/430)) ([20928ab](https://github.com/mindcockpit-ai/cognitive-core/commit/20928aba38d2143a7fd56f6468d1d3b362a9b3dd))
+
 ## [1.9.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.8.1...v1.9.0) (2026-10-19)
 
 
