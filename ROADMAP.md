@@ -21,6 +21,8 @@ A portable, vendor-agnostic AI-augmented development framework that governs the 
 
 ### Core Framework
 
+Counts as released in v1.0-v1.3. Current numbers (v1.9.1: 15 hooks, 37 suites, 3000+ assertions) are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#status-at-a-glance).
+
 | Feature | Details |
 |---------|---------|
 | 10 specialist agents | Hub-and-spoke coordination, smart delegation, least-privilege |
@@ -71,6 +73,18 @@ A portable, vendor-agnostic AI-augmented development framework that governs the 
 
 ---
 
+## Strategic Focus (from v1.10): Grounding, Ontology, Deterministic Assurance
+
+What the assistant reads, references, and does is verified by deterministic checks instead of trusted instructions. See [ADR-001](docs/architecture/decisions/ADR-001-grounding-ontology-framework.md) and [Architecture: Future Components](docs/ARCHITECTURE.md#future-components).
+
+| Stream | Goal | Status |
+|--------|------|--------|
+| **Grounding** | Every reference (path, agent, scope, table, source) resolves to something real; grounding ratio as a fitness gate | ADR-001 proposed |
+| **Ontology** | Domain terms defined once per project (JSON file in git, SKOS export); alias, deprecated-term, and anchor drift checks | ADR-001 proposed |
+| **Deterministic assurance** | Stochastic vulnerability check (L1) for prompts, issues, skills, and agents; PR lifecycle guard ([#391](https://github.com/mindcockpit-ai/cognitive-core/issues/391)); approval gate ([#367](https://github.com/mindcockpit-ai/cognitive-core/issues/367)); test hardening ([#275](https://github.com/mindcockpit-ai/cognitive-core/issues/275)) | In progress |
+
+---
+
 ## v1.x — In Progress
 
 | # | Feature | Priority | Size | Status |
@@ -81,13 +95,13 @@ A portable, vendor-agnostic AI-augmented development framework that governs the 
 | [#84](https://github.com/mindcockpit-ai/cognitive-core/issues/84) | Windsurf adapter (Cascade + workflows) | P3-low | M | Feasibility complete |
 | [#85](https://github.com/mindcockpit-ai/cognitive-core/issues/85) | Neovim adapter (codecompanion + avante) | P3-low | L | Feasibility complete |
 | [#93](https://github.com/mindcockpit-ai/cognitive-core/issues/93) | Integration test suite — end-to-end verification | P1-high | XL | Planned |
-| [#120](https://github.com/mindcockpit-ai/cognitive-core/issues/120) | **EU AI Act compliance — 13-issue epic** (Art. 50 + voluntary Art. 9-15) | P0-critical | XL | Epic planned |
+| [#120](https://github.com/mindcockpit-ai/cognitive-core/issues/120) | EU AI Act compliance - 13-issue epic (Art. 50 + voluntary Art. 9-15) | - | XL | **Deprioritized** (backlog) |
 | [#100](https://github.com/mindcockpit-ai/cognitive-core/issues/100) | Step-by-step tutorials | P1-high | L | Planned |
 | [#97](https://github.com/mindcockpit-ai/cognitive-core/issues/97) | Introduction video + video course | P2-medium | L | Planned |
 
-### EU AI Act Compliance Epic ([#120](https://github.com/mindcockpit-ai/cognitive-core/issues/120))
+### EU AI Act Compliance Epic ([#120](https://github.com/mindcockpit-ai/cognitive-core/issues/120)): Deprioritized
 
-No AI coding framework — commercial or open source — addresses EU AI Act compliance. cognitive-core is building it.
+Kept in the backlog, not scheduled. Items that also serve deterministic assurance (for example the emergency stop or a structured log of hook decisions) can be pulled forward individually.
 
 | # | Feature | Pillar | Status |
 |---|---------|--------|--------|
@@ -137,7 +151,7 @@ Your stack. Your rules. Your workflow. [Research paper](docs/research/enterprise
 | Compliance dashboards | Audit artifacts for SOX, ISO 27001, ITIL |
 | Custom adapters | VS Code, Eclipse, or any IDE your team uses |
 | On-premises deployment | Full data sovereignty |
-| EU AI Act alignment | 13-issue compliance epic in pipeline — see [#120](https://github.com/mindcockpit-ai/cognitive-core/issues/120) |
+| EU AI Act alignment | Deprioritized, see [#120](https://github.com/mindcockpit-ai/cognitive-core/issues/120) |
 | Audit log export | Security events to external SIEM (Splunk, ELK) |
 
 ---
@@ -155,7 +169,9 @@ Your stack. Your rules. Your workflow. [Research paper](docs/research/enterprise
 | DNA-Inspired Skill Storage | [docs/research/dna-inspired-storage.md](docs/research/dna-inspired-storage.md) | Theoretical |
 | IP Protection Strategy | [#98](https://github.com/mindcockpit-ai/cognitive-core/issues/98) | Planned |
 | Consultant Model Feasibility | [#96](https://github.com/mindcockpit-ai/cognitive-core/issues/96) | Planned |
-| EU AI Act Compliance | [Epic #120](https://github.com/mindcockpit-ai/cognitive-core/issues/120) — 13 issues, 3 pillars | In Pipeline |
+| EU AI Act Compliance | [Epic #120](https://github.com/mindcockpit-ai/cognitive-core/issues/120), 13 issues, 3 pillars | Deprioritized |
+| Grounding and Ontology | [ADR-001](docs/architecture/decisions/ADR-001-grounding-ontology-framework.md) | Proposed |
+| Deterministic vs Stochastic Execution | [docs/architecture/deterministic-vs-stochastic-analysis.md](docs/architecture/deterministic-vs-stochastic-analysis.md) | Published |
 
 ---
 
@@ -163,6 +179,13 @@ Your stack. Your rules. Your workflow. [Research paper](docs/research/enterprise
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| v1.9.1 | 2026-10-19 | `_lib.sh` works when sourced into zsh |
+| v1.9.0 | 2026-10-19 | PR lifecycle rules (`pr-guard.sh`), runner selection by trust level |
+| v1.8.0 | 2026-10-13 | Reply-links Stop hook, single approval gate, update.sh adds new skill files |
+| v1.7.0 | 2026-09-25 | Git remote credential guard, local override marker, update.sh prune |
+| v1.6.0 | 2026-06-06 | Forbidden-chars git hook, framework root anchor, board automation hardening |
+| v1.5.0 | 2026-04-14 | Project-board providers (GitHub, Jira, YouTrack), shared-state guard, tiered enforcement |
+| v1.4.0 | 2026-04-01 | VS Code adapter, prompt linter with codebase grounding, inter-session guard |
 | v1.3.0 | 2026-03-28 | VS Code adapter, inter-session coordination, closure guard, prompt linter, 809+ assertions |
 | v1.2.0 | 2026-03-23 | Gitignore policy (16 IDEs + 11 language packs), 16 suites / 809 assertions |
 | v1.1.0 | 2026-03-18 | Shared MCP server, batch-review skill, W3C PROV provenance, A2A state machine |
@@ -172,4 +195,4 @@ Your stack. Your rules. Your workflow. [Research paper](docs/research/enterprise
 
 ---
 
-*Last updated: 2026-03-30*
+*Last updated: 2026-10-29*

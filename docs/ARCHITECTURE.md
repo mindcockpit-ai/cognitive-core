@@ -1,273 +1,274 @@
 # Architecture Overview
 
-cognitive-core is a portable framework that installs production-grade hooks, agents, skills, CI/CD pipelines, and monitoring into any Claude Code project. This document describes the system architecture and how the components interact.
+cognitive-core is a portable framework that installs hooks, agents, skills, CI/CD pipelines, and monitoring into a project for AI coding assistants (Claude Code, Aider, IntelliJ, VS Code). This document describes the current architecture (v1.9.1) and the components planned next. For diagrams see [framework-overview.md](architecture/framework-overview.md).
+
+## Status at a Glance
+
+| Component | Count | Location |
+|-----------|-------|----------|
+| Hooks | 15 (+ 2 sourced helpers) | `core/hooks/` |
+| Git hooks | 1 (`check-forbidden-chars.sh`) | `core/git-hooks/` |
+| Agents | 10 | `core/agents/` |
+| Core skills | 20 | `core/skills/` |
+| Language packs | 11 | `language-packs/` |
+| Database packs | 3 | `database-packs/` |
+| Adapters | 4 (claude, aider, intellij, vscode) | `adapters/` |
+| Test suites | 37 suites, 3000+ assertions | `tests/suites/` |
 
 ## High-Level Structure
 
 ```
 cognitive-core (framework repo)          Target project (after install)
-+-- core/                                .claude/
-|   +-- hooks/                             +-- hooks/
-|   +-- agents/                            +-- agents/
-|   +-- skills/                            +-- skills/
-|   +-- templates/                         +-- settings.json
-+-- language-packs/                        +-- cognitive-core/version.json
-+-- database-packs/                      CLAUDE.md
-+-- cicd/                                cognitive-core.conf
-+-- install.sh
-+-- update.sh
++-- core/                                .claude/  (Claude Code)
+|   +-- hooks/       safety layer        |   +-- hooks/  agents/  skills/
+|   +-- git-hooks/   pre-commit checks   |   +-- settings.json
+|   +-- agents/      AI roles            |   +-- cognitive-core/version.json
+|   +-- skills/      tasks + scripts     .cognitive-core/  (other adapters)
+|   +-- utilities/   health, cleanup     CLAUDE.md / CONVENTIONS.md / ...
+|   +-- templates/   settings, CLAUDE.md cognitive-core.conf
++-- adapters/        platform contract
++-- language-packs/  database-packs/
++-- cicd/            workflows, docker, k8s, monitoring
++-- plugin/          Claude Code plugin (secondary channel, build-plugin.sh)
++-- install.sh  update.sh
 ```
 
-The framework source is cloned once. Running `install.sh` copies selected components into the target project's `.claude/` directory, generates configuration files, and writes a version manifest for safe future updates.
+The framework source is cloned once. `install.sh` copies the selected components into the target project through the configured adapter, generates configuration, and writes a version manifest for safe updates.
 
 ## Config-Driven Design
 
-All behavior flows from a single configuration file, `cognitive-core.conf`, which uses shell syntax and is sourced at runtime by every hook. The resolution order is:
+All behavior flows from one file, `cognitive-core.conf`, in shell syntax and sourced at runtime by every hook. Resolution order:
 
 1. `$PROJECT_ROOT/cognitive-core.conf`
 2. `$PROJECT_ROOT/.claude/cognitive-core.conf`
 3. `$HOME/.cognitive-core/defaults.conf` (user-level defaults)
 
-Every `CC_*` variable controls what gets installed and how hooks behave. There is no secondary config format and no YAML/JSON parsing at runtime. This keeps the hook execution path fast and dependency-free.
+Every `CC_*` variable controls what gets installed and how hooks behave. There is no secondary config format and no YAML/JSON parsing of configuration in the hook path. New variables must have defaults in code, because older conf files do not contain them.
+
+## Execution Model: Who Decides, Who Executes
+
+Most skill and agent behavior is interpreted by the LLM and therefore stochastic. Enforcement only exists where a script or the harness runs ([analysis](architecture/deterministic-vs-stochastic-analysis.md)). Every skill step is annotated with an ability type:
+
+| Type | Flow | Enforcement |
+|------|------|-------------|
+| D | Script -> Output | Full (testable) |
+| D/S | LLM input -> Script -> Output | Partial (mutation is deterministic) |
+| S/D | Script data -> LLM -> Output | Partial (input is controlled) |
+| S | LLM -> Output | None (variance acceptable) |
+| H | Human decides | External |
+
+Rule: anything that must hold (safety, state changes, gates) is moved into a D-type script or a hook. Skills orchestrate; scripts in `core/skills/<name>/scripts/` (or alongside `SKILL.md`) execute.
 
 ## Hook System
 
-Hooks are bash scripts triggered by Claude Code at specific lifecycle events. They communicate with Claude through a JSON protocol on stdout.
+Hooks are bash scripts triggered at lifecycle events. They read JSON on stdin and answer with JSON on stdout; silent exit 0 means allow. Wiring comes from `core/templates/settings.json.tmpl`; only hooks listed in `CC_HOOKS` are installed.
 
-### Hook Events
+| Event | Matcher | Hooks |
+|-------|---------|-------|
+| SessionStart | startup | `session-guard.sh`, `setup-env.sh`, `validate-git-remote-secret.sh` |
+| SessionStart | compact | `compact-reminder.sh` |
+| PreToolUse | Bash | `validate-bash.sh`, `validate-git-remote-secret.sh` |
+| PreToolUse | Read | `validate-read.sh` |
+| PreToolUse | WebFetch, WebSearch | `validate-fetch.sh` |
+| PreToolUse | Write, Edit | `angular-version-guard.sh`, `spring-boot-version-guard.sh` |
+| PostToolUse | Write, Edit | `post-edit-lint.sh`, `validate-write.sh` |
+| PostToolUse | WebFetch | `post-fetch-cache.sh` |
+| Stop | | `validate-reply-links.sh`, `notify-complete.sh`, `session-cleanup.sh` |
+| SubagentStop, Notification | | `notify-complete.sh` |
 
-| Event | Hook File | Trigger |
-|-------|-----------|---------|
-| SessionStart (startup/resume) | `setup-env.sh` | New or resumed session |
-| PreToolUse (Bash) | `validate-bash.sh` | Before any bash command runs |
-| PostToolUse (Edit/Write) | `post-edit-lint.sh` | After any file is edited |
-| Notification (compact) | `compact-reminder.sh` | After context compaction |
+Security levels (`CC_SECURITY_LEVEL`: minimal, standard, strict) set how hard the guards act. Responses are graduated: allow, ask, deny. Security guards deny; deprecations ask.
 
-### JSON Protocol
+### Shared Library (`_lib.sh`)
 
-Each hook receives context on stdin as JSON and outputs a JSON response on stdout. The shared library `_lib.sh` provides helper functions:
-
-- `_cc_json_session_context "$text"` -- Injects context into the session (SessionStart)
-- `_cc_json_pretool_deny "$reason"` -- Blocks a command with a reason (PreToolUse)
-- `_cc_json_posttool_context "$text"` -- Adds feedback after a tool runs (PostToolUse)
-- `_cc_json_get ".path.to.field"` -- Extracts fields from stdin JSON (uses jq if available, falls back to grep)
-
-### Shared Library (_lib.sh)
-
-Every hook sources `_lib.sh` as its first action. The library provides:
-
-- **Config loading** via `_cc_load_config` -- sources `cognitive-core.conf` following the resolution order above
-- **JSON output helpers** -- produce valid JSON with or without jq installed
-- **Project directory resolution** -- determines `CC_PROJECT_DIR` from environment or filesystem
-
-This shared library eliminates code duplication and ensures consistent behavior across all hooks.
+Every hook sources `_lib.sh` first. It provides config loading (`_cc_load_config`), JSON helpers (`_cc_json_get`, `_cc_json_pretool_deny`, `_cc_json_session_context`, `_cc_json_posttool_context`), a session cache (`_cc_session_cache_add`), the `_cc_rg` ripgrep wrapper with grep fallback, and project directory resolution. It works with or without `jq` and when sourced into zsh. `_session-hygiene.sh` is the second sourced helper (orphan process detection).
 
 ### Bash Validation (Safety Guard)
 
-The `validate-bash.sh` hook blocks dangerous commands before they execute:
+`validate-bash.sh` blocks dangerous commands before they run: destructive `rm` on system paths, force pushes to protected branches, `git reset --hard`, `git clean -f`, unbounded SQL deletes, `chmod 777`, state-changing `gh`/Jira calls without approval (shared-state gate), and custom `CC_BLOCKED_PATTERNS`.
 
-- `rm` targeting system-critical paths (`/`, `/etc`, `/usr`, etc.)
-- `git push --force` to main/master
-- `git reset --hard`, `git clean -f`
-- `DROP TABLE`, `TRUNCATE TABLE`, `DELETE FROM` without WHERE
-- `chmod 777`
-- Custom patterns defined in `CC_BLOCKED_PATTERNS`
+### Git Hooks
 
-Blocked commands produce a `deny` JSON response. Safe commands exit silently (exit 0, no output).
+`core/git-hooks/check-forbidden-chars.sh` runs at pre-commit and rejects AI-tell characters in tracked files, with path-prefix excludes.
 
 ## Agent Hub-and-Spoke Model
 
-Agents are markdown definition files that configure Claude Code's multi-agent system.
-
 ```
-                +---------------------+
-                | project-coordinator |
-                |     (Hub / Opus)    |
-                +----------+----------+
-                           |
-     +----------+----------+----------+----------+
-     |          |          |          |          |
- solution   code-std    test      research  database
- architect  reviewer  specialist  analyst  specialist
+                    +---------------------+
+                    | project-coordinator |
+                    |     (Hub / Opus)    |
+                    +----------+----------+
+                               |
+  +--------+--------+--------+-+------+--------+--------+--------+
+  |        |        |        |        |        |        |        |
+solution code-std  test   research database security angular  spring-boot
+architect reviewer spec.  analyst  spec.    analyst  spec.    spec.
 ```
 
-The **project-coordinator** is the hub. It receives requests, analyzes them, and delegates to the appropriate specialist. After specialists complete their work, the **code-standards-reviewer** performs a mandatory quality gate.
+The coordinator receives requests and delegates; the code-standards-reviewer is the quality gate after implementation. Agents run least-privilege (a `tools:` allowlist or `disallowedTools` in frontmatter).
 
 | Agent | Model | Responsibility |
 |-------|-------|----------------|
 | project-coordinator | opus | Orchestration, delegation |
-| solution-architect | opus | Architecture, business workflows |
+| solution-architect | opus | Architecture, business workflows, ADR feasibility review |
 | code-standards-reviewer | sonnet | Code review, standards compliance |
 | test-specialist | sonnet | Tests, coverage, QA |
-| research-analyst | opus | External research, library evaluation |
+| research-analyst | opus | External research with the Source Authority Model (T1-T5) |
 | database-specialist | opus | Query optimization, schema design |
-| security-analyst | opus | Offensive security, pentest, vulnerability analysis |
-| skill-updater | sonnet | Framework synchronization, component updates |
+| security-analyst | opus | Offensive security, vulnerability analysis |
+| angular-specialist | sonnet | Angular migration and patterns |
+| spring-boot-specialist | sonnet | Spring Boot migration and patterns |
+| skill-updater | sonnet | Framework synchronization |
 
-Which agents to install is controlled by `CC_AGENTS` in configuration.
+Which agents are installed is controlled by `CC_AGENTS`.
 
-The **skill-updater** agent works with the `/skill-sync` skill to keep installed components synchronized with the framework source using checksum-based three-way merging (see `update.sh`).
+### Source Authority Model
 
-### Agent Teams Integration (Experimental)
+Research agents classify every source into tiers T1 (official) to T5 (unverified, discarded by default). Decisions require T1 or T2 backing; the higher tier wins on conflict. See [source-authority-model.md](research/source-authority-model.md). This is the framework's input-side grounding for external facts.
 
-When `CC_AGENT_TEAMS=true`, the coordinator gains a second execution path: **Agent Teams** for parallel multi-agent work alongside the existing subagent delegation for sequential/isolated tasks.
+## Skills
 
-```
-              PROJECT-COORDINATOR (Hub)
-                       |
-         Routing: parallel? isolated?
-              /                  \
-    SUBAGENT PATH            TEAM PATH
-    (sequential)            (parallel)
-    - Full frontmatter      - /agent-team bridge
-    - Tool isolation        - Prompt-injected defs
-    - Single agent          - Sonnet teammates
-                            - /team-guard (3min)
-```
+Skills are installed to `.claude/skills/<name>/SKILL.md` (other adapters: `.cognitive-core/skills/`). They require YAML frontmatter (`name`, `description`, `allowed-tools`), validated by suite 02. Note that `allowed-tools` is documentation, not enforcement; enforcement lives in hooks.
 
-The routing decision is based on task characteristics:
+| Invocation | Behavior | Examples |
+|------------|----------|----------|
+| Model-invocable | Claude may load the skill when relevant | session-resume, code-review, project-board, acceptance-verification |
+| Manual only | `disable-model-invocation: true`; invoked via `/skill-name` | pre-commit, fitness, project-status, smoke-test, workflow-analysis |
+| Background knowledge | `user-invocable: false` | security-baseline |
 
-| Characteristic | Path | Rationale |
-|---------------|------|-----------|
-| Single-domain, needs tool isolation | Subagent | Full frontmatter enforcement |
-| Multi-domain, parallelizable | Agent Team | True parallel saves wall-clock time |
-| Sequential dependency chain | Subagent | Teams add overhead for serial work |
-| Security analysis (read-only) | Subagent | Tool restrictions critical |
+Progressive disclosure: concise `SKILL.md` (under 500 lines), detail in `references/`, deterministic work in scripts.
 
-### Agent Teams Frontmatter Fields
+### Notable Skill Subsystems
 
-Agent definitions support optional fields for team behavior. All are backward-compatible — agents without these fields continue to work as subagents.
+| Skill | Subsystem |
+|-------|-----------|
+| project-board | Provider layer (GitHub Projects, Jira, YouTrack) via `_provider-lib.sh`; approval gate; `pr/pr-guard.sh` PR lifecycle rules; `validate-prompt.sh` prompt linter (stochastic vulnerability check + path grounding) |
+| smoke-test | Reference implementation of ability-type decomposition (`scripts/`) |
+| fitness | Weighted quality score used by the CI gates |
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `teamRole` | string | `null` | Role in team context: `lead`, `specialist`, `reviewer`, `observer` |
-| `teamModel` | string | `sonnet` | Model override when running as a teammate (Sonnet default for Max plan sustainability) |
-| `teamParallelizable` | boolean | `true` | Whether this agent's work can run in parallel with others |
-| `teamDependsOn` | list | `[]` | Agent types that must complete before this agent starts |
-| `teamPriority` | integer | `50` | Task claim priority (1=highest, 100=lowest) |
-| `teamMaxConcurrent` | integer | `1` | Maximum concurrent instances of this agent in a team |
+### Python Helpers
 
-Example with team fields:
+Python is used in adapters (3.10+) and in skill helpers (stdlib only, must run on macOS system Python 3.9). Helpers run with `python3 -I` so modules in the project checkout are never imported.
 
-```yaml
----
-name: code-standards-reviewer
-description: Code review, standards compliance
-model: sonnet
-disallowedTools:
-  - WebFetch
-  - WebSearch
-teamRole: reviewer
-teamModel: sonnet
-teamParallelizable: false
-teamDependsOn:
-  - solution-architect
-  - test-specialist
-teamPriority: 90
-teamMaxConcurrent: 1
----
-```
+## Adapters
 
-This tells the bridge skill: run the reviewer last (priority 90), only after architect and tester finish (`teamDependsOn`), with a single instance (`teamMaxConcurrent: 1`).
+Adapters implement the contract in `adapters/adapter-interface.yaml`: five functions (`_adapter_install_hook`, `_adapter_install_agent`, `_adapter_install_skill`, `_adapter_generate_settings`, `_adapter_generate_project_readme`), checked by `_adapter_validate`. Shared defaults live in `_adapter-lib.sh` and `adapters/_shared/` (Python utilities, safety rules, MCP server).
 
-### Team Guard (`/team-guard`)
+| Adapter | Platform | Install dir | Project file |
+|---------|----------|-------------|--------------|
+| claude | Claude Code | `.claude/` | `CLAUDE.md` |
+| aider | Aider (+ Ollama local models) | `.cognitive-core/` | `CONVENTIONS.md` |
+| intellij | IntelliJ + DevoxxGenie (MCP server) | `.cognitive-core/` | `DEVOXXGENIE.md` |
+| vscode | VS Code (Copilot, Continue.dev, Cline) | `.cognitive-core/` (MCP config in `.vscode/mcp.json`) | `.github/copilot-instructions.md` |
 
-A CronCreate-based watchdog skill that runs every `CC_TEAM_GUARD_INTERVAL` (default: 3 minutes) to monitor team health:
-
-- **Task age**: Detects tasks stuck beyond `CC_TEAM_STUCK_THRESHOLD` (default: 300s)
-- **Claim staleness**: Unclaims tasks held too long without progress
-- **Dependency cycles**: Detects and breaks circular dependencies
-- **Teammate responsiveness**: Pings unresponsive teammates
-- **Token budget**: Warns when approaching `CC_TEAM_TOKEN_BUDGET`
-
-Uses a two-strike circuit breaker: first breach warns, second consecutive breach takes corrective action.
-
-### Team Hooks
-
-| Event | Hook | Purpose |
-|-------|------|---------|
-| `TeammateIdle` | `teammate-idle.sh` | Assigns review/cleanup work to idle teammates |
-| `TaskCompleted` | `task-completed.sh` | Enforces quality gate before accepting results |
-
-Both hooks follow the standard JSON stdin/stdout protocol and source `_lib.sh`.
-
-## Skill Hierarchy
-
-Skills are reusable knowledge modules installed to `.claude/skills/<name>/SKILL.md`.
-
-### Auto-Load vs. Manual
-
-| Type | Behavior | Examples |
-|------|----------|---------|
-| Auto-load | Claude reads at session start | session-resume, code-review, tech-intel |
-| Manual | Invoked explicitly via `/skill-name` | pre-commit, fitness, project-status, session-sync, skill-sync, workflow-analysis, test-scaffold |
-
-Manual skills use `disable-model-invocation: true` to avoid consuming context budget at startup.
-
-### Progressive Disclosure
-
-Skills follow a two-tier pattern:
-- `SKILL.md` -- Concise instructions (under 500 lines)
-- `references/` -- Detailed reference material loaded on demand
-
-This keeps the auto-load context budget under 100KB total.
+Platforms without native hooks get the safety rules as conventions text; enforcement is weaker there by design.
 
 ## Install / Update Lifecycle
 
 ### install.sh
 
-1. Validates the target is a git repository
-2. Checks for an existing installation via `version.json`
-3. Runs interactive setup if no `cognitive-core.conf` exists (prompts for language, database, architecture, agents, skills, hooks, CI/CD)
-4. Creates `.claude/` directory structure
-5. Copies selected hooks, agents, and skills from the framework
-6. Installs language pack and database pack if configured
-7. Generates `settings.json` (hook wiring), `CLAUDE.md` (scaffold), `AGENTS_README.md`
-8. Optionally installs CI/CD workflows, Docker configs, monitoring stack, and K8s manifests
-9. Writes `version.json` with SHA-256 checksums of all installed files
+1. Validates the target is a git repository and anchors `CC_FRAMEWORK_ROOT`
+2. Runs interactive setup if no `cognitive-core.conf` exists
+3. Copies `_lib.sh`, the hooks in `CC_HOOKS`, agents, the skills in `CC_SKILLS`, and the language and database pack
+4. Generates settings (hook wiring from the template), `CLAUDE.md` scaffold, `AGENTS_README.md`, `.gitattributes`, `.gitignore` fragments
+5. Optionally installs CI/CD workflows, Docker, monitoring, and K8s manifests
+6. Writes `version.json` with SHA-256 checksums of all installed files
 
 ### update.sh
 
-1. Reads the existing `version.json` manifest
-2. For each tracked file, computes SHA-256 of the installed copy
-3. Compares against the original checksum (from install time) and the latest framework file
-4. **Unmodified files** -- updated silently
-5. **User-modified files** -- preserved with a warning to review manually
-6. **New framework files** -- installed automatically
-7. Writes an updated `version.json` with new checksums
+1. Reads `version.json` and compares installed, original, and latest checksums
+2. Unmodified files are updated; user-modified files are preserved with a warning; files marked as local overrides are skipped
+3. New files inside installed skills are added; `--prune` removes files the framework dropped
+4. Switches to `CC_SYNC_BRANCH` (default `chore/cognitive-core-sync`) when `CC_SYNC_ENFORCE` is on, the project has an `origin` remote, and it is not already on main, master, develop, or the sync branch; writes a new manifest
 
-This checksum-based approach means `update.sh` never overwrites your customizations.
+Only paths under `core/hooks`, `core/agents`, and `core/skills` are mapped back to the framework. New shared components must live there, or install and update will not deliver them.
+
+### Plugin Channel
+
+`build-plugin.sh` packages hooks, agents, and skills as a Claude Code plugin in `plugin/`. It is a secondary channel; `install.sh` remains primary ([#331](https://github.com/mindcockpit-ai/cognitive-core/issues/331)).
 
 ## Language and Database Packs
 
-Packs are drop-in extensions that add language-specific or database-specific configuration and skills.
-
-```
-language-packs/python/
-+-- pack.conf              # CC_* defaults for Python projects
-+-- skills/
-    +-- python-patterns/
-        +-- SKILL.md       # Python-specific patterns and rules
-```
-
-When `CC_LANGUAGE` is set, `install.sh` copies the pack's skills into `.claude/skills/` and its `pack.conf` values serve as defaults during interactive setup.
+Packs are drop-in extensions: `pack.conf` (defaults), `skills/`, path-scoped `rules/`, `compact-rules.md`, and for languages `gitignore` and `gitattributes-lang` fragments plus optional `fitness-checks.sh` and `lint-config.sh` (shared helpers in `language-packs/_common.sh`). When `CC_LANGUAGE` or `CC_DATABASE` is set, install copies the pack's skills and rules.
 
 ## CI/CD Pipeline
 
-The pipeline uses a 5-gate progressive quality model. See `docs/CICD_GUIDE.md` for the full setup guide.
+A 5-gate progressive quality model (see [CICD_GUIDE.md](CICD_GUIDE.md)):
 
 ```
 Commit --> Gate 1: Lint --> Gate 2: Commit --> Gate 3: Test --> Gate 4: Merge --> Gate 5: Deploy
               60%             80%                85%             90%              95%
 ```
 
-Each gate runs `fitness-check.sh` to produce a weighted quality score. Metrics are pushed to Prometheus via `push-metrics.sh` and visualized in Grafana dashboards.
+Each gate runs the fitness check. Project-board automation (closure guard, approval gate, daily reconciliation) runs as GitHub workflows with a GitHub App token. Self-hosted runners are selected by trust level.
 
 ## Design Principles
 
-1. **Single config** -- One `cognitive-core.conf` drives everything
-2. **No runtime dependencies** -- Hooks work with bash alone (jq is optional)
-3. **Safe updates** -- Checksum-based updater never destroys user work
-4. **Progressive disclosure** -- Concise SKILL.md files, detail in references/
-5. **Language agnostic** -- Core framework has no language assumptions; packs add specifics
-6. **Security by default** -- Dangerous commands blocked, credentials externalized, Pushgateway localhost-only
+1. **Parsimony** -- the simplest solution that meets requirements; every component justifies its complexity. Security is the exception: defense-in-depth across layers ([paper](research/parsimony-principle.md))
+2. **Deterministic over stochastic** -- what must hold is enforced by hooks and scripts, not by instructions
+3. **Single config** -- one `cognitive-core.conf` drives everything
+4. **No runtime dependencies** -- bash alone works; jq, ripgrep, python3 are optional or stdlib-only
+5. **Safe updates** -- the checksum-based updater never destroys user work
+6. **Backwards compatible** -- existing installations keep working after every update
+7. **Language and platform agnostic** -- packs add language specifics, adapters add platform specifics
+8. **Security by default** -- dangerous commands blocked, credentials externalized, graduated responses
+
+## Future Components
+
+### Strategic Focus: Deterministic Assurance
+
+The next releases concentrate on one goal: what the assistant reads, references, and does is verified by deterministic checks instead of trusted instructions. Three streams serve it:
+
+| Stream | Goal | Components |
+|--------|------|------------|
+| **Grounding** | Every reference (path, symbol, agent, table, source) resolves to something real | L0 source authority (exists), L2 code grounding engine, reply grounding hook, evidence citations in acceptance verification |
+| **Ontology** | Domain terms are defined once and used canonically | JSON ontology file per project (stdlib parser), SKOS export, alias/deprecated/anchor drift checks |
+| **Deterministic assurance** | Rules that must hold are enforced by scripts, hooks, and CI, not by prose | Stochastic vulnerability check (L1) for prompts, issues, skills, and agents; PR lifecycle guard; approval gate; S-to-D migration of skill steps |
+
+Status: **In progress** (epic open, work started), **Proposed** (ADR under review), **Planned** (issue accepted), **Deprioritized** (kept in backlog, not scheduled), **Research** (not committed).
+
+### Proposed
+
+| Component | Stream | Tracking |
+|-----------|--------|----------|
+| Grounding and ontology framework: shared engine as a non-invocable skill, four layers (L0 source authority, L1 stochastic vulnerability, L2 code grounding, L3 ontology), JSON ontology with SKOS export, versioned machine output, optional SARIF | Grounding, Ontology | [ADR-001](architecture/decisions/ADR-001-grounding-ontology-framework.md) |
+| Self-check suite: L1 over the framework's own skills and agents | Deterministic assurance | ADR-001 |
+
+### In Progress
+
+| Component | Stream | Tracking |
+|-----------|--------|----------|
+| PR lifecycle guard (`pr-guard.sh`, `gh pr` guards in validate-bash, CI enforcement) | Deterministic assurance | [#391](https://github.com/mindcockpit-ai/cognitive-core/issues/391) |
+| Approval gate end to end, non-PR work reaches To Be Tested | Deterministic assurance | [#367](https://github.com/mindcockpit-ai/cognitive-core/issues/367) |
+| Drift-free installs across adapters, plugin as secondary channel | Platform | [#331](https://github.com/mindcockpit-ai/cognitive-core/issues/331) |
+| Settings follow `CC_HOOKS`, merge on re-install, MCP opt-in | Platform | [#345](https://github.com/mindcockpit-ai/cognitive-core/issues/345) |
+| Test suite hardening (assertion quality, env isolation) | Deterministic assurance | [#275](https://github.com/mindcockpit-ai/cognitive-core/issues/275) |
+
+### Planned
+
+| Component | Stream | Tracking |
+|-----------|--------|----------|
+| End-to-end integration tests of installed projects | Deterministic assurance | [#93](https://github.com/mindcockpit-ai/cognitive-core/issues/93) |
+| Instruction-file consistency check (CLAUDE.md, rules, skills) | Grounding | [#229](https://github.com/mindcockpit-ai/cognitive-core/issues/229) |
+| Worktree guard and `/worktree` skill for parallel sessions | Platform | [#266](https://github.com/mindcockpit-ai/cognitive-core/issues/266) |
+| Toxic flow analysis (cross-call data exfiltration) | Security | [#209](https://github.com/mindcockpit-ai/cognitive-core/issues/209) |
+| MCP server configuration scan | Security | [#210](https://github.com/mindcockpit-ai/cognitive-core/issues/210) |
+| Enterprise pack manifest (bundled custom components) | Platform | [#110](https://github.com/mindcockpit-ai/cognitive-core/issues/110) |
+| Further adapters: Eclipse, Cursor, Windsurf, Neovim | Platform | [#82](https://github.com/mindcockpit-ai/cognitive-core/issues/82), [#83](https://github.com/mindcockpit-ai/cognitive-core/issues/83), [#84](https://github.com/mindcockpit-ai/cognitive-core/issues/84), [#85](https://github.com/mindcockpit-ai/cognitive-core/issues/85) |
+
+### Deprioritized
+
+| Component | Tracking |
+|-----------|----------|
+| EU AI Act compliance (disclosure, provenance trailers, JSON Lines audit log, emergency stop, minimum security level, code of conduct) | [#120](https://github.com/mindcockpit-ai/cognitive-core/issues/120) |
+| GDPR-oriented features (PII detection, SIEM export) | [#120](https://github.com/mindcockpit-ai/cognitive-core/issues/120), [#132](https://github.com/mindcockpit-ai/cognitive-core/issues/132) |
+
+Items from these epics that also serve deterministic assurance (for example the emergency stop or a structured audit log of hook decisions) can be pulled forward individually.
+
+### Research
+
+| Topic | Note |
+|-------|------|
+| Deterministic workflow engine | [#200](https://github.com/mindcockpit-ai/cognitive-core/issues/200); evaluate against the S-to-D script approach first |
+| Sampling-based stochastic checks (semantic entropy, self-consistency) | Deferred in ADR-001 until deterministic layers show measurable gaps |
+| Agent Teams (parallel teammates, team-guard watchdog, `TeammateIdle`/`TaskCompleted` hooks) | Researched, not implemented; earlier versions of this document described it as existing. Only the `CC_AGENT_TEAMS` setting exists (install.sh, settings template) |
+| cognitive-core assistant (authority-weighted RAG) | [#141](https://github.com/mindcockpit-ai/cognitive-core/issues/141), separate product |
