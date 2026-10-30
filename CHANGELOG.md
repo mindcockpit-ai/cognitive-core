@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.10.0](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.9.1...v1.10.0) (2026-10-30)
+
+
+### Features
+
+* **install:** grounding skill delivered with the skills that require it ([#451](https://github.com/mindcockpit-ai/cognitive-core/issues/451)) ([d7b2913](https://github.com/mindcockpit-ai/cognitive-core/commit/d7b2913326b17784834c89b9d22e6bdbe6f0fce3))
+
+
+### Bug Fixes
+
+* **skills:** propose prompt linter runs on every platform and reports NOT RUN ([#445](https://github.com/mindcockpit-ai/cognitive-core/issues/445)) ([c4b859c](https://github.com/mindcockpit-ai/cognitive-core/commit/c4b859ce3642b5d23e2349b4b376964e869ace66))
+
 ## [1.9.1](https://github.com/mindcockpit-ai/cognitive-core/compare/v1.9.0...v1.9.1) (2026-10-19)
 
 
