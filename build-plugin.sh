@@ -2,6 +2,11 @@
 # SPDX-License-Identifier: FSL-1.1-ALv2
 # Build the cognitive-core Claude Code plugin from core/ sources
 # Usage: bash build-plugin.sh
+#
+# The dynamic content (scripts, agents, skills) is built in a staging
+# directory, validated there, and only then swapped into plugin/. A failed
+# build leaves plugin/ unchanged (#320). Hooks are copied verbatim: _lib.sh
+# resolves plugin mode itself through CLAUDE_PLUGIN_ROOT, so nothing is patched.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -17,51 +22,86 @@ if [ ! -d "${CORE_DIR}/hooks" ] || [ ! -d "${CORE_DIR}/agents" ] || [ ! -d "${CO
     exit 1
 fi
 
-# Preserve static plugin files (manifest, hooks config)
 info "Building plugin from core/ sources..."
 
-# Clean dynamic content (hooks, agents, skills) but preserve static files
-rm -rf "${PLUGIN_DIR}/scripts" "${PLUGIN_DIR}/agents" "${PLUGIN_DIR}/skills"
-mkdir -p "${PLUGIN_DIR}/scripts" "${PLUGIN_DIR}/agents" "${PLUGIN_DIR}/skills"
-
-# Ensure static structure exists
-mkdir -p "${PLUGIN_DIR}/.claude-plugin" "${PLUGIN_DIR}/hooks"
+# Stage next to plugin/ so the final swap is a rename on the same filesystem
+STAGE="$(mktemp -d "${SCRIPT_DIR}/.plugin-build.XXXXXX")"
+KEEP_STAGE=false
+trap '[ "$KEEP_STAGE" = true ] || rm -rf "$STAGE"' EXIT
+mkdir -p "${STAGE}/scripts" "${STAGE}/agents" "${STAGE}/skills"
 
 # ---- Copy hook scripts ----
 info "Copying hook scripts..."
-cp "${CORE_DIR}/hooks/"*.sh "${PLUGIN_DIR}/scripts/"
-chmod +x "${PLUGIN_DIR}/scripts/"*.sh
-
-# Patch _lib.sh for dual-mode (plugin cache + legacy) path resolution
-info "Patching _lib.sh for plugin mode..."
-sed -i '' 's|^# Resolve project directory|# Resolve paths (dual-mode: plugin cache or legacy .claude/hooks/)|' \
-    "${PLUGIN_DIR}/scripts/_lib.sh"
-sed -i '' '/^CC_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE\[0\]}")\/\.\.\/.\./" && pwd)}"$/c\
-if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then\
-    # Plugin mode: scripts live in plugin cache\
-    SCRIPT_DIR="${CLAUDE_PLUGIN_ROOT}/scripts"\
-    CC_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"\
-else\
-    # Legacy mode: scripts live in .claude/hooks/ within the project\
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" \&\& pwd)"\
-    CC_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "${SCRIPT_DIR}/../.." \&\& pwd)}"\
-fi' "${PLUGIN_DIR}/scripts/_lib.sh"
+cp "${CORE_DIR}/hooks/"*.sh "${STAGE}/scripts/"
+chmod +x "${STAGE}/scripts/"*.sh
 
 # ---- Copy agents ----
 info "Copying agents..."
-cp "${CORE_DIR}/agents/"*.md "${PLUGIN_DIR}/agents/"
+cp "${CORE_DIR}/agents/"*.md "${STAGE}/agents/"
 
 # ---- Copy skills ----
 info "Copying skills..."
-cp -R "${CORE_DIR}/skills/"* "${PLUGIN_DIR}/skills/"
+cp -R "${CORE_DIR}/skills/"* "${STAGE}/skills/"
 
-# ---- Copy LICENSE ----
+# ---- Validate the staged build ----
+for d in scripts agents skills; do
+    if [ -z "$(ls -A "${STAGE}/${d}")" ]; then
+        warn "Staged ${d}/ is empty. plugin/ left unchanged."
+        exit 1
+    fi
+done
+SYNTAX_ERRORS=0
+for script in "${STAGE}/scripts/"*.sh; do
+    if ! bash -n "$script" 2>/dev/null; then
+        warn "Syntax error in $(basename "$script")"
+        SYNTAX_ERRORS=$((SYNTAX_ERRORS + 1))
+    fi
+done
+if [ "$SYNTAX_ERRORS" -gt 0 ]; then
+    warn "${SYNTAX_ERRORS} script(s) have syntax errors! plugin/ left unchanged."
+    exit 1
+fi
+
+# Static plugin files are maintained by hand; they must be valid JSON
+for json_file in "${PLUGIN_DIR}/.claude-plugin/plugin.json" "${PLUGIN_DIR}/hooks/hooks.json"; do
+    if [ -f "$json_file" ] && command -v jq &>/dev/null; then
+        if ! jq empty "$json_file" 2>/dev/null; then
+            warn "Invalid JSON: $(basename "$json_file"). plugin/ left unchanged."
+            exit 1
+        fi
+    fi
+done
+
+# ---- Swap the staged content into plugin/ ----
+# Current dirs move into the stage first, so a failed rename can be rolled
+# back; the trap then removes the old content with the stage.
+mkdir -p "${PLUGIN_DIR}/.claude-plugin" "${PLUGIN_DIR}/hooks" "${STAGE}/old"
+rollback() {
+    local d
+    for d in scripts agents skills; do
+        if [ -e "${STAGE}/old/${d}" ]; then
+            rm -rf "${PLUGIN_DIR:?}/${d}"
+            if ! mv "${STAGE}/old/${d}" "${PLUGIN_DIR}/${d}"; then
+                KEEP_STAGE=true
+                warn "Restore failed: previous plugin/${d} kept in ${STAGE}/old/${d}"
+            fi
+        fi
+    done
+    [ "$KEEP_STAGE" = true ] || warn "Swap failed. plugin/ restored."
+    exit 1
+}
+for d in scripts agents skills; do
+    if [ -e "${PLUGIN_DIR}/${d}" ] || [ -L "${PLUGIN_DIR}/${d}" ]; then
+        mv "${PLUGIN_DIR}/${d}" "${STAGE}/old/${d}" || rollback
+    fi
+    mv "${STAGE}/${d}" "${PLUGIN_DIR}/${d}" || rollback
+done
+
 if [ -f "${SCRIPT_DIR}/LICENSE" ]; then
     cp "${SCRIPT_DIR}/LICENSE" "${PLUGIN_DIR}/LICENSE"
 fi
 
-# ---- Validate ----
-HOOK_COUNT=$(find "${PLUGIN_DIR}/scripts" -name "*.sh" -not -name "_lib.sh" | wc -l | tr -d ' ')
+HOOK_COUNT=$(find "${PLUGIN_DIR}/scripts" -name "*.sh" -not -name "_*.sh" | wc -l | tr -d ' ')
 AGENT_COUNT=$(find "${PLUGIN_DIR}/agents" -name "*.md" | wc -l | tr -d ' ')
 SKILL_COUNT=$(find "${PLUGIN_DIR}/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
 
@@ -70,29 +110,4 @@ info "  Hooks:  ${HOOK_COUNT} scripts"
 info "  Agents: ${AGENT_COUNT} agents"
 info "  Skills: ${SKILL_COUNT} skills"
 info "  Output: ${PLUGIN_DIR}/"
-
-# Syntax check all scripts
-SYNTAX_ERRORS=0
-for script in "${PLUGIN_DIR}/scripts/"*.sh; do
-    if ! bash -n "$script" 2>/dev/null; then
-        warn "Syntax error in $(basename "$script")"
-        SYNTAX_ERRORS=$((SYNTAX_ERRORS + 1))
-    fi
-done
-
-if [ "$SYNTAX_ERRORS" -gt 0 ]; then
-    warn "${SYNTAX_ERRORS} script(s) have syntax errors!"
-    exit 1
-fi
-
-# Validate JSON files
-for json_file in "${PLUGIN_DIR}/.claude-plugin/plugin.json" "${PLUGIN_DIR}/hooks/hooks.json"; do
-    if [ -f "$json_file" ] && command -v jq &>/dev/null; then
-        if ! jq empty "$json_file" 2>/dev/null; then
-            warn "Invalid JSON: $(basename "$json_file")"
-            exit 1
-        fi
-    fi
-done
-
 info "All validations passed."

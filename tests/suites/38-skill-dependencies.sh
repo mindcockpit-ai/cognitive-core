@@ -238,7 +238,7 @@ assert_file_exists "bad names: update still adds the required skill" "${proj}/.c
 
 diff -rq "${ROOT_DIR}/core/skills/grounding" "${ROOT_DIR}/plugin/skills/grounding" >/dev/null \
     && _pass "plugin ships grounding identical to core" || _fail "plugin ships grounding identical to core"
-if grep -qF 'cp -R "${CORE_DIR}/skills/"* "${PLUGIN_DIR}/skills/"' "${ROOT_DIR}/build-plugin.sh"; then
+if grep -qF 'cp -R "${CORE_DIR}/skills/"* "${STAGE}/skills/"' "${ROOT_DIR}/build-plugin.sh"; then
     _pass "build-plugin.sh copies every core skill"
 else
     _fail "build-plugin.sh copies every core skill" "core/skills copy line changed"
