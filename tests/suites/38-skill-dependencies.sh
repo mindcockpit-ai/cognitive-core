@@ -2,7 +2,7 @@
 # Test suite 38 - Skill dependencies (requires-skills) and new skills in update.sh
 #   - _cc_skill_requires / _cc_expand_skill_deps (adapters/_adapter-lib.sh)
 #   - install.sh installs required skills for every adapter (#433)
-#   - update.sh installs missing selected and required skills (#423, #433)
+#   - update.sh installs missing selected and required skills, every adapter (#423, #433)
 #   - update.sh --prune keeps required skills; --dry-run reports skills to add
 #   - the plugin ships the grounding skill
 set -euo pipefail
@@ -125,52 +125,59 @@ for platform in claude aider intellij vscode; do
 done
 
 # =============================================================================
-# Section 3: update.sh adds missing skills (claude adapter)
+# Section 3: update.sh adds missing skills, every adapter
 # =============================================================================
 
-proj=$(new_project "update" "claude" "project-board")
-bash "${ROOT_DIR}/install.sh" "$proj" >/dev/null 2>&1 || _fail "update fixture: install"
-skills="${proj}/.claude/skills"
+for platform in claude aider intellij vscode; do
+    case "$platform" in
+        claude) idir=".claude" ;;
+        *) idir=".cognitive-core" ;;
+    esac
 
-# Older install: no grounding yet. Also select a skill that is not installed
-# (#423) and leave one unselected skill uninstalled.
-rm -rf "${skills}/grounding"
-chmod u+w "${proj}/cognitive-core.conf"
-sed -i.bak 's/^CC_SKILLS=.*/CC_SKILLS="project-board lint-debt"/' "${proj}/cognitive-core.conf"
-rm -f "${proj}/cognitive-core.conf.bak"
-[ ! -d "${skills}/lint-debt" ] || _fail "update fixture: lint-debt not installed yet"
+    proj=$(new_project "update-${platform}" "$platform" "project-board")
+    bash "${ROOT_DIR}/install.sh" "$proj" >/dev/null 2>&1 || _fail "[${platform}] update fixture: install"
+    skills="${proj}/${idir}/skills"
 
-out=$(bash "${ROOT_DIR}/update.sh" --prune --dry-run "$proj" 2>&1) && rc=0 || rc=$?
-assert_eq "dry run exits 0" "0" "$rc"
-assert_contains "dry run reports the required skill" "$out" "WOULD ADD (skill): grounding"
-assert_contains "dry run reports the newly selected skill" "$out" "WOULD ADD (skill): lint-debt"
-assert_not_contains "dry run never removes the required skill" "$out" "WOULD REMOVE: skills/grounding/"
-[ ! -d "${skills}/grounding" ] && _pass "dry run changes nothing" || _fail "dry run changes nothing"
+    # Older install: no grounding yet. Also select a skill that is not installed
+    # (#423) and leave one unselected skill uninstalled.
+    rm -rf "${skills}/grounding"
+    chmod u+w "${proj}/cognitive-core.conf"
+    sed -i.bak 's/^CC_SKILLS=.*/CC_SKILLS="project-board lint-debt"/' "${proj}/cognitive-core.conf"
+    rm -f "${proj}/cognitive-core.conf.bak"
+    [ ! -d "${skills}/lint-debt" ] || _fail "[${platform}] update fixture: lint-debt not installed yet"
 
-out=$(bash "${ROOT_DIR}/update.sh" "$proj" 2>&1) && rc=0 || rc=$?
-assert_eq "update exits 0" "0" "$rc"
-assert_contains "update reports the required skill as NEW" "$out" "NEW (skill): grounding"
-assert_contains "update reports the selected skill as NEW (#423)" "$out" "NEW (skill): lint-debt"
-assert_file_exists "update installs the required skill" "${skills}/grounding/scripts/check.sh"
-if [ -x "${skills}/grounding/scripts/check.sh" ]; then _pass "update keeps exec bits"; else _fail "update keeps exec bits"; fi
-assert_file_exists "update installs the selected skill (#423)" "${skills}/lint-debt/SKILL.md"
-[ ! -d "${skills}/smoke-test" ] && _pass "unselected skill stays uninstalled" || _fail "unselected skill stays uninstalled"
-diff -rq "${ROOT_DIR}/core/skills/grounding" "${skills}/grounding" >/dev/null \
-    && _pass "installed grounding matches the framework" || _fail "installed grounding matches the framework"
-assert_contains "manifest records the new skill" \
-    "$(cat "${proj}/.claude/cognitive-core/version.json")" "skills/grounding/scripts/check.sh"
+    out=$(bash "${ROOT_DIR}/update.sh" --prune --dry-run "$proj" 2>&1) && rc=0 || rc=$?
+    assert_eq "[${platform}] dry run exits 0" "0" "$rc"
+    assert_contains "[${platform}] dry run reports the required skill" "$out" "WOULD ADD (skill): grounding"
+    assert_contains "[${platform}] dry run reports the newly selected skill" "$out" "WOULD ADD (skill): lint-debt"
+    assert_not_contains "[${platform}] dry run never removes the required skill" "$out" "WOULD REMOVE: skills/grounding/"
+    [ ! -d "${skills}/grounding" ] && _pass "[${platform}] dry run changes nothing" || _fail "[${platform}] dry run changes nothing"
 
-out=$(bash "${ROOT_DIR}/update.sh" "$proj" 2>&1) && rc=0 || rc=$?
-assert_not_contains "second update adds nothing" "$out" "NEW (skill)"
+    out=$(bash "${ROOT_DIR}/update.sh" "$proj" 2>&1) && rc=0 || rc=$?
+    assert_eq "[${platform}] update exits 0" "0" "$rc"
+    assert_contains "[${platform}] update reports the required skill as NEW" "$out" "NEW (skill): grounding"
+    assert_contains "[${platform}] update reports the selected skill as NEW (#423)" "$out" "NEW (skill): lint-debt"
+    assert_file_exists "[${platform}] update installs the required skill" "${skills}/grounding/scripts/check.sh"
+    if [ -x "${skills}/grounding/scripts/check.sh" ]; then _pass "[${platform}] update keeps exec bits"; else _fail "[${platform}] update keeps exec bits"; fi
+    assert_file_exists "[${platform}] update installs the selected skill (#423)" "${skills}/lint-debt/SKILL.md"
+    [ ! -d "${skills}/smoke-test" ] && _pass "[${platform}] unselected skill stays uninstalled" || _fail "[${platform}] unselected skill stays uninstalled"
+    diff -rq "${ROOT_DIR}/core/skills/grounding" "${skills}/grounding" >/dev/null \
+        && _pass "[${platform}] installed grounding matches the framework" || _fail "[${platform}] installed grounding matches the framework"
+    assert_contains "[${platform}] manifest records the new skill" \
+        "$(cat "${proj}/${idir}/cognitive-core/version.json")" "skills/grounding/scripts/check.sh"
 
-out=$(bash "${ROOT_DIR}/update.sh" --prune --dry-run "$proj" 2>&1) || true
-assert_not_contains "prune keeps the required skill" "$out" "WOULD REMOVE: skills/grounding/"
+    out=$(bash "${ROOT_DIR}/update.sh" "$proj" 2>&1) && rc=0 || rc=$?
+    assert_not_contains "[${platform}] second update adds nothing" "$out" "NEW (skill)"
 
-# A local override keeps a removed skill removed
-rm -rf "${skills}/grounding"
-printf 'CC_LOCAL_OVERRIDES="skills/grounding/"\n' >> "${proj}/cognitive-core.conf"
-out=$(bash "${ROOT_DIR}/update.sh" "$proj" 2>&1) || true
-assert_not_contains "override: skill is not reinstalled" "$out" "NEW (skill): grounding"
+    out=$(bash "${ROOT_DIR}/update.sh" --prune --dry-run "$proj" 2>&1) || true
+    assert_not_contains "[${platform}] prune keeps the required skill" "$out" "WOULD REMOVE: skills/grounding/"
+
+    # A local override keeps a removed skill removed
+    rm -rf "${skills}/grounding"
+    printf 'CC_LOCAL_OVERRIDES="skills/grounding/"\n' >> "${proj}/cognitive-core.conf"
+    out=$(bash "${ROOT_DIR}/update.sh" "$proj" 2>&1) || true
+    assert_not_contains "[${platform}] override: skill is not reinstalled" "$out" "NEW (skill): grounding"
+done
 
 # =============================================================================
 # Section 4: conf without CC_SKILLS (installed skills count as selected)
