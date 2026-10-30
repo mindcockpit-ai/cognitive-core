@@ -12,6 +12,16 @@
 # into subprocess commands. Only line numbers and category labels are emitted.
 set -euo pipefail
 
+# Time budget (5s). Callers no longer need timeout(1), which stock macOS lacks:
+# re-exec under timeout/gtimeout when present. Without either, run unbounded;
+# the 64KB input cap and fixed patterns below are the primary guard.
+if [ -z "${_VP_BUDGETED:-}" ] && [ -f "$0" ]; then
+    _vp_timeout=$(command -v timeout 2>/dev/null || command -v gtimeout 2>/dev/null || true)
+    if [ -n "$_vp_timeout" ]; then
+        _VP_BUDGETED=1 exec "$_vp_timeout" 5 bash "$0" "$@"
+    fi
+fi
+
 # Helper: count grep matches safely (returns 0 on no match, no pipefail crash)
 _grep_count() {
     local pattern="$1"
@@ -187,6 +197,11 @@ fi
 
 _GROUNDING_MSG=""
 
+# Callers rarely export CC_PROJECT_DIR; fall back to the enclosing git repo.
+if [ -z "${CC_PROJECT_DIR:-}" ]; then
+    CC_PROJECT_DIR=$(env -u GIT_DIR -u GIT_WORK_TREE git rev-parse --show-toplevel 2>/dev/null || true)
+fi
+
 if [ -z "${CC_PROJECT_DIR:-}" ]; then
     _GROUNDING_MSG="Grounding: skipped (no project root)"
 else
@@ -215,7 +230,8 @@ if [ -z "$_GROUNDING_MSG" ]; then
     _L2_RESOLVED=0
     _L2_EVALUATED=0
 
-    for _term in "${_L2_REFS[@]}"; do
+    # ${arr[@]+...}: bash 3.2 (macOS) treats an empty array as unbound under set -u
+    for _term in ${_L2_REFS[@]+"${_L2_REFS[@]}"}; do
         # Constraint D: cap at 20 evaluated terms
         [ "$_L2_EVALUATED" -ge 20 ] && break
 
@@ -241,11 +257,17 @@ if [ -z "$_GROUNDING_MSG" ]; then
         # Resolution: agent handle (@name) vs file path
         case "$_term" in
             @*)
-                # Agent handle: strip @ and check filesystem
+                # Agent handle: strip @ and check the installed agent dirs
+                # (Claude, other adapters) and the framework source
                 _agent_name="${_term#@}"
-                if [ -f "${_L2_ROOT}/core/agents/${_agent_name}.md" ]; then
-                    _L2_RESOLVED=$((_L2_RESOLVED + 1))
-                fi
+                for _agent_dir in .claude/agents .cognitive-core/agents core/agents; do
+                    # Constraint H parity: installed agent files must not be symlinks
+                    if [ -f "${_L2_ROOT}/${_agent_dir}/${_agent_name}.md" ] \
+                        && [ ! -L "${_L2_ROOT}/${_agent_dir}/${_agent_name}.md" ]; then
+                        _L2_RESOLVED=$((_L2_RESOLVED + 1))
+                        break
+                    fi
+                done
                 ;;
             *)
                 # File path: test -e with Constraint H symlink check

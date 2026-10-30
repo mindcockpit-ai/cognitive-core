@@ -324,9 +324,12 @@ touch "${L2_FIXTURE}/core/hooks/validate-bash.sh"
 touch "${L2_FIXTURE}/core/agents/code-standards-reviewer.md"
 touch "${L2_FIXTURE}/core/agents/security-analyst.md"
 
-# L2-1: CC_PROJECT_DIR unset -> grounding skipped
-output=$(echo "<scope>Fix core/auth/handler.sh</scope><constraints>Do NOT skip</constraints>" | bash "$VP_SCRIPT" 2>/dev/null) || true
-assert_contains "L2: skipped when CC_PROJECT_DIR unset" "$output" "Grounding: skipped"
+# L2-1: CC_PROJECT_DIR unset outside any git repo -> grounding skipped
+L2_NOGIT=$(mktemp -d)
+SUITE19_TMP=("$L2_NOGIT")
+trap 'rm -rf "${SUITE19_TMP[@]}"' EXIT
+output=$(cd "$L2_NOGIT" && echo "<scope>Fix core/auth/handler.sh</scope><constraints>Do NOT skip</constraints>" | env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE GIT_CEILING_DIRECTORIES="$L2_NOGIT" bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "L2: skipped when CC_PROJECT_DIR unset and no git repo" "$output" "Grounding: skipped"
 
 # L2-2: CC_PROJECT_DIR set -> grounding runs
 output=$(echo "<scope>Fix core/auth/handler.sh</scope><constraints>Do NOT skip</constraints>" | CC_PROJECT_DIR="$L2_FIXTURE" bash "$VP_SCRIPT" 2>/dev/null) || true
@@ -468,5 +471,82 @@ if grep -qE '\| iconv [^|]*\|\| printf' "$VP_SCRIPT"; then
 else
     _pass "iconv fix: buggy '|| printf' fallback removed from validate-prompt.sh"
 fi
+
+# =============================================================================
+# Section 10: The linter runs where it is actually called
+# =============================================================================
+# Tests above call the script with CC_PROJECT_DIR set, which no real caller
+# did; the documented Step 7a call used timeout(1), absent on stock macOS.
+# These tests run the documented call path in an installed-project layout.
+
+# Git hooks (pre-commit runs this suite) export these; they would re-root git.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
+
+RUN_FIXTURE=$(mktemp -d)
+NO_TIMEOUT_BIN=$(mktemp -d)
+TIMEOUT_SHIM=$(mktemp -d)
+EMPTY_FIXTURE=$(mktemp -d)
+SUITE19_TMP+=("$RUN_FIXTURE" "$NO_TIMEOUT_BIN" "$TIMEOUT_SHIM" "$EMPTY_FIXTURE")
+mkdir -p "${RUN_FIXTURE}/.claude/skills/project-board" "${RUN_FIXTURE}/.claude/agents" \
+         "${RUN_FIXTURE}/.cognitive-core/agents" "${RUN_FIXTURE}/src"
+cp "$VP_SCRIPT" "${RUN_FIXTURE}/.claude/skills/project-board/validate-prompt.sh"
+touch "${RUN_FIXTURE}/.claude/agents/code-standards-reviewer.md"
+touch "${RUN_FIXTURE}/.cognitive-core/agents/test-specialist.md"
+touch "${RUN_FIXTURE}/src/app.py"
+git -C "$RUN_FIXTURE" init -q
+
+RUN_PROMPT="<scope>Fix src/app.py with @code-standards-reviewer and @test-specialist</scope><constraints>Do NOT skip</constraints>"
+
+# R1: root comes from git when CC_PROJECT_DIR is unset; agents resolve in installed dirs
+output=$(cd "$RUN_FIXTURE/src" && printf '%s\n' "$RUN_PROMPT" | env -u CC_PROJECT_DIR bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "run: grounding uses the git root when CC_PROJECT_DIR is unset" "$output" "Grounding: 3/3 references resolved"
+
+# R2: PATH without timeout/gtimeout (stock macOS) still runs the linter
+# Only the tools the script and Step 7a use, so no timeout(1) is reachable
+for _tool in bash git grep sed awk tr head wc iconv cat env basename dirname cut file pwd printf; do
+    _tool_path=$(command -v "$_tool" 2>/dev/null) || continue
+    case "$_tool_path" in /*) ln -s "$_tool_path" "${NO_TIMEOUT_BIN}/${_tool}" ;; esac
+done
+output=$(cd "$RUN_FIXTURE" && printf '%s\n' "$RUN_PROMPT" | env -u CC_PROJECT_DIR PATH="$NO_TIMEOUT_BIN" bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "run: works without timeout(1) on PATH" "$output" "Stochastic vulnerability check:"
+
+# R2b: no references inside a git repo (bash 3.2 empty-array crash under set -u)
+# /bin/bash is 3.2 on macOS, where the crash reproduces; elsewhere use PATH bash
+R2B_BASH=bash; [ -x /bin/bash ] && R2B_BASH=/bin/bash
+output=$(cd "$RUN_FIXTURE" && printf '%s\n' "<scope>Refactor the parser</scope><constraints>Do NOT skip</constraints>" | env -u CC_PROJECT_DIR "$R2B_BASH" "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "run: zero references inside a repo does not crash" "$output" "Grounding: 0/0 references resolved"
+
+# R2c: with timeout(1) on PATH the script re-executes itself under a 5s budget
+cat > "${TIMEOUT_SHIM}/timeout" <<SHIM
+#!/bin/bash
+echo "\$1" > "${TIMEOUT_SHIM}/budget"
+shift
+exec "\$@"
+SHIM
+chmod +x "${TIMEOUT_SHIM}/timeout"
+output=$(cd "$RUN_FIXTURE" && printf '%s\n' "$RUN_PROMPT" | PATH="${TIMEOUT_SHIM}:${NO_TIMEOUT_BIN}" bash "$VP_SCRIPT" 2>/dev/null) || true
+assert_contains "run: output intact when re-executed under timeout(1)" "$output" "Grounding: 3/3 references resolved"
+assert_eq "run: re-exec uses a 5s budget" "5" "$(cat "${TIMEOUT_SHIM}/budget" 2>/dev/null || echo none)"
+
+# R3: the Step 7a block from SKILL.md, executed as documented, reports a result
+SKILL_MD="${ROOT_DIR}/core/skills/project-board/SKILL.md"
+STEP7A=$(awk '/^#### Step 7a:/{f=1} f&&/^```bash/{c=1;next} c&&/^```/{exit} c' "$SKILL_MD")
+if [ -n "$STEP7A" ]; then _pass "Step 7a: bash block extracted from SKILL.md"; else _fail "Step 7a: bash block extracted from SKILL.md" "heading or fence changed"; fi
+assert_not_contains "Step 7a: no bare timeout(1) call" "$STEP7A" "timeout 5"
+assert_contains "Step 7a: missing linter reported as NOT RUN" "$STEP7A" "NOT RUN"
+output=$(cd "$RUN_FIXTURE" && GENERATED_PROMPT="$RUN_PROMPT" PATH="$NO_TIMEOUT_BIN" bash -c "$STEP7A" 2>/dev/null) || true
+assert_contains "Step 7a: documented call runs the linter without timeout(1)" "$output" "Grounding: 3/3 references resolved"
+assert_not_contains "Step 7a: documented call does not report NOT RUN" "$output" "NOT RUN"
+
+# R3b: Step 7a called from a subdirectory still finds the installed linter
+output=$(cd "$RUN_FIXTURE/src" && GENERATED_PROMPT="$RUN_PROMPT" PATH="$NO_TIMEOUT_BIN" bash -c "$STEP7A" 2>/dev/null) || true
+assert_contains "Step 7a: works from a subdirectory" "$output" "Grounding: 3/3 references resolved"
+
+# R4: Step 7a in a project without the linter says NOT RUN instead of staying silent
+output=$(cd "$EMPTY_FIXTURE" && GENERATED_PROMPT="$RUN_PROMPT" bash -c "$STEP7A" 2>/dev/null) || true
+assert_contains "Step 7a: missing linter prints NOT RUN" "$output" "NOT RUN (validate-prompt.sh not installed)"
+
+# R5: the posted metadata carries the lint result
+assert_contains "Step 9: metadata block has a Lint line" "$(cat "$SKILL_MD")" "Lint:       <LINT_SUMMARY>"
 
 suite_end

@@ -1060,11 +1060,23 @@ Implement GitHub issue #<N>: <TITLE>
 After generating the prompt in Step 7, run the deterministic prompt linter:
 
 ```bash
-_vp_script=$(find . -path "*/project-board/validate-prompt.sh" -type f 2>/dev/null | head -1)
-if [ -n "$_vp_script" ]; then
-  echo "$GENERATED_PROMPT" | timeout 5 bash "$_vp_script"
+_vp_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+_vp_script=""
+for _vp_dir in .claude/skills .cognitive-core/skills core/skills; do
+  if [ -f "${_vp_root}/${_vp_dir}/project-board/validate-prompt.sh" ]; then
+    _vp_script="${_vp_root}/${_vp_dir}/project-board/validate-prompt.sh"; break
+  fi
+done
+if [ -z "$_vp_script" ]; then
+  LINT_RESULT="Stochastic vulnerability check: NOT RUN (validate-prompt.sh not installed)"
+elif ! LINT_RESULT=$(printf '%s\n' "$GENERATED_PROMPT" | bash "$_vp_script" 2>/dev/null) \
+     || ! printf '%s\n' "$LINT_RESULT" | grep -q '^Stochastic vulnerability check:'; then
+  LINT_RESULT="Stochastic vulnerability check: NOT RUN (linter failed or exceeded its 5s budget)"
 fi
+printf '%s\n' "$LINT_RESULT"
 ```
+
+Do not call the linter any other way and do not skip this step: a check that does not run must say so. The script enforces its own 5s budget (callers need no `timeout`, which stock macOS lacks) and finds the project root itself. `LINT_RESULT` goes into the metadata block in Step 9, so a missing or failed run is visible on the issue.
 
 The linter checks for stochastic vulnerability patterns: hedging language, politeness tokens, vague terms, escape clauses, open-ended lists, temporal vagueness, ambiguous quantifiers, and structural issues (missing sections, word count, constraint positioning). Advisory only — warnings do not block prompt generation. See #163 for the full pattern table.
 
@@ -1190,8 +1202,11 @@ Generated:  <TIMESTAMP_UTC>
 Mode:       <technical|business>
 Readiness:  <HIGH/MEDIUM/LOW>
 Complexity: <S/M/L> (<criteria_count> criteria, <file_count> files)
-Techniques: $TECHNIQUES"
+Techniques: $TECHNIQUES
+Lint:       <LINT_SUMMARY>"
 ```
+
+`<LINT_SUMMARY>`: the `Stochastic vulnerability check:` and `Grounding:` lines of `LINT_RESULT` from Step 7a, joined with `; ` (including a `NOT RUN` line verbatim). In business mode: `n/a (business mode)`.
 
 **Provider-specific formatting**:
 
