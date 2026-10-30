@@ -9,11 +9,11 @@ cognitive-core is a portable framework that installs hooks, agents, skills, CI/C
 | Hooks | 15 (+ 2 sourced helpers) | `core/hooks/` |
 | Git hooks | 1 (`check-forbidden-chars.sh`) | `core/git-hooks/` |
 | Agents | 10 | `core/agents/` |
-| Core skills | 20 | `core/skills/` |
+| Core skills | 21 (incl. the non-invocable `grounding` engine) | `core/skills/` |
 | Language packs | 11 | `language-packs/` |
 | Database packs | 3 | `database-packs/` |
 | Adapters | 4 (claude, aider, intellij, vscode) | `adapters/` |
-| Test suites | 37 suites, 3000+ assertions | `tests/suites/` |
+| Test suites | 38 suites, 3000+ assertions | `tests/suites/` |
 
 ## High-Level Structure
 
@@ -168,7 +168,7 @@ Platforms without native hooks get the safety rules as conventions text; enforce
 
 1. Validates the target is a git repository and anchors `CC_FRAMEWORK_ROOT`
 2. Runs interactive setup if no `cognitive-core.conf` exists
-3. Copies `_lib.sh`, the hooks in `CC_HOOKS`, agents, the skills in `CC_SKILLS`, and the language and database pack
+3. Copies `_lib.sh`, the hooks in `CC_HOOKS`, agents, the skills in `CC_SKILLS` plus the skills they require (`requires-skills` frontmatter), and the language and database pack
 4. Generates settings (hook wiring from the template), `CLAUDE.md` scaffold, `AGENTS_README.md`, `.gitattributes`, `.gitignore` fragments
 5. Optionally installs CI/CD workflows, Docker, monitoring, and K8s manifests
 6. Writes `version.json` with SHA-256 checksums of all installed files
@@ -177,7 +177,7 @@ Platforms without native hooks get the safety rules as conventions text; enforce
 
 1. Reads `version.json` and compares installed, original, and latest checksums
 2. Unmodified files are updated; user-modified files are preserved with a warning; files marked as local overrides are skipped
-3. New files inside installed skills are added; `--prune` removes files the framework dropped
+3. Selected or required skills that are missing are installed, and new files inside installed skills are added (not for plugin installs, local overrides, or symlinked dirs); `--prune` removes files the framework dropped and keeps required skills
 4. Switches to `CC_SYNC_BRANCH` (default `chore/cognitive-core-sync`) when `CC_SYNC_ENFORCE` is on, the project has an `origin` remote, and it is not already on main, master, develop, or the sync branch; writes a new manifest
 
 Only paths under `core/hooks`, `core/agents`, and `core/skills` are mapped back to the framework. New shared components must live there, or install and update will not deliver them.

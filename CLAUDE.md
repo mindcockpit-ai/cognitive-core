@@ -35,7 +35,7 @@ cognitive-core/
 ├── language-packs/          # Per-language configurations (11 languages)
 ├── database-packs/          # Per-database configurations (3 databases)
 ├── cicd/                    # CI/CD pipeline templates
-├── tests/                   # Test suites (37 suites, 3000+ assertions)
+├── tests/                   # Test suites (38 suites, 3000+ assertions)
 │   ├── suites/              # Individual test scripts
 │   └── lib/                 # Test helpers and assertions
 ├── install.sh               # Main installer (adapter-aware)
