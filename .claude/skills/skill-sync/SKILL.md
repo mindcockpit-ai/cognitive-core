@@ -131,6 +131,8 @@ fi
 - **Skill**: `cp -R "$CC_VALIDATED_SOURCE/core/skills/<name>/" .claude/skills/<name>/`
 - **Hook**: `cp "$CC_VALIDATED_SOURCE/core/hooks/<name>.sh" .claude/hooks/ && chmod +x .claude/hooks/<name>.sh`
 
+If the skill's `SKILL.md` lists `requires-skills` (for example `[grounding]`), install those skills too. `update.sh` does this by itself for every selected skill.
+
 After installing, run `"$CC_VALIDATED_SOURCE/update.sh"` to update the version manifest.
 
 ### `list` — Show All Available Components

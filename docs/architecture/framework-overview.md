@@ -16,13 +16,13 @@ Everything in one view — what cognitive-core is made of.
 │  HOOKS   │  AGENTS  │  SKILLS  │  EXTENSION PACKS                        │
 │  (safety)│  (team)  │  (tasks) │                                         │
 │          │          │          │  ┌─────────────┐  ┌─────────────┐       │
-│  15 hooks│ 10 agents│ 20 skills│  │ 11 Language │  │ 3 Database  │       │
+│  15 hooks│ 10 agents│ 21 skills│  │ 11 Language │  │ 3 Database  │       │
 │          │          │          │  │ Packs       │  │ Packs       │       │
 │          │          │          │  └─────────────┘  └─────────────┘       │
 ├──────────┴──────────┴──────────┴─────────────────────────────────────────┤
 │                                                                          │
 │  ADAPTERS              CICD                TESTING                       │
-│  4 platforms           Workflows           37 suites                     │
+│  4 platforms           Workflows           38 suites                     │
 │  (Claude, Aider,       Docker, K8s         3000+ assertions              │
 │   IntelliJ, VSCode)    Monitoring                                        │
 │                                                                          │
@@ -33,7 +33,7 @@ Everything in one view — what cognitive-core is made of.
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-**One sentence**: cognitive-core installs hooks (safety), agents (team), and skills (tasks) into any project, with extension packs for languages and databases, adapters for different AI platforms, and 37 test suites to verify everything works.
+**One sentence**: cognitive-core installs hooks (safety), agents (team), and skills (tasks) into any project, with extension packs for languages and databases, adapters for different AI platforms, and 38 test suites to verify everything works.
 
 ---
 
@@ -434,6 +434,6 @@ Three ways to extend cognitive-core without modifying the core.
 | Where do I add a database? | `database-packs/<db>/` |
 | Where do I add a platform? | `adapters/<platform>/` |
 | Where is everything configured? | `cognitive-core.conf` (one file) |
-| Where are tests? | `tests/suites/` - 37 suites, 3000+ assertions |
+| Where are tests? | `tests/suites/` - 38 suites, 3000+ assertions |
 | How do I install? | `./install.sh /path/to/project` |
 | How do I update safely? | `./update.sh /path/to/project` |

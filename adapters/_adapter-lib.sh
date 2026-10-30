@@ -204,3 +204,71 @@ agent_file_for() {
         *) echo "" ;;
     esac
 }
+
+# ---- Skill dependencies ----
+# A skill names the core skills it needs in its SKILL.md frontmatter:
+#   requires-skills: [grounding]
+# install.sh and update.sh resolve the selection through these helpers, so a
+# required skill is installed, updated, and kept by --prune while a skill that
+# needs it is selected, even when CC_SKILLS does not list it.
+
+# Print the requires-skills entries of <SKILL.md>, one per line.
+# Only the frontmatter is read; names must be lowercase skill directory names.
+_cc_skill_requires() {
+    [ -f "$1" ] || return 0
+    awk 'NR == 1 && $0 != "---" { exit }
+         NR > 1 && $0 == "---" { exit }
+         /^requires-skills:/ { sub(/^requires-skills:[[:space:]]*/, ""); gsub(/[][,]/, " "); print }' "$1" \
+        | tr -s ' \t' '\n' | grep -E '^[a-z0-9][a-z0-9-]*$' || true
+}
+
+# True if the skill at <SKILL.md> supports CC_LANGUAGE (supported-languages
+# frontmatter field; a skill without the field supports every language).
+_cc_skill_supports_language() {
+    local supported
+    [ -f "$1" ] && [ -n "${CC_LANGUAGE:-}" ] || return 0
+    supported=$(grep '^supported-languages:' "$1" 2>/dev/null | head -1 \
+        | sed 's/supported-languages:[[:space:]]*//' | tr -d '[]' || true)
+    [ -z "$supported" ] && return 0
+    printf '%s\n' "$supported" | tr ',' ' ' | grep -qw "$CC_LANGUAGE"
+}
+
+# Print <skills> plus every core skill they require, transitively, as one
+# space separated line (selection order first, then dependencies). Names that
+# are not lowercase skill directory names (globs, "..", paths) are dropped
+# with a warning, so they never reach a path.
+# Usage: _cc_expand_skill_deps "<skills>" <framework dir>
+_cc_expand_skill_deps() {
+    local fw="$2" seen=" " pending="$1" next s dep noglob=0
+    case "$-" in *f*) noglob=1 ;; esac
+    set -f
+    while [ -n "${pending// /}" ]; do
+        next=""
+        for s in $pending; do
+            if ! printf '%s\n' "$s" | grep -qE '^[a-z0-9][a-z0-9-]*$'; then
+                # stderr: callers capture stdout as the skill list
+                type warn &>/dev/null && warn "Ignored invalid skill name: ${s}" >&2
+                continue
+            fi
+            case "$seen" in *" ${s} "*) continue ;; esac
+            seen="${seen}${s} "
+            for dep in $(_cc_skill_requires "${fw}/core/skills/${s}/SKILL.md"); do
+                case "$seen" in *" ${dep} "*) ;; *) next="${next} ${dep}" ;; esac
+            done
+        done
+        pending="$next"
+    done
+    [ "$noglob" = 1 ] || set +f
+    seen="${seen# }"
+    printf '%s\n' "${seen% }"
+}
+
+# True if cognitive-core is also installed as a Claude Code plugin for
+# <project dir>. The plugin then provides hooks, agents, and skills, and
+# update.sh must not add core skills to .claude/ (#336). install.sh runs the
+# same check inline because it detects the plugin before loading this library.
+_cc_plugin_detected() {
+    [ -d "${1}/.claude/plugins" ] || [ -f "${1}/.claude/settings.json" ] || return 1
+    grep -q '"cognitive-core"' "${1}/.claude/settings.json" 2>/dev/null \
+        || [ -d "${HOME}/.claude/plugins/cache/cognitive-core" ]
+}

@@ -5,6 +5,7 @@ user-invocable: true
 allowed-tools: Bash, Read, Grep, Glob
 argument-hint: "[list|create|close|cancel|assign|sprint|sprint-plan|triage|board|move|verify|approve|blocked|unblock|propose] [options]"
 catalog_description: Project board — issues, sprints, releases, and triage. Supports GitHub, Jira, YouTrack.
+requires-skills: [grounding]
 ---
 
 # Project Board — Issue & Sprint Management

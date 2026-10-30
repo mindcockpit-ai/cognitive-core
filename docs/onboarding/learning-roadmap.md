@@ -186,6 +186,7 @@ supported-languages: [node, react, angular]
 | `argument-hint` | no | Shows usage hint in help output |
 | `featured` | no | Surfaces on the website and in health dashboard |
 | `supported-languages` | no | Language pack filter |
+| `requires-skills` | no | Core skills installed and updated together with this one (for example `[grounding]`) |
 
 ### Ability registry (advanced skills)
 

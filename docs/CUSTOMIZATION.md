@@ -73,6 +73,8 @@ Create `.claude/skills/<name>/SKILL.md` with YAML front matter (`name`, `descrip
 |--------|--------|--------|
 | `user-invocable` | `true` / `false` | Whether the user can invoke via `/skill-name` |
 | `disable-model-invocation` | `true` / `false` | If `true`, Claude will not auto-load at session start (manual only) |
+| `supported-languages` | list, e.g. `[node, react]` | Installed only when `CC_LANGUAGE` is in the list |
+| `requires-skills` | list of core skill names, e.g. `[grounding]` | `install.sh` and `update.sh` install and update these skills with this one, and `update.sh --prune` keeps them while this skill is selected; they need not be listed in `CC_SKILLS` |
 
 Keep auto-load skills under 500 lines. Use `references/` for detail. Total auto-load budget: under 100KB.
 

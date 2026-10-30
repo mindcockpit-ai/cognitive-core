@@ -242,6 +242,23 @@ _cc_component_modified() {
     return 1
 }
 
+# _cc_path_has_symlink <base dir> <relative dir>: true if the base or any
+# component below it is a symlink
+_cc_path_has_symlink() {
+    local p="$1" part found=1 noglob=0
+    [ -L "$p" ] && return 0
+    case "$-" in *f*) noglob=1 ;; esac
+    set -f
+    local IFS=/
+    for part in $2; do
+        [ -n "$part" ] && [ "$part" != "." ] || continue
+        p="${p}/${part}"
+        if [ -L "$p" ]; then found=0; break; fi
+    done
+    [ "$noglob" = 1 ] || set +f
+    return "$found"
+}
+
 _cc_is_pack_skill() {
     local d
     for d in "${FRAMEWORK_DIR}/language-packs/"*/skills/"$1" "${FRAMEWORK_DIR}/database-packs/"*/skills/"$1"; do
@@ -250,8 +267,45 @@ _cc_is_pack_skill() {
     return 1
 }
 
+# Selected skills plus the skills they require (requires-skills). Without
+# CC_SKILLS, every installed skill counts as selected.
+_cc_selected_skills() {
+    local base="${CC_SKILLS-}" p
+    if [ -z "${CC_SKILLS+x}" ]; then
+        base=""
+        for p in "${CC_INSTALL_DIR}/skills/"*/; do
+            [ -d "$p" ] && base="${base} $(basename "$p")"
+        done
+    fi
+    _cc_expand_skill_deps "$base" "$FRAMEWORK_DIR"
+}
+
+# Selected core skills that are not installed (#423): no directory, no
+# symlink, no local override, and supported for CC_LANGUAGE. One per line.
+_cc_missing_skills() {
+    local name selected noglob=0
+    # Plugin installs get core skills from the plugin, never a second copy
+    if [ "$INSTALL_REL" = ".claude" ] && _cc_plugin_detected "$PROJECT_DIR"; then
+        return 0
+    fi
+    # Resolve first: the selection globs the installed skills
+    selected="$(_cc_selected_skills)"
+    case "$-" in *f*) noglob=1 ;; esac
+    set -f
+    for name in $selected; do
+        [ -d "${FRAMEWORK_DIR}/core/skills/${name}" ] || continue
+        [ -e "${CC_INSTALL_DIR}/skills/${name}" ] || [ -L "${CC_INSTALL_DIR}/skills/${name}" ] && continue
+        _cc_has_local_override_under "skills/${name}/" && continue
+        _cc_path_has_symlink "$CC_INSTALL_DIR" "skills" && continue
+        _cc_skill_supports_language "${FRAMEWORK_DIR}/core/skills/${name}/SKILL.md" || continue
+        printf '%s\n' "$name"
+    done
+    [ "$noglob" = 1 ] || set +f
+}
+
 collect_prune_candidates() {
-    local f name a selected_agents=""
+    local f name a selected_agents="" selected_skills
+    selected_skills="$(_cc_selected_skills)"
     for a in ${CC_AGENTS:-}; do
         selected_agents="${selected_agents} $(agent_file_for "$a")"
     done
@@ -271,7 +325,7 @@ collect_prune_candidates() {
         [ -d "$f" ] || continue
         name="$(basename "$f")"
         [ -d "${FRAMEWORK_DIR}/core/skills/${name}" ] || continue
-        _cc_word_in "$name" "${CC_SKILLS:-}" && continue
+        _cc_word_in "$name" "$selected_skills" && continue
         _cc_is_pack_skill "$name" && continue
         _cc_has_local_override_under "skills/${name}/" && continue
         if _cc_component_modified "skills/${name}/"; then
@@ -333,6 +387,9 @@ if [ "$DRY_RUN" = true ]; then
         info "  WOULD REMOVE: ${rel}"
     done
     report_kept_components
+    while IFS= read -r skill_name; do
+        [ -n "$skill_name" ] && info "  WOULD ADD (skill): ${skill_name}"
+    done < <(_cc_missing_skills)
     exit 0
 fi
 
@@ -555,6 +612,17 @@ for hook in ${CC_HOOKS:-}; do
     fi
 done
 
+# Install selected skills that are missing, including skills a selected skill
+# requires (#423, requires-skills). A symlinked skills dir is left alone.
+if [ -d "${CC_INSTALL_DIR}/skills" ] && [ ! -L "${CC_INSTALL_DIR}/skills" ]; then
+    while IFS= read -r skill_name; do
+        [ -n "$skill_name" ] || continue
+        _adapter_install_skill "${FRAMEWORK_DIR}/core/skills/${skill_name}" "$skill_name"
+        info "  NEW (skill): ${skill_name}"
+        NEW_FILES=$((NEW_FILES + 1))
+    done < <(_cc_missing_skills)
+fi
+
 # Check installed skills for files the framework added since install (#359).
 # Only missing files of selected skills are added; existing ones are handled
 # by the manifest logic above. Overrides and paths through a symlink are
@@ -569,32 +637,17 @@ _cc_skill_source() {
     return 1
 }
 
-# _cc_path_has_symlink <base dir> <relative dir>: true if the base or any
-# component below it is a symlink
-_cc_path_has_symlink() {
-    local p="$1" part found=1 noglob=0
-    [ -L "$p" ] && return 0
-    case "$-" in *f*) noglob=1 ;; esac
-    set -f
-    local IFS=/
-    for part in $2; do
-        [ -n "$part" ] && [ "$part" != "." ] || continue
-        p="${p}/${part}"
-        if [ -L "$p" ]; then found=0; break; fi
-    done
-    [ "$noglob" = 1 ] || set +f
-    return "$found"
-}
 
 if [ -L "${CC_INSTALL_DIR}/skills" ]; then
     warn "  SKIP (symlink): ${INSTALL_REL}/skills, no skill files added"
 elif [ -d "${CC_INSTALL_DIR}/skills" ]; then
+    SELECTED_SKILLS="$(_cc_selected_skills)"
     for skill_path in "${CC_INSTALL_DIR}/skills/"*; do
         [ -d "$skill_path" ] && [ ! -L "$skill_path" ] || continue
         skill_name="${skill_path##*/}"
         # Unselected skills get nothing (prune may be about to remove them);
         # confs without CC_SKILLS keep every installed skill complete
-        if [ -n "${CC_SKILLS+x}" ] && ! _cc_word_in "$skill_name" "$CC_SKILLS" \
+        if ! _cc_word_in "$skill_name" "$SELECTED_SKILLS" \
                 && ! _cc_is_pack_skill "$skill_name"; then
             continue
         fi
