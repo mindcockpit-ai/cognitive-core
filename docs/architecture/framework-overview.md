@@ -22,10 +22,10 @@ Everything in one view — what cognitive-core is made of.
 ├──────────┴──────────┴──────────┴─────────────────────────────────────────┤
 │                                                                          │
 │  ADAPTERS              CICD                TESTING                       │
-│  6 platforms           Workflows           20 suites                     │
-│  (Claude, Aider,       Docker, K8s         800+ assertions               │
-│   IntelliJ, VSCode,    Monitoring                                        │
-│   Ollama, OpenAI)                                                        │
+│  4 platforms           Workflows           37 suites                     │
+│  (Claude, Aider,       Docker, K8s         3000+ assertions              │
+│   IntelliJ, VSCode)    Monitoring                                        │
+│                                                                          │
 │                                                                          │
 ├──────────────────────────────────────────────────────────────────────────┤
 │  install.sh ──→ cognitive-core.conf ──→ .claude/ (or .cognitive-core/)   │
@@ -33,7 +33,7 @@ Everything in one view — what cognitive-core is made of.
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-**One sentence**: cognitive-core installs hooks (safety), agents (team), and skills (tasks) into any project, with extension packs for languages and databases, adapters for different AI platforms, and 20 test suites to verify everything works.
+**One sentence**: cognitive-core installs hooks (safety), agents (team), and skills (tasks) into any project, with extension packs for languages and databases, adapters for different AI platforms, and 37 test suites to verify everything works.
 
 ---
 
@@ -313,7 +313,7 @@ How cognitive-core gets into your project.
 │  │ Project name  │  │ Language      │  │ Claude  → .claude/   │      │
 │  │ Language      │  │ Database      │  │ Aider   → .cog-core/ │      │
 │  │ Database      │  │ Platform      │  │ IntelliJ→ .cog-core/ │      │
-│  │ Security lvl  │  │               │  │ VSCode  → .vscode/   │      │
+│  │ Security lvl  │  │               │  │ VSCode  → .cog-core/ │      │
 │  └───────────────┘  └───────────────┘  └──────────┬───────────┘      │
 │                                                   │                  │
 │       ┌───────────────────────────────────────────┘                  │
@@ -402,7 +402,7 @@ Three ways to extend cognitive-core without modifying the core.
 │  └────────────────────────────────────────────────────────────┘  │
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐  │
-│  │  ADAPTERS (6)                                              │  │
+│  │  ADAPTERS (4)                                              │  │
 │  │                                                            │  │
 │  │  Each adapter implements 5 functions:                      │  │
 │  │  _adapter_install_hook                                     │  │
@@ -416,9 +416,7 @@ Three ways to extend cognitive-core without modifying the core.
 │  │  Claude Code   .claude/           CLAUDE.md                │  │
 │  │  Aider         .cognitive-core/   CONVENTIONS.md           │  │
 │  │  IntelliJ      .cognitive-core/   DEVOXXGENIE.md           │  │
-│  │  VS Code       .vscode/           copilot-instructions     │  │
-│  │  Ollama        .cognitive-core/   CONVENTIONS.md           │  │
-│  │  OpenAI        .cognitive-core/   CONVENTIONS.md           │  │
+│  │  VS Code       .cognitive-core/   .github/copilot-instr.   │  │
 │  └────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -436,6 +434,6 @@ Three ways to extend cognitive-core without modifying the core.
 | Where do I add a database? | `database-packs/<db>/` |
 | Where do I add a platform? | `adapters/<platform>/` |
 | Where is everything configured? | `cognitive-core.conf` (one file) |
-| Where are tests? | `tests/suites/` — 20 suites, 800+ assertions |
+| Where are tests? | `tests/suites/` - 37 suites, 3000+ assertions |
 | How do I install? | `./install.sh /path/to/project` |
 | How do I update safely? | `./update.sh /path/to/project` |

@@ -20,6 +20,7 @@
 cognitive-core/
 ├── core/                    # Framework components
 │   ├── hooks/               # Safety hooks (validate-bash, validate-read, etc.)
+│   ├── git-hooks/           # Git pre-commit checks (check-forbidden-chars)
 │   ├── agents/              # Agent definitions (.md with YAML frontmatter)
 │   ├── skills/              # Skill definitions (SKILL.md + references/)
 │   ├── utilities/           # Health check, cleanup, update scripts
@@ -29,11 +30,12 @@ cognitive-core/
 │   ├── _adapter-lib.sh      # Shared adapter library
 │   ├── claude/              # Claude Code identity adapter
 │   ├── aider/               # Aider + Ollama adapter
-│   └── intellij/            # IntelliJ IDEA adapter
-├── language-packs/          # Per-language configurations (10 languages)
+│   ├── intellij/            # IntelliJ IDEA adapter
+│   └── vscode/              # VS Code adapter (Copilot, Continue.dev, Cline)
+├── language-packs/          # Per-language configurations (11 languages)
 ├── database-packs/          # Per-database configurations (3 databases)
 ├── cicd/                    # CI/CD pipeline templates
-├── tests/                   # Test suites (13 suites, 524+ tests)
+├── tests/                   # Test suites (37 suites, 3000+ assertions)
 │   ├── suites/              # Individual test scripts
 │   └── lib/                 # Test helpers and assertions
 ├── install.sh               # Main installer (adapter-aware)
@@ -105,7 +107,7 @@ See `.claude/AGENTS_README.md` for the full agent team documentation.
 1. Check current branch and status
 2. Check project board: issues in **In Progress** column
 3. Implement changes following architecture patterns above
-4. Run tests: `bash tests/run-all.sh` (all 13 suites must pass)
+4. Run tests: `bash tests/run-all.sh` (all suites must pass)
 5. Commit with conventional format: `type(scope): subject`
 6. Verify acceptance criteria on related issue
 
