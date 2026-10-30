@@ -405,6 +405,62 @@ if [[ $missing_scripts -eq 0 ]]; then
     _pass "hooks.json: all referenced scripts exist in plugin/scripts/"
 fi
 
+# ---- build-plugin.sh (#320) ----
+# Built in a copy of the repo, so the tracked plugin/ is never touched
+
+BUILD_DIR=$(mktemp -d)
+cp -R "${ROOT_DIR}/core" "${ROOT_DIR}/plugin" "${ROOT_DIR}/build-plugin.sh" "$BUILD_DIR/"
+# Without the tracked dynamic content, every check below sees fresh build output
+rm -rf "${BUILD_DIR}/plugin/scripts" "${BUILD_DIR}/plugin/agents" "${BUILD_DIR}/plugin/skills"
+build_out=$(cd "$BUILD_DIR" && bash build-plugin.sh 2>&1) && build_rc=0 || build_rc=$?
+assert_eq "build-plugin: exits 0 (also with BSD sed on macOS)" "0" "$build_rc"
+assert_contains "build-plugin: reports success" "$build_out" "All validations passed."
+if diff -q "${BUILD_DIR}/core/hooks/_lib.sh" "${BUILD_DIR}/plugin/scripts/_lib.sh" >/dev/null; then
+    _pass "build-plugin: _lib.sh copied verbatim (no patching)"
+else
+    _fail "build-plugin: _lib.sh copied verbatim (no patching)"
+fi
+if diff -rq "${BUILD_DIR}/core/skills" "${BUILD_DIR}/plugin/skills" >/dev/null; then
+    _pass "build-plugin: plugin skills equal core skills (incl. grounding)"
+else
+    _fail "build-plugin: plugin skills equal core skills (incl. grounding)"
+fi
+assert_file_exists "build-plugin: grounding engine packaged" "${BUILD_DIR}/plugin/skills/grounding/scripts/check.sh"
+leftover=$(find "$BUILD_DIR" -maxdepth 1 -name '.plugin-build.*' | wc -l | tr -d ' ')
+assert_eq "build-plugin: no staging dir left" "0" "$leftover"
+
+# A failing build leaves plugin/ as it was
+plugin_before=$(cd "${BUILD_DIR}/plugin" && find . -type f -exec cksum {} + | LC_ALL=C sort)
+printf 'if then\n' > "${BUILD_DIR}/core/hooks/zz-broken.sh"
+build_out=$(cd "$BUILD_DIR" && bash build-plugin.sh 2>&1) && build_rc=0 || build_rc=$?
+assert_eq "build-plugin: syntax error fails the build" "1" "$build_rc"
+assert_contains "build-plugin: failure says plugin/ is unchanged" "$build_out" "plugin/ left unchanged"
+plugin_after=$(cd "${BUILD_DIR}/plugin" && find . -type f -exec cksum {} + | LC_ALL=C sort)
+assert_eq "build-plugin: failed build changes nothing in plugin/" "$plugin_before" "$plugin_after"
+leftover=$(find "$BUILD_DIR" -maxdepth 1 -name '.plugin-build.*' | wc -l | tr -d ' ')
+assert_eq "build-plugin: no staging dir left after failure" "0" "$leftover"
+rm -rf "$BUILD_DIR"
+
+# ---- _lib.sh project resolution in plugin and legacy mode (#320) ----
+LIB_DIR=$(mktemp -d)
+mkdir -p "${LIB_DIR}/project/.claude/hooks" "${LIB_DIR}/cache/scripts" "${LIB_DIR}/elsewhere"
+cp "${ROOT_DIR}/core/hooks/_lib.sh" "${LIB_DIR}/project/.claude/hooks/_lib.sh"
+cp "${ROOT_DIR}/core/hooks/_lib.sh" "${LIB_DIR}/cache/scripts/_lib.sh"
+real() { (cd "$1" && pwd -P); }
+got=$(cd "${LIB_DIR}/elsewhere" && env -u CLAUDE_PROJECT_DIR CLAUDE_PLUGIN_ROOT="${LIB_DIR}/cache" \
+    bash -c 'source "$1"; cd "$CC_PROJECT_DIR" && pwd -P' _ "${LIB_DIR}/cache/scripts/_lib.sh")
+assert_eq "_lib.sh plugin mode: project is the working directory" "$(real "${LIB_DIR}/elsewhere")" "$got"
+got=$(cd "${LIB_DIR}/elsewhere" && env -u CLAUDE_PROJECT_DIR -u CLAUDE_PLUGIN_ROOT \
+    bash -c 'source "$1"; cd "$CC_PROJECT_DIR" && pwd -P' _ "${LIB_DIR}/project/.claude/hooks/_lib.sh")
+assert_eq "_lib.sh legacy mode: project is two levels above the hooks dir" "$(real "${LIB_DIR}/project")" "$got"
+got=$(cd "${LIB_DIR}/elsewhere" && env CLAUDE_PROJECT_DIR="${LIB_DIR}/project" CLAUDE_PLUGIN_ROOT="${LIB_DIR}/cache" \
+    bash -c 'source "$1"; printf %s "$CC_PROJECT_DIR"' _ "${LIB_DIR}/cache/scripts/_lib.sh")
+assert_eq "_lib.sh plugin mode: CLAUDE_PROJECT_DIR wins" "${LIB_DIR}/project" "$got"
+got=$(cd "${LIB_DIR}/elsewhere" && env -u CLAUDE_PROJECT_DIR CLAUDE_PLUGIN_ROOT="${LIB_DIR}/cache" \
+    bash -c 'source "$1"; cd "$CC_PROJECT_DIR" && pwd -P' _ "${LIB_DIR}/project/.claude/hooks/_lib.sh")
+assert_eq "_lib.sh: inherited CLAUDE_PLUGIN_ROOT does not change a legacy install" "$(real "${LIB_DIR}/project")" "$got"
+rm -rf "$LIB_DIR"
+
 # Cleanup
 rm -rf "$TEST_PROJECT_DIR"
 

@@ -15,8 +15,18 @@ _cc_lib_file="${BASH_SOURCE[0]:-}"
 if [ -z "$_cc_lib_file" ] && [ -n "${ZSH_VERSION:-}" ]; then
     eval '_cc_lib_file="${(%):-%x}"'
 fi
+# Plugin hooks run from the plugin cache, not from the project's .claude/hooks/,
+# so the fallback there is the working directory (#320). Plugin mode applies
+# only when this file lives under CLAUDE_PLUGIN_ROOT: an inherited variable
+# never changes a legacy install. Claude Code sets CLAUDE_PROJECT_DIR for hooks
+# in both modes and runs them in the project, whose conf is trusted either way.
 # CDPATH and a zsh chpwd hook could print from cd and end up in the result
-CC_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(CDPATH='' cd -- "$(dirname "$_cc_lib_file")/../.." >/dev/null 2>&1 && pwd)}"
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -n "$_cc_lib_file" ] \
+    && case "$_cc_lib_file" in "${CLAUDE_PLUGIN_ROOT%/}"/*) true ;; *) false ;; esac; then
+    CC_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+else
+    CC_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(CDPATH='' cd -- "$(dirname "$_cc_lib_file")/../.." >/dev/null 2>&1 && pwd)}"
+fi
 
 # Load configuration (resolution order: project root > .claude/ > user defaults > env)
 _cc_load_config() {
