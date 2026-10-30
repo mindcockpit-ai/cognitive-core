@@ -525,23 +525,21 @@ if [ "$_CC_PLUGIN_DETECTED" = "true" ] && [ "${CC_PLATFORM:-}" = "claude" ]; the
 else
     header "Installing skills"
 
-    # Skill name to directory mapping (direct 1:1)
-    for skill in ${CC_SKILLS:-}; do
+    # Skill name to directory mapping (direct 1:1), plus the skills the
+    # selected ones require (requires-skills frontmatter)
+    for skill in $(_cc_expand_skill_deps "${CC_SKILLS:-}" "$SCRIPT_DIR"); do
         src="${SCRIPT_DIR}/core/skills/${skill}"
         if [ -d "$src" ]; then
             # Check supported-languages filter (optional field)
-            _skill_md="${src}/SKILL.md"
-            if [ -f "$_skill_md" ]; then
-                _supported=$(grep '^supported-languages:' "$_skill_md" 2>/dev/null | head -1 | sed 's/supported-languages:[[:space:]]*//' | tr -d '[]' || echo "")
-                if [ -n "$_supported" ] && [ -n "${CC_LANGUAGE:-}" ]; then
-                    if ! echo "$_supported" | tr ',' ' ' | grep -qw "${CC_LANGUAGE}"; then
-                        info "Skipped skill: ${skill} (not supported for ${CC_LANGUAGE})"
-                        continue
-                    fi
-                fi
+            if ! _cc_skill_supports_language "${src}/SKILL.md"; then
+                info "Skipped skill: ${skill} (not supported for ${CC_LANGUAGE})"
+                continue
             fi
             _adapter_install_skill "$src" "$skill"
-            info "Installed skill: ${skill}"
+            case " ${CC_SKILLS:-} " in
+                *" ${skill} "*) info "Installed skill: ${skill}" ;;
+                *) info "Installed skill: ${skill} (required by a selected skill)" ;;
+            esac
         else
             warn "Skill not found: ${skill} (skipped)"
         fi
